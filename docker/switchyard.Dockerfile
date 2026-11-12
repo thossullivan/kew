@@ -180,7 +180,7 @@ RUN --mount=type=secret,id=switchyard_source_archive_00,required=true \
     readelf --sections --wide /opt/kew/switchyard-server | grep -Fq '.dep-v0' \
         || { echo 'runtime Switchyard binary lacks Rust audit metadata' >&2; exit 1; }
 
-FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517 AS runtime
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092 AS runtime
 
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends ca-certificates libssl3t64 \
