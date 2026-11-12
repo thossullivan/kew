@@ -1,0 +1,67 @@
+{
+  "node_id": "d903a58e:3",
+  "text": "artifact sha256:ad903a58e0000000000000000000000000000000000000000000000000000000\nbase d903a58ed903a58ed903a58ed903a58ed903a58e\ntree e85a309de85a309de85a309de85a309de85a309d\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0fd903a58e000000000000000000000000000000000000000000000000000000 199 src/ledger/importer.py\nchanged 100644 sha256:1fd903a58e000000000000000000000000000000000000000000000000000000 88 src/ledger/journal.py\nchanged 100644 sha256:2fd903a58e000000000000000000000000000000000000000000000000000000 191 tests/test_import.py\nadded 100644 sha256:3fd903a58e000000000000000000000000000000000000000000000000000000 110 docs/importing.md\n",
+  "run_id": "d903a58e",
+  "attempt_number": 1,
+  "base_sha": "d903a58ed903a58ed903a58ed903a58ed903a58e",
+  "tree_sha": "e85a309de85a309de85a309de85a309de85a309d",
+  "package_digest": "sha256:ad903a58e0000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:rd903a58e0000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/importer.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0fd903a58e000000000000000000000000000000000000000000000000000000",
+      "byte_length": 199,
+      "text": "def import_file(path, journal):\n    digest = file_digest(path)\n    if journal.has_import(digest):\n        return journal.import_for(digest)\n    return journal.record_import(digest, parse_rows(path))\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "src/ledger/journal.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1fd903a58e000000000000000000000000000000000000000000000000000000",
+      "byte_length": 88,
+      "text": "class Journal:\n    def has_import(self, digest):\n        return digest in self._imports\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_import.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:2fd903a58e000000000000000000000000000000000000000000000000000000",
+      "byte_length": 191,
+      "text": "def test_resent_file_posts_once(tmp_path):\n    journal = Journal()\n    import_file(sample(tmp_path), journal)\n    import_file(sample(tmp_path), journal)\n    assert len(journal.postings) == 2\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "docs/importing.md",
+      "change": "added",
+      "mode": "100644",
+      "digest": "sha256:3fd903a58e000000000000000000000000000000000000000000000000000000",
+      "byte_length": 110,
+      "text": "## Importing a file twice\n\nA file kew has already imported is recognised by its digest and posts nothing new.\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

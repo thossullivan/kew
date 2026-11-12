@@ -1,0 +1,26 @@
+# Local serving for kew.dev with Docker Compose.
+#
+#   mkdocs build      the docs -> ../site        (from the repo root, once)
+#   npm run serve     composes both into build/ and serves it
+#
+# Then: http://localhost:8088, or the port KEW_WWW_PORT names when 8088 is
+# taken on this machine.
+#
+# One mount, not two. `npm run dist` folds the mkdocs output into build/docs/,
+# so this serves exactly the directory deploy.sh rsyncs to the host — same tree,
+# same Caddyfile, same header block. The tree is mounted read-only rather than
+# baked into an image so a rebuild is picked up without touching the container.
+#
+# `adapter-static` deletes and recreates build/, which orphans the bind mount
+# and 404s every request until the container restarts. `npm run serve` handles
+# that; if you run the build directly, follow it with `docker compose restart`.
+services:
+  kew-www:
+    image: caddy:2-alpine
+    container_name: kew-www
+    ports:
+      - '${KEW_WWW_PORT:-8088}:80'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./build:/srv/site:ro
+    restart: unless-stopped

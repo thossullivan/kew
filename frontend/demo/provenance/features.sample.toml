@@ -1,0 +1,60 @@
+# The invented ledger the committed samples are an export of (#3144): the
+# same features as ../features.toml, with the invented epics and issue
+# numbers the samples name. provenance-schema.ts reads the samples against
+# this file, as it reads a real export against ../features.toml.
+
+[[features]]
+id = "epics-list"
+title = "Epics list"
+routes = ["/epics"]
+epics = ["epic:lumen-ledger-views"]
+issues = [7101, 7102]
+
+[[features]]
+id = "epic-graph"
+title = "Epic graph"
+routes = ["/epics/[ref]"]
+epics = ["epic:lumen-graph-canvas"]
+issues = [7103, 7104, 7105]
+
+[[features]]
+id = "monitor"
+title = "Monitor"
+routes = ["/monitor"]
+epics = ["epic:lumen-live-stream"]
+issues = [7106, 7107, 7108, 7109]
+
+[[features]]
+id = "needs-you"
+title = "Needs you"
+routes = ["/work", "/monitor"]
+epics = ["epic:lumen-attention"]
+issues = [7110, 7111]
+
+[[features]]
+id = "work"
+title = "Work"
+routes = ["/work"]
+epics = ["epic:lumen-work-queue"]
+issues = [7112, 7113, 7114]
+
+[[features]]
+id = "prompts"
+title = "Prompts"
+routes = ["/prompts"]
+epics = ["epic:lumen-prompt-ledger"]
+issues = [7115, 7116, 7117, 7118]
+
+[[features]]
+id = "budget"
+title = "Budget and spend"
+routes = ["/budget"]
+epics = ["epic:lumen-spend-caps"]
+issues = [7119, 7120]
+
+[[features]]
+id = "runs"
+title = "Runs"
+routes = ["/runs", "/runs/[id]"]
+epics = ["epic:lumen-run-history"]
+issues = [7121, 7122, 7123]

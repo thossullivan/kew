@@ -1,0 +1,102 @@
+{
+  "config_path": "/srv/acme/ledger/kew.toml",
+  "human_review_unavailable": "",
+  "fields": {
+    "agent.max_budget_usd": {
+      "value": 25,
+      "source": "kew.toml"
+    },
+    "agent.model": {
+      "value": "",
+      "source": "default"
+    },
+    "agent.runner": {
+      "value": "claude-code",
+      "source": "kew.toml"
+    },
+    "agent.timeout_minutes": {
+      "value": 120,
+      "source": "default"
+    },
+    "budget.daily_usd": {
+      "value": 80,
+      "source": "kew.toml"
+    },
+    "budget.per_issue_usd": {
+      "value": 25,
+      "source": "kew.toml"
+    },
+    "budget.weekly_usd": {
+      "value": 400,
+      "source": "kew.toml"
+    },
+    "epic.max_parallel": {
+      "value": 3,
+      "source": "kew.toml"
+    },
+    "human_review.max_diff_lines": {
+      "value": 2000,
+      "source": "human_review policy (system values)",
+      "generation": 1,
+      "expires_at": null,
+      "over_cap": false
+    },
+    "human_review.max_paths": {
+      "value": 40,
+      "source": "human_review policy (system values)",
+      "generation": 1,
+      "expires_at": null,
+      "over_cap": false
+    },
+    "human_review.max_pending_reviews": {
+      "value": 4,
+      "source": "human_review policy (system values)",
+      "generation": 1,
+      "expires_at": null,
+      "over_cap": false
+    },
+    "logging.dir": {
+      "value": "/srv/acme/ledger/.kew",
+      "source": "kew.toml"
+    },
+    "parallel.max_workers": {
+      "value": 3,
+      "source": "kew.toml"
+    },
+    "project.repo": {
+      "value": "acme/ledger",
+      "source": "kew.toml"
+    },
+    "retry.max_attempts": {
+      "value": 3,
+      "source": "default"
+    },
+    "review.max_remediation_usd": {
+      "value": 40,
+      "source": "default"
+    },
+    "review.max_review_usd": {
+      "value": 10,
+      "source": "default"
+    },
+    "review.max_rounds": {
+      "value": 2,
+      "source": "default"
+    },
+    "routing.default": {
+      "value": {
+        "runner": "claude-code",
+        "model": ""
+      },
+      "source": "kew.toml"
+    },
+    "sandbox.allow_uncontained_flows": {
+      "value": false,
+      "source": "default"
+    },
+    "sandbox.enabled": {
+      "value": true,
+      "source": "kew.toml"
+    }
+  }
+}

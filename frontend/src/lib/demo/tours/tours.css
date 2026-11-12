@@ -1,0 +1,170 @@
+/*
+ * The demo tours' popover and highlight (#3145), on driver.js's own classes.
+ *
+ * DESIGN.md, Elevation & Depth: the popover is the Float level — ink-raised,
+ * a hair-strong border, the panel radius and the one soft shadow — with Plex
+ * Sans 13 for its words and Plex Mono for commands, progress and presses. The
+ * highlight is a neutral text-1 outline: no magenta (nobody is being asked to
+ * act) and no cyan (nothing is live or selected), and no new hue.
+ *
+ * Loaded after `driver.js/dist/driver.css`, and every rule here is one class
+ * deeper than the rule it overrides, so the order is belt and braces.
+ */
+
+.driver-popover.kew-tour {
+  min-width: 280px;
+  max-width: 360px;
+  padding: 16px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 11px;
+  background: var(--ink-raised);
+  box-shadow: var(--shadow);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.driver-popover.kew-tour .driver-popover-title {
+  margin: 0 24px 8px 0;
+  font-family: var(--font-sans);
+  /* {typography.prose-15}, as DESIGN.md names it: the type scale has no bold title. */
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.driver-popover.kew-tour .driver-popover-description {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.driver-popover.kew-tour .driver-popover-description p {
+  margin: 0 0 8px;
+}
+
+.driver-popover.kew-tour .driver-popover-description code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.driver-popover.kew-tour .driver-popover-description strong {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.driver-popover.kew-tour .kew-tour-docs {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  color: var(--text-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.driver-popover.kew-tour .kew-tour-docs:hover,
+.driver-popover.kew-tour .kew-tour-docs:focus-visible {
+  color: var(--text-1);
+}
+
+.driver-popover.kew-tour .driver-popover-footer {
+  margin-top: 8px;
+  gap: 12px;
+}
+
+.driver-popover.kew-tour .driver-popover-progress-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.driver-popover.kew-tour .driver-popover-footer-btn,
+.driver-popover.kew-tour .driver-popover-close-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: none;
+}
+
+.driver-popover.kew-tour .driver-popover-close-btn {
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+  font-size: 15px;
+}
+
+.driver-popover.kew-tour .driver-popover-footer-btn:hover,
+.driver-popover.kew-tour .driver-popover-footer-btn:focus-visible,
+.driver-popover.kew-tour .driver-popover-close-btn:hover,
+.driver-popover.kew-tour .driver-popover-close-btn:focus-visible {
+  background: var(--ink-selected);
+  color: var(--text-1);
+}
+
+/* driver.js takes the focus ring off its presses; a keyboard tour needs it back.
+   Cyan, the console's focus colour (DESIGN.md): a white ring here read as a
+   second highlighted target beside the step's own text-1 outline (design
+   review c9 D16). */
+.driver-popover.kew-tour .driver-popover-footer-btn:focus-visible,
+.driver-popover.kew-tour .driver-popover-close-btn:focus-visible,
+.driver-popover.kew-tour .kew-tour-docs:focus-visible {
+  outline: 1px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.driver-popover.kew-tour .driver-popover-footer .driver-popover-btn-disabled {
+  opacity: 0.4;
+}
+
+.driver-popover.kew-tour .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--hair-strong);
+}
+
+.driver-popover.kew-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--hair-strong);
+}
+
+.driver-popover.kew-tour .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--hair-strong);
+}
+
+.driver-popover.kew-tour .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--hair-strong);
+}
+
+/* The highlight: a neutral outline on the target, drawn over the overlay's cutout. */
+.driver-active .driver-active-element {
+  outline: 1px solid var(--text-1);
+  outline-offset: 5px;
+}
+
+/*
+ * A target that touches the window's edge (the controller's `keepClear`):
+ * an outline 5px outside it would be drawn off screen, so it is drawn just
+ * inside its edge instead (design review c9, D5).
+ */
+.driver-active .driver-active-element.kew-tour-inset {
+  outline-offset: -1px;
+}
+
+/* A popover moved off what it explains sits on no one side, so it points at nothing. */
+.driver-popover.kew-tour .driver-popover-arrow.driver-popover-arrow-none {
+  display: none;
+}

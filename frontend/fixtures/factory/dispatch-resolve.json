@@ -1,0 +1,62 @@
+{
+  "checked_at": "2026-10-03T14:48:00+00:00",
+  "item": "2302",
+  "issue_num": 2302,
+  "lane": { "value": "implement", "source": "the caller" },
+  "complexity": { "value": "simple", "source": "the caller", "known": true },
+  "runner": { "value": "codex", "source": "kew.toml [routing].simple" },
+  "model": { "value": "gpt-5.6-sol", "source": "kew.toml [routing].simple" },
+  "transport": { "value": "direct", "source": "default (direct)" },
+  "containment": {
+    "posture": "contained",
+    "refusal_reason": null,
+    "runtime": "docker",
+    "image": "kew-codex:latest",
+    "image_present": true,
+    "credential_names_present": [{ "name": "OPENAI_API_KEY", "set": true }],
+    "source": "resolve_effective_sandbox, as dispatch resolves it"
+  },
+  "budget": {
+    "runtime_cap_usd": 25.0,
+    "runtime_cap_source": "default",
+    "per_issue_cap_usd": 40.0,
+    "per_issue_cap_source": "kew.toml [budget].per_issue_usd",
+    "issue_spent_usd": 1.5,
+    "daily_cap_usd": 100.0,
+    "daily_cap_source": "default",
+    "daily_spent_usd": 12.3,
+    "per_issue_remaining_usd": 38.5,
+    "daily_remaining_usd": 87.7,
+    "runtime_cap_exceeds_issue_headroom": false,
+    "source": "budget.effective_budget_view over recorded spend"
+  },
+  "governor": {
+    "would_swap": false,
+    "reason": "no_warm_alternatives",
+    "recommended_runner": "codex",
+    "recommended_model": "gpt-5.6-sol",
+    "est_savings_usd": 0.0,
+    "source": "runners.governor.cache_governor (advice only, nothing written)"
+  },
+  "route_fingerprint": {
+    "value": "9f1c4a7e2b6d",
+    "source": "probe_route.resolve_probe_route (spends nothing)"
+  },
+  "live_status": {
+    "value": "unverified",
+    "source": "no stored readiness probe for this boundary",
+    "probed_at": null
+  },
+  "admission": {
+    "fleet_stopped": false,
+    "fleet_stopped_reason": "",
+    "open_hold": false,
+    "headroom": {
+      "usd": 38.5,
+      "binds": "per_issue",
+      "source": "[budget].per_issue_usd less recorded spend"
+    },
+    "source": "the fleet latch, the approval log and recorded spend"
+  },
+  "command": "kew dispatch 2302"
+}

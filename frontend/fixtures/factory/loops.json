@@ -1,0 +1,26 @@
+[
+  {
+    "motion": "executing",
+    "alive": true,
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "source": "issue",
+    "issue_num": 2071,
+    "repo": "thossullivan/kew",
+    "goal_text": "#2071: Flaky queue tests: make lease expiry deterministic\n\nThe lease tests sleep past a real TTL; drive them off an injected clock so they pass on a loaded host.",
+    "runner_name": "claude-code",
+    "model": "claude-opus-5",
+    "drive_mode": "delegated",
+    "status": "pursuing",
+    "status_reason": "",
+    "needs_human": false,
+    "stale": false,
+    "budget_usd": 5.0,
+    "spent_usd": 1.36,
+    "wall_clock_secs": 7200,
+    "max_steps": 40,
+    "step_count": 6,
+    "created_at": "2026-10-03T13:52:10+00:00",
+    "updated_at": "2026-10-03T14:41:30+00:00",
+    "finished_at": null
+  }
+]

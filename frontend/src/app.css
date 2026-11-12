@@ -1,0 +1,465 @@
+@import 'tailwindcss';
+
+/* Terminal-grade type: IBM Plex Mono carries the synthwave/outrun identity,
+   Plex Sans for body. No editorial serif — kew is a console, not a magazine. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+/* Fontsource's Plex has no ← → ↗, so the browser drew them in a platform
+   fallback whose width differs between macOS and Linux (#3460). These faces
+   are IBM's own Plex arrows, cut by `scripts/plex-arrows.sh` (OFL, see
+   `lib/fonts/OFL.txt`). U+2191 and U+2193 stay with fontsource's latin face. */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('./lib/fonts/ibm-plex-mono-arrows-400-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('./lib/fonts/ibm-plex-mono-arrows-500-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('./lib/fonts/ibm-plex-mono-arrows-600-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('./lib/fonts/ibm-plex-sans-arrows-400-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('./lib/fonts/ibm-plex-sans-arrows-500-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('./lib/fonts/ibm-plex-sans-arrows-600-normal.woff2') format('woff2');
+  unicode-range: U+2190, U+2192, U+2194-2199;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   kew — synthwave control plane.
+   Token architecture: CSS vars -> @theme inline -> utilities;
+   palette is kew's own: deep purple-black
+   with dual neon accents (magenta + cyan), straight off the TUI.
+   ────────────────────────────────────────────────────────────── */
+:root,
+[data-theme='dark'] {
+  --bg: #0d0221;
+  --bg-glow: #1a0b2e;
+  --surface: #1a0b2e;
+  --surface-2: #2d1b4e;
+  --surface-3: #0d0221;
+  --border: #2d1b4e;
+  --border-strong: #533a73;
+  --fg: #e0d8ea;
+  --fg-dim: #b8aad0;
+  --muted: #8b7fa8;
+  --faint: #6c5b7b;
+
+  /* Primary accent — hot magenta (the TUI's signature highlight). */
+  --accent: #ff2a6d;
+  --accent-bright: #ff5c8f;
+  --accent-dim: #9c2148;
+  --accent-fg: #0d0221;
+  --accent-wash: color-mix(in oklab, var(--accent) 16%, transparent);
+
+  /* Second accent — neon cyan. kew's dual-neon identity. */
+  --accent-2: #05d9e8;
+  --accent-2-fg: #0d0221;
+  --accent-2-wash: color-mix(in oklab, var(--accent-2) 16%, transparent);
+
+  --success: #2ee6a6;
+  --warn: #ffc94a;
+  --danger: #ff4365;
+  --info: #05d9e8;
+
+  /* Epic DAG node status (plan-adjudicated values). Blocked gets a distinct
+     lavender hue (plus hatching for color-blind viewers); cancelled is
+     intentionally equal to --faint — it reads as "ghosted" and carries a
+     "x" glyph as its shape differentiator. */
+  --status-blocked: #b48ade;
+  --status-cancelled: #6c5b7b;
+
+  /* ── Factory UI (direction D) ───────────────────────────────────────────
+     The factory surfaces — Work, Monitor, Epics — paint on their own ink
+     ground with a five-step text ramp and hairline rules, lifted from the
+     artboards in frontend/design/factory-ui/. Purely additive: every token
+     above keeps its value, so the TUI transcript (kew/tui/palette.py) and the
+     www token sync stay byte-identical. */
+  --ink: #0a0714;
+  --ink-raised: #0d0a18;
+  --ink-selected: #151025;
+  --ink-track: #1d1730;
+
+  --hair: #221c33;
+  --hair-quiet: #1a1528;
+  --hair-strong: #342a4a;
+  --hair-box: #2a2240;
+  --guide: #16111f;
+
+  --text-1: #ebe6f2;
+  --text-2: #b5acc8;
+  --text-3: #8d84a3;
+  /* --text-4 is non-text: 3.4:1 on --ink fails AA, so it is only ever a
+     gauge tick, a rule or a mark. Small print the artboards drew in it —
+     the zero counts, "failed 0" — uses --text-3 instead (owner default,
+     2026-09-24). --text-5 is quieter still: separators and idle rings. */
+  --text-4: #6a6082;
+  --text-5: #5a5070;
+
+  --edge-done: #3a3052;
+
+  /* Signal halos. Not hex, so the TUI parity test ignores them — the terminal
+     has no compositing anyway. */
+  --halo-cyan: rgba(5, 217, 232, 0.16);
+  --halo-magenta: rgba(255, 42, 109, 0.16);
+
+  --ring: color-mix(in oklab, var(--accent-2) 55%, transparent);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 14px 40px -16px rgb(0 0 0 / 0.7);
+  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent) 40%, transparent),
+    0 0 24px -6px color-mix(in oklab, var(--accent) 55%, transparent);
+  --glow-cyan: 0 0 0 1px color-mix(in oklab, var(--accent-2) 40%, transparent),
+    0 0 24px -6px color-mix(in oklab, var(--accent-2) 55%, transparent);
+
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --bg: #f4f0fb;
+  --bg-glow: #fbe6f1;
+  --surface: #fcfaff;
+  --surface-2: #f1ebf9;
+  --surface-3: #ece3f7;
+  --border: #e2d7f0;
+  --border-strong: #c9b8e0;
+  --fg: #1a0b2e;
+  --fg-dim: #4a3768;
+  --muted: #6c5b7b;
+  --faint: #9a8db5;
+
+  --accent: #c81e5a;
+  --accent-bright: #e0246a;
+  --accent-dim: #e59ab6;
+  --accent-fg: #fff5f9;
+  --accent-wash: color-mix(in oklab, var(--accent) 12%, transparent);
+
+  --accent-2: #0892a5;
+  --accent-2-fg: #f2fdff;
+  --accent-2-wash: color-mix(in oklab, var(--accent-2) 12%, transparent);
+
+  --success: #128a5e;
+  --warn: #b5790e;
+  --danger: #c81e3c;
+  --info: #0892a5;
+
+  --status-blocked: #7a4fa3;
+  --status-cancelled: #9a8db5;
+
+  /* ── Factory UI, provisional light ──────────────────────────────────────
+     A designed light theme is design round 3. Until then every factory token
+     is mapped onto the existing light token that carries the same job, so the
+     theme toggle never renders a factory page unreadable. Written as literal
+     hexes rather than var() so the TUI parity test covers both themes. */
+  --ink: #f4f0fb; /* bg */
+  --ink-raised: #fcfaff; /* surface */
+  --ink-selected: #f1ebf9; /* surface-2 */
+  --ink-track: #ece3f7; /* surface-3 */
+
+  --hair: #e2d7f0; /* border */
+  --hair-quiet: #f1ebf9; /* surface-2 */
+  --hair-strong: #c9b8e0; /* border-strong */
+  --hair-box: #c9b8e0; /* border-strong */
+  --guide: #ece3f7; /* surface-3 */
+
+  --text-1: #1a0b2e; /* fg */
+  --text-2: #4a3768; /* fg-dim */
+  --text-3: #6c5b7b; /* muted */
+  /* Non-text here too — 2.7:1 on the light ink. */
+  --text-4: #9a8db5; /* faint */
+  --text-5: #c9b8e0; /* border-strong */
+
+  --edge-done: #c9b8e0; /* border-strong */
+
+  /* 12% to match the light washes above, which are quieter than the dark 16%. */
+  --halo-cyan: rgba(8, 146, 165, 0.12);
+  --halo-magenta: rgba(200, 30, 90, 0.12);
+
+  --ring: color-mix(in oklab, var(--accent-2) 45%, transparent);
+  --shadow: 0 1px 2px rgb(80 40 90 / 0.1), 0 10px 30px -16px rgb(60 20 70 / 0.22);
+  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);
+  --glow-cyan: 0 0 0 1px color-mix(in oklab, var(--accent-2) 30%, transparent);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-dim: var(--fg-dim);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-wash: var(--accent-wash);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-fg: var(--accent-2-fg);
+  --color-accent-2-wash: var(--accent-2-wash);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-status-blocked: var(--status-blocked);
+  --color-status-cancelled: var(--status-cancelled);
+
+  /* Factory UI colours: bg-ink, border-hair, text-text-2, bg-halo-cyan. */
+  --color-ink: var(--ink);
+  --color-ink-raised: var(--ink-raised);
+  --color-ink-selected: var(--ink-selected);
+  --color-ink-track: var(--ink-track);
+  --color-hair: var(--hair);
+  --color-hair-quiet: var(--hair-quiet);
+  --color-hair-strong: var(--hair-strong);
+  --color-hair-box: var(--hair-box);
+  --color-guide: var(--guide);
+  --color-text-1: var(--text-1);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-text-4: var(--text-4);
+  --color-text-5: var(--text-5);
+  --color-edge-done: var(--edge-done);
+  --color-halo-cyan: var(--halo-cyan);
+  --color-halo-magenta: var(--halo-magenta);
+
+  /* Display = mono. A big monospace heading reads "console", not "blog". */
+  --font-display: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv05', 'ss03';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Atmosphere: dual-neon glow off the corners — magenta left, cyan right. */
+    background-image:
+      radial-gradient(120% 85% at 6% -12%, color-mix(in oklab, var(--accent) 12%, transparent) 0%, transparent 46%),
+      radial-gradient(95% 65% at 100% -4%, color-mix(in oklab, var(--accent-2) 10%, transparent) 0%, transparent 52%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--accent-wash);
+    color: var(--fg);
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--faint);
+    background-clip: padding-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Factory UI type scale (direction D) ──────────────────────────────────
+   Five sizes, no more: 11 for labels, 13 for data rows, 15 for prose, 26
+   for titles and 44 for readouts. The mono/weight/tracking of each one is
+   decided here so a factory surface never re-specifies it.
+   Sizes only, plus the mono face where the artboards use one. Figure style
+   stays separate: the factory root carries `tabular-nums` (Tailwind's, equal
+   to `.nums`) once, instead of every class repeating it.
+
+   Declared with `@utility` rather than as plain `@layer components` rules so
+   the five sizes can be taken at a breakpoint (#2282 D3): a 44px readout is
+   wider than half a 390px screen, and the Monitor's 2×2 phone grid asks for
+   `text-26 lg:text-44` — the SAME scale, one step down, not a sixth size.
+   Tailwind v4 generates variants for custom utilities only in this form. */
+@utility text-11 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+@utility text-13 {
+  font-size: 13px;
+}
+@utility text-15 {
+  font-size: 15px;
+}
+@utility text-26 {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+@utility text-44 {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 1;
+  /* Spelled out, not left to inherit: a readout is `text-26 lg:text-44`, so at
+     >=1024px BOTH classes apply and whatever 26 declares and 44 omits leaks up
+     a size. The artboard draws the 44px figure untracked, so 44 says so. */
+  letter-spacing: normal;
+}
+
+@layer components {
+  /* Tabular figures for all data readouts — numbers must align. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Eyebrow label: the mono small-caps signpost across panels. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Faint scanline texture — subtle CRT/outrun flavour, never loud. */
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--accent-2) 7%, transparent) 0px,
+      color-mix(in oklab, var(--accent-2) 7%, transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    opacity: 0.35;
+    mix-blend-mode: screen;
+  }
+
+  /* Hairline grid texture for chart/timeline backdrops. */
+  .gridlines {
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 100% 25%, 8.333% 100%;
+    opacity: 0.5;
+  }
+
+  .md code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    color: var(--accent-2);
+    background: var(--surface-3);
+    padding: 0.05em 0.35em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+}
+
+/* Staggered entrance for dashboard panels. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Live pulse for the streaming "recording" dot. */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 70%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.live-dot {
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .live-dot {
+    animation: none;
+  }
+}

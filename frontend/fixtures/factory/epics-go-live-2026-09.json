@@ -1,0 +1,407 @@
+{
+  "epic_ref": "go-live-2026-09",
+  "snapshot": {
+    "epic_ref": "go-live-2026-09",
+    "tick_id": 1184,
+    "tick_ts": "",
+    "signal": "progressing",
+    "counts": {
+      "todo": 5,
+      "queued": 1,
+      "in_progress": 2,
+      "in_review": 1,
+      "done": 6,
+      "failed": 0,
+      "held": 1,
+      "blocked": 1,
+      "cancelled": 1
+    },
+    "frontier": [
+      "SFD-232",
+      "SFD-236",
+      "SFD-252"
+    ],
+    "nodes": [
+      {
+        "id": "SFD-201",
+        "title": "ship the public landing page and the pricing table",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-201",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-204",
+        "title": "first-run doctor: name every missing credential",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-204",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-212",
+        "title": "operator onboarding walkthrough, end to end",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-212",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-218",
+        "title": "harden the serve auth session cookie",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-218",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-223",
+        "title": "write the go-live runbook and the rollback drill",
+        "status": "queued",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-223",
+        "pr_url": null,
+        "external": false,
+        "stuck": "waiting for human arm",
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "SFD-224",
+        "title": "publish the pricing calculator fixtures",
+        "status": "in_progress",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-224",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "executing",
+        "alive": true
+      },
+      {
+        "id": "SFD-227",
+        "title": "epic DAG layout: labels, spacing, sticky layers",
+        "status": "in_review",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-227",
+        "pr_url": "https://github.com/thossullivan/kew/pull/2218",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "SFD-229",
+        "title": "budget caps per epic, with a preflight refusal",
+        "status": "held",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-229",
+        "pr_url": null,
+        "external": false,
+        "stuck": "held \u2014 review_rounds_exhausted: review pool $10.00 exhausted (spent $22.18)",
+        "attention": {
+          "kind": "held",
+          "reason": "review_rounds_exhausted: review pool $10.00 exhausted (spent $22.18)",
+          "url": null,
+          "action": "kew epic unhold, which also restarts the review cycle",
+          "command": "kew epic unhold go-live-2026-09 SFD-229",
+          "sentence": "the review round cap was reached: review pool $10.00 exhausted (spent $22.18)",
+          "link": null,
+          "verify_link": null
+        },
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "SFD-232",
+        "title": "audit chain anchors published on every release",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-232",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "SFD-236",
+        "title": "retire the legacy restyle shim",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-236",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "SFD-241",
+        "title": "migrate the run store to schema 19",
+        "status": "blocked",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-241",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": "needs a product decision on backfill",
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "SFD-247",
+        "title": "cost report: per-model drain over the window",
+        "status": "in_progress",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-247",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "executing",
+        "alive": true
+      },
+      {
+        "id": "SFD-252",
+        "title": "dispatch dry run on a clean checkout",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-252",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "SFD-258",
+        "title": "decide the launch-day on-call rotation",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-258",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": {
+          "kind": "approval",
+          "reason": "approval hold: launch-day rotation",
+          "url": null,
+          "sentence": "approval hold: launch-day rotation",
+          "link": null,
+          "verify_link": null
+        },
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-261",
+        "title": "sign the release tag from the operator Mac",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-261",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "SFD-264",
+        "title": "close the beta waitlist and mail the invites",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-264",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "SFD-270",
+        "title": "archive the pre-launch docs mirror",
+        "status": "done",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-270",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "SFD-273",
+        "title": "turn the status page on",
+        "status": "cancelled",
+        "status_since": null,
+        "url": "https://linear.app/kew/issue/SFD-273",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      }
+    ],
+    "edges": [
+      [
+        "SFD-201",
+        "SFD-212"
+      ],
+      [
+        "SFD-204",
+        "SFD-212"
+      ],
+      [
+        "SFD-212",
+        "SFD-223"
+      ],
+      [
+        "SFD-212",
+        "SFD-224"
+      ],
+      [
+        "SFD-212",
+        "SFD-247"
+      ],
+      [
+        "SFD-218",
+        "SFD-227"
+      ],
+      [
+        "SFD-218",
+        "SFD-229"
+      ],
+      [
+        "SFD-223",
+        "SFD-232"
+      ],
+      [
+        "SFD-223",
+        "SFD-236"
+      ],
+      [
+        "SFD-223",
+        "SFD-258"
+      ],
+      [
+        "SFD-224",
+        "SFD-241"
+      ],
+      [
+        "SFD-227",
+        "SFD-252"
+      ],
+      [
+        "SFD-229",
+        "SFD-264"
+      ],
+      [
+        "SFD-232",
+        "SFD-261"
+      ],
+      [
+        "SFD-236",
+        "SFD-261"
+      ],
+      [
+        "SFD-241",
+        "SFD-264"
+      ],
+      [
+        "SFD-247",
+        "SFD-264"
+      ],
+      [
+        "SFD-252",
+        "SFD-273"
+      ]
+    ],
+    "unavailable": []
+  },
+  "heartbeat": {
+    "last_tick_started_at": null,
+    "last_tick_ts": null,
+    "last_tick_duration_s": null,
+    "tick_count": 1184,
+    "interval_s": 60,
+    "last_signal": "progressing",
+    "change_count": 2
+  },
+  "economics": {
+    "window_start": null,
+    "drain_total_usd": 18.4,
+    "node_drain_usd": {
+      "SFD-224": 6.2,
+      "SFD-227": 4.85,
+      "SFD-247": 7.35
+    },
+    "label": "since last tick"
+  }
+}

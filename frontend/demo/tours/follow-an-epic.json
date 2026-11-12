@@ -1,0 +1,52 @@
+{
+  "id": "follow-an-epic",
+  "title": "Follow an epic from its first tick",
+  "start": "/epics/ledger-v2",
+  "steps": [
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "mode": "replay", "t": "0", "node": "101" },
+      "target": "epic-graph",
+      "card": "101",
+      "docs": "web/epics.md",
+      "anchor": "following-an-epic-through-its-replay",
+      "passage": "follow-an-epic/1"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "mode": "replay", "t": "3900", "node": "101" },
+      "target": "epic-progress",
+      "docs": "web/epics.md",
+      "anchor": "following-an-epic-through-its-replay",
+      "passage": "follow-an-epic/2"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "mode": "replay", "t": "139380", "node": "107" },
+      "target": "epic-graph",
+      "card": "107",
+      "docs": "web/epics.md",
+      "anchor": "following-an-epic-through-its-replay",
+      "passage": "follow-an-epic/3"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "mode": "replay", "t": "141180", "node": "107" },
+      "target": "epic-graph",
+      "card": "107",
+      "docs": "web/epics.md",
+      "anchor": "following-an-epic-through-its-replay",
+      "passage": "follow-an-epic/4"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "mode": "replay", "t": "158370", "node": "107" },
+      "target": "epic-graph",
+      "card": "107",
+      "clear": "epic-graph",
+      "docs": "web/epics.md",
+      "anchor": "drain-spend-semantics",
+      "passage": "follow-an-epic/5"
+    }
+  ]
+}

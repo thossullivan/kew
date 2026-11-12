@@ -1,0 +1,28 @@
+{
+  "views": [],
+  "pressure": {
+    "delivery_repo": "thossullivan/kew",
+    "engaged": true,
+    "countable": true,
+    "used": 0,
+    "total": 4,
+    "held": 0,
+    "oldest_hold_age_seconds": null,
+    "diff_burden_lines": 0,
+    "saturated": false,
+    "reasons": [],
+    "enforcement": "inactive",
+    "enforcement_detail": "the human-review policy is configured and reported, but not active",
+    "policy_generation": 3,
+    "observation": {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  },
+  "projection_revision": "wp1:9f31c7a0be24d85e106b3f7c2ad94e51",
+  "composed_at": "2026-10-03T14:33:02+00:00",
+  "unreadable": []
+}

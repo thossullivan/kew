@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kew Monitor view</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0714;font-family:'IBM Plex Sans',sans-serif;color:#ebe6f2}
+a{color:#ebe6f2}a:hover{color:#05d9e8}
+</style>
+</head>
+<body>
+<div style="width: 1440px; height: 960px; box-sizing: border-box; background: #0a0714; display: flex; flex-direction: column; font-family: 'IBM Plex Sans', sans-serif; color: #ebe6f2; font-variant-numeric: tabular-nums;">
+
+  <header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 32px; display: flex; align-items: center; gap: 40px; border-bottom: 1px solid #221c33;">
+    <div style="display: flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: -0.03em; line-height: 1;">
+      <span>kew</span><span style="width: 12px; height: 24px; background: #05d9e8; display: inline-block;"></span>
+    </div>
+    <nav aria-label="Factory views" style="display: flex; gap: 28px; height: 56px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.02em;">
+      <a href="DWork.html" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Work</a>
+      <a href="DMonitor.html" aria-current="page" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid #ebe6f2; padding-top: 2px; color: #ebe6f2; text-decoration: none;">Monitor</a>
+      <span title="Evals is not part of kew" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Evals</span>
+      <a href="DEpic.html" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Epics</a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8;"></span><span style="color: #ebe6f2;">2</span> working</span>
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 7px; height: 7px; background: #ff2a6d; transform: rotate(45deg);"></span><span style="color: #ebe6f2;">1</span> needs you</span>
+      <span style="width: 1px; height: 20px; background: #221c33;"></span>
+      <span style="color: #8d84a3;">snapshot &#183; 2026-09-24</span>
+    </div>
+  </header>
+
+  <div style="flex-grow: 1; min-height: 0; box-sizing: border-box; padding: 32px 40px 36px; display: flex; flex-direction: column; gap: 36px;">
+
+    <section aria-label="Readouts" style="display: grid; grid-template-columns: 1fr 1fr 1.35fr 1.35fr; border-top: 1px solid #221c33; border-bottom: 1px solid #221c33;">
+      <div style="padding: 22px 28px 20px; display: flex; flex-direction: column; gap: 10px; padding-left: 0;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">Working</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 44px; font-weight: 500; line-height: 1; color: #05d9e8;">2</div>
+        <div style="font-size: 15px; color: #b5acc8;">one reviewer, one implementer</div>
+      </div>
+      <div style="padding: 22px 28px 20px; display: flex; flex-direction: column; gap: 10px; border-left: 1px solid #221c33;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">Needs you</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 44px; font-weight: 500; line-height: 1; color: #ff2a6d;">1</div>
+        <div style="font-size: 15px; color: #b5acc8;">merge decision on <a href="DWork.html" style="color: #ebe6f2;">PR #2059</a></div>
+      </div>
+      <div style="padding: 22px 28px 20px; display: flex; flex-direction: column; gap: 10px; border-left: 1px solid #221c33;">
+        <div style="display: flex; align-items: baseline;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">Today</span><div style="flex-grow: 1;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">71.2% of cap</span></div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 44px; font-weight: 500; line-height: 1; color: #ffc94a;">$178.05<span style="font-size: 15px; color: #8d84a3; font-weight: 400; margin-left: 10px;">/ $250</span></div>
+        <div style="position: relative; height: 40px; margin-top: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">
+          <div style="position: absolute; left: 0; right: 0; top: 4px; height: 4px; background: #1d1730;"></div>
+          <div style="position: absolute; left: 0; width: 71.22%; top: 4px; height: 4px; background: #ffc94a;"></div>
+          <div style="position: absolute; right: 0; top: -2px; width: 2px; height: 16px; background: #ffc94a;"></div>
+          <div style="position: absolute; left: 0%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><div style="position: absolute; left: 10%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 20%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 30%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 40%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 50%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><div style="position: absolute; left: 60%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 70%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 80%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 90%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 100%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><span style="position: absolute; left: 0%; transform: translateX(0); top: 22px; white-space: nowrap;">$0</span><span style="position: absolute; left: 50%; transform: translateX(-50%); top: 22px; white-space: nowrap;">$125</span><span style="position: absolute; left: 100%; transform: translateX(-100%); top: 22px; white-space: nowrap;">cap $250</span>
+        </div>
+      </div>
+      <div style="padding: 22px 28px 20px; display: flex; flex-direction: column; gap: 10px; border-left: 1px solid #221c33; padding-right: 0;">
+        <div style="display: flex; align-items: baseline;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">This week</span><div style="flex-grow: 1;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">61.0% of cap</span></div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 44px; font-weight: 500; line-height: 1; color: #ffc94a;">$915.05<span style="font-size: 15px; color: #8d84a3; font-weight: 400; margin-left: 10px;">/ $1,500</span></div>
+        <div style="position: relative; height: 40px; margin-top: 26px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">
+          <div style="position: absolute; left: 0; right: 0; top: 4px; height: 4px; background: #1d1730;"></div>
+          <div style="position: absolute; left: 0; width: 61.0%; top: 4px; height: 4px; background: #ffc94a;"></div>
+          <div style="position: absolute; right: 0; top: -2px; width: 2px; height: 16px; background: #ffc94a;"></div>
+          <div style="position: absolute; left: 0%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><div style="position: absolute; left: 10%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 20%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 30%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 40%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 50%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><div style="position: absolute; left: 60%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 70%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 80%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 90%; top: 10px; width: 1px; height: 4px; background: #342a4a;"></div><div style="position: absolute; left: 100%; top: 10px; width: 1px; height: 8px; background: #6a6082;"></div><div style="position: absolute; left: 40%; top: -6px; width: 1px; height: 16px; background: #b5acc8;"></div><span style="position: absolute; left: 40%; top: -24px; transform: translateX(-50%); color: #b5acc8; white-space: nowrap;">prior cap $600</span><span style="position: absolute; left: 0%; transform: translateX(0); top: 22px; white-space: nowrap;">$0</span><span style="position: absolute; left: 50%; transform: translateX(-50%); top: 22px; white-space: nowrap;">$750</span><span style="position: absolute; left: 100%; transform: translateX(-100%); top: 22px; white-space: nowrap;">cap $1,500</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Live runs">
+      <div style="display: flex; align-items: baseline; margin-bottom: 12px;">
+        <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: #b5acc8;">Live runs</h2>
+        <div style="flex-grow: 1;"></div>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">2 working</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 180px 160px 120px 120px; gap: 20px; padding-bottom: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3; border-bottom: 1px solid #221c33;">
+        <span>Item</span><span>Stage</span><span>Runner</span><span>Posture</span><span style="text-align: right;">Elapsed</span><span style="text-align: right;">State</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 180px 160px 120px 120px; gap: 20px; align-items: center; height: 56px; border-bottom: 1px solid #1a1528;">
+        <a href="DWork.html" style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; text-decoration: none;">#2055</a>
+        <span style="font-size: 15px; color: #b5acc8;">governed review &#183; round 1 &#183; PR #2059</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">claude-opus-5</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">sandboxed</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; text-align: right;">[elapsed]</span>
+        <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #05d9e8;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8; box-shadow: 0 0 0 3px rgba(5,217,232,0.18);"></span>working</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 180px 160px 120px 120px; gap: 20px; align-items: center; height: 56px;">
+        <a href="DWork.html" style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; text-decoration: none;">#2033</a>
+        <span style="font-size: 15px; color: #b5acc8;">implement &#183; agent-PR CI gate</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">claude-opus-5</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">host worktree</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; text-align: right;">[elapsed]</span>
+        <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #05d9e8;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8; box-shadow: 0 0 0 3px rgba(5,217,232,0.18);"></span>working</span>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: 5fr 7fr; flex-grow: 1; min-height: 0; border-top: 1px solid #221c33;">
+      <section aria-label="Holds and blocks" style="padding: 22px 40px 0 0; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: baseline;">
+          <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: #b5acc8;">Holds and blocks</h2>
+          <div style="flex-grow: 1;"></div>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">3 active</span>
+        </div>
+        <ul style="margin: 8px 0 0; padding: 0; list-style: none;">
+          <li style="display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid #1a1528;">
+            <span style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #b48ade;"><span style="width: 8px; height: 8px; border: 1.5px solid #b48ade; box-sizing: border-box;"></span>blocked</span>
+            <span style="font-size: 15px; line-height: 1.5; color: #b5acc8;"><a href="DEpic.html" style="color: #ebe6f2; text-decoration: none;">#2053</a> needs a design decision: a different user for reviewed code</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid #1a1528;">
+            <span style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffc94a;"><span style="width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #ffc94a; box-sizing: border-box;"></span>budget</span>
+            <span style="font-size: 15px; line-height: 1.5; color: #b5acc8;">weekly cap reached at <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2;">$600</span>; raised to <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ffc94a;">$1,500</span> (operator)</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 16px 0;">
+            <span style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #b5acc8;"><span style="width: 8px; height: 2px; background: #b5acc8;"></span>runners</span>
+            <span style="font-size: 15px; line-height: 1.5; color: #b5acc8;">self-hosted CI paused until <a href="DWork.html" style="color: #ebe6f2; text-decoration: none;">#2033</a> merges</span>
+          </li>
+        </ul>
+      </section>
+      <section aria-label="Event stream" style="padding: 22px 0 0 40px; border-left: 1px solid #221c33; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: baseline;">
+          <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: #b5acc8;">Event stream</h2>
+          <div style="flex-grow: 1;"></div>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">last event <span style="color: #ebe6f2;">15:46:58</span> &#183; 5 events</span>
+        </div>
+        <div aria-hidden="true" style="position: relative; height: 70px; margin: 26px 0 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">
+          <div style="position: absolute; left: 0; right: 0; top: 40px; height: 1px; background: #342a4a;"></div>
+          <div style="position: absolute; left: 0.0%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 0.0%; top: 52px; transform: translateX(0);">15:20</span><div style="position: absolute; left: 3.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 6.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 10.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 13.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 16.667%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 16.667%; top: 52px; transform: translateX(-50%);">15:25</span><div style="position: absolute; left: 20.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 23.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 26.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 30.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 33.333%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 33.333%; top: 52px; transform: translateX(-50%);">15:30</span><div style="position: absolute; left: 36.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 40.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 43.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 46.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 50.0%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 50.0%; top: 52px; transform: translateX(-50%);">15:35</span><div style="position: absolute; left: 53.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 56.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 60.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 63.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 66.667%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 66.667%; top: 52px; transform: translateX(-50%);">15:40</span><div style="position: absolute; left: 70.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 73.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 76.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 80.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 83.333%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 83.333%; top: 52px; transform: translateX(-50%);">15:45</span><div style="position: absolute; left: 86.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 90.0%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 93.333%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 96.667%; top: 40px; width: 1px; height: 3px; background: #342a4a;"></div><div style="position: absolute; left: 100.0%; top: 40px; width: 1px; height: 7px; background: #6a6082;"></div><span style="position: absolute; left: 100.0%; top: 52px; transform: translateX(-100%);">15:50</span>
+          <div style="position: absolute; left: 89.89%; top: 16px; width: 2px; height: 24px; margin-left: -1px; background: #b5acc8;"></div><div style="position: absolute; left: 89.67%; top: 16px; width: 2px; height: 24px; margin-left: -1px; background: #2ee6a6;"></div><div style="position: absolute; left: 89.44%; top: 16px; width: 2px; height: 24px; margin-left: -1px; background: #b5acc8;"></div><div style="position: absolute; left: 14.17%; top: 16px; width: 2px; height: 24px; margin-left: -1px; background: #b5acc8;"></div><div style="position: absolute; left: 11.0%; top: 16px; width: 2px; height: 24px; margin-left: -1px; background: #ffc94a;"></div><div style="position: absolute; left: calc(14.17% + 10px); width: calc(75.27% - 20px); top: 27px; height: 0; border-top: 1px dashed #342a4a;"></div><span style="position: absolute; left: 51.8%; top: 20px; transform: translateX(-50%); padding: 0 10px; background: #0a0714; color: #8d84a3;">22m 35s quiet</span><span style="position: absolute; left: 11.0%; top: -4px; margin-left: -1px; color: #ffc94a; white-space: nowrap;">budget refusal</span><span style="position: absolute; left: 89.89%; top: -4px; transform: translateX(-100%); color: #b5acc8; white-space: nowrap;">3 events in 8s</span>
+        </div>
+        <ol style="margin: 0; padding: 0; list-style: none;">
+          <li style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 36px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">15:46:58</span>
+            <span style="position: relative; height: 36px;"><span style="position: absolute; left: 5px; top: 18px; bottom: 0; width: 1px; background: #342a4a;"></span><span style="position: absolute; left: 1px; top: 14px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; background: #b5acc8; border: 2px solid #0a0714;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">run f5dcb6a5 &#183; success &#183; PR #2059</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 36px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">15:46:54</span>
+            <span style="position: relative; height: 36px;"><span style="position: absolute; left: 5px; top: 0; bottom: 0; width: 1px; background: #342a4a;"></span><span style="position: absolute; left: 1px; top: 14px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; background: #2ee6a6; border: 2px solid #0a0714;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #2ee6a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">publication_output_scan &#183; clean &#183; 3670e43f</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 36px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">15:46:50</span>
+            <span style="position: relative; height: 36px;"><span style="position: absolute; left: 5px; top: 0; bottom: 0; width: 1px; background: #342a4a;"></span><span style="position: absolute; left: 1px; top: 14px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; background: #b5acc8; border: 2px solid #0a0714;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">publication_posture &#183; canonical</span>
+          </li>
+          <li aria-label="22 minutes 35 seconds without events" style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 30px;">
+            <span></span>
+            <span style="position: relative; height: 30px;"><span style="position: absolute; left: 5px; top: 0; bottom: 0; width: 0; border-left: 1px dashed #342a4a;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">22m 35s</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 36px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">15:24:15</span>
+            <span style="position: relative; height: 36px;"><span style="position: absolute; left: 5px; top: 0; bottom: 0; width: 1px; background: #342a4a;"></span><span style="position: absolute; left: 1px; top: 14px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; background: #b5acc8; border: 2px solid #0a0714;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">sandbox_resolved &#183; sandboxed</span>
+          </li>
+          <li style="display: grid; grid-template-columns: 84px 24px minmax(0, 1fr); align-items: center; height: 36px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">15:23:18</span>
+            <span style="position: relative; height: 36px;"><span style="position: absolute; left: 5px; top: 0; bottom: 18px; width: 1px; background: #342a4a;"></span><span style="position: absolute; left: 1px; top: 14px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; background: #ffc94a; border: 2px solid #0a0714;"></span></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ffc94a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">dispatch refused &#183; budget_exceeded (weekly)</span>
+          </li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>

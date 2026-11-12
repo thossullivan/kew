@@ -1,0 +1,21 @@
+{
+  "role": "ci_fix",
+  "kind": "implementer",
+  "min_items": 10,
+  "versions": [
+    {
+      "version": null,
+      "label": "built-in",
+      "state": null,
+      "n": 3,
+      "comparable": false,
+      "round_one_items": 3,
+      "first_pass_rate": 0.6666666666666666,
+      "ready_items": 3,
+      "mean_rounds_to_ready": 1.6666666666666667,
+      "merged_items": 2,
+      "median_cost_usd": 0.585
+    }
+  ],
+  "generation": 0
+}

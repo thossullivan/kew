@@ -1,0 +1,162 @@
+{
+  "identity": {
+    "source_tracker": "linear",
+    "item_id": "SFD-229",
+    "item_ref": "SFD-229",
+    "delivery_repo": "thossullivan/kew",
+    "epic_ref": "go-live-2026-09",
+    "node_id": "SFD-229",
+    "run_id": "f2a84bd1",
+    "attempt_number": 1
+  },
+  "source": {
+    "tracker": "linear",
+    "item_state": "open",
+    "synchronization": "synchronized",
+    "observation": {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    }
+  },
+  "route": {
+    "runner": "claude-code",
+    "model": "claude-opus-5",
+    "reported_model": "claude-opus-5",
+    "containment": "contained",
+    "provenance": "declared",
+    "claim": "honored"
+  },
+  "execution": {
+    "state": "completed",
+    "run_status": "success",
+    "attempts": 1,
+    "started_at": "2026-09-29T07:20:00+00:00",
+    "finished_at": "2026-09-29T08:52:00+00:00",
+    "error_category": ""
+  },
+  "artifact": {
+    "state": "published",
+    "publication": "published",
+    "branch": "agent/issue-SFD-229",
+    "pr_url": null,
+    "orphan": false
+  },
+  "judgment": {
+    "state": "changes_requested",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    },
+    "decided_at": "2026-09-29T09:40:00+00:00"
+  },
+  "outcome": {
+    "state": "in_progress",
+    "detail": "held — review_rounds_exhausted: review pool $10.00 exhausted (spent $22.18)"
+  },
+  "integration": {
+    "checks": "passing",
+    "mergeability": "clean",
+    "review_decision": "changes_requested",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    }
+  },
+  "readiness": {
+    "state": "unproven",
+    "fingerprint": null,
+    "evidence_ref": null,
+    "detail": "nothing has probed this boundary",
+    "observation": {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    }
+  },
+  "no_change": {
+    "state": "not_applicable",
+    "judgment_state": "",
+    "policy": "",
+    "reasons": [],
+    "sync_outstanding": 0,
+    "sync_failed": 0,
+    "effects_outstanding": 0
+  },
+  "review_pressure": {
+    "delivery_repo": "thossullivan/kew",
+    "engaged": true,
+    "countable": true,
+    "used": 1,
+    "total": 4,
+    "held": 1,
+    "oldest_hold_age_seconds": null,
+    "diff_burden_lines": 318,
+    "saturated": false,
+    "reasons": [],
+    "enforcement": "inactive",
+    "enforcement_detail": "the human-review policy is configured and reported, but not active",
+    "policy_generation": 3,
+    "observation": {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    }
+  },
+  "exception": {
+    "state": "changes_requested",
+    "detail": "a reviewer asked for changes",
+    "blocking": true,
+    "dimension": "judgment"
+  },
+  "safest_action": {
+    "action": "address_review_feedback",
+    "reason": "a reviewer asked for changes; the next move is ours, and a fresh dispatch would abandon the review thread",
+    "blocked_by": null
+  },
+  "actions": [],
+  "view_revision": "wv1:5fd229b70c4e18da95f36c2b47e0d8a1",
+  "composed_at": "2026-09-29T10:08:00+00:00",
+  "observations": [
+    {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    },
+    {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-09-29T10:08:00+00:00",
+      "detail": null
+    }
+  ]
+}

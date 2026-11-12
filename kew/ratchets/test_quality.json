@@ -1,0 +1,1138 @@
+{
+  "description": "Test-quality debt ledger (#2493) - NOT an approval list. Counts may only fall; scripts/test_quality_scan.py --lower banks a fall. See the scan's docstring for what each count means.",
+  "legacy_names": [
+    "tests/test_governed_round2_credentials.py",
+    "tests/test_governed_round2_loop_adoption.py",
+    "tests/test_governed_round2_proxy_evidence.py",
+    "tests/test_governed_round2_startup_evidence.py",
+    "tests/test_governed_round7_reviewer_teardown.py",
+    "tests/test_proxy_round10.py",
+    "tests/test_proxy_round11.py",
+    "tests/test_proxy_round12.py",
+    "tests/test_proxy_round13.py",
+    "tests/test_proxy_round14.py",
+    "tests/test_proxy_round20.py",
+    "tests/test_proxy_round21.py",
+    "tests/test_proxy_round22.py",
+    "tests/test_proxy_round23.py",
+    "tests/test_proxy_round24.py",
+    "tests/test_proxy_round25.py",
+    "tests/test_proxy_round26.py",
+    "tests/test_proxy_round6.py",
+    "tests/test_proxy_round7.py",
+    "tests/test_proxy_round8.py",
+    "tests/test_proxy_round9.py",
+    "tests/test_publication_round3.py",
+    "tests/test_round13_liveness.py",
+    "tests/test_round14_liveness.py",
+    "tests/test_round15_liveness.py",
+    "tests/test_round16_liveness.py",
+    "tests/test_round17_liveness.py",
+    "tests/test_round18_linear_compensation.py",
+    "tests/test_round18_liveness.py",
+    "tests/test_round19_loop_abandonment.py",
+    "tests/test_round21_admission_owner.py",
+    "tests/test_round22_dispatcher_liveness.py",
+    "tests/test_round23_linear_ambiguity.py",
+    "tests/test_round23_loop_resume_claim.py",
+    "tests/test_round24_claim_recovery.py",
+    "tests/test_round24_lease_and_claim_events.py",
+    "tests/test_round25_checkout_mode_generation.py",
+    "tests/test_round25_claim_states.py",
+    "tests/test_round26_binding_evidence.py",
+    "tests/test_round26_claim_windows.py",
+    "tests/test_round27_claim_truth.py",
+    "tests/test_round28_claim_semantics.py",
+    "tests/test_round29_frontier_refusal_hold.py",
+    "tests/test_w42_round14.py",
+    "tests/test_w42_round15.py",
+    "tests/test_w42_round16.py",
+    "tests/test_w42_round17.py",
+    "tests/test_w42_round18.py",
+    "tests/test_w42_round19.py",
+    "tests/test_w42_round20.py",
+    "tests/test_w42_round21.py",
+    "tests/test_w42_round22.py",
+    "tests/test_w42_round23.py",
+    "tests/test_w42_round24.py",
+    "tests/test_w42_round25.py",
+    "tests/test_w42_round26.py"
+  ],
+  "files": {
+    "tests/conformance/test_dispatch_to_merge_scenarios.py": {
+      "skip_xfail": 1
+    },
+    "tests/delegate/test_claim.py": {
+      "self_patch": 1
+    },
+    "tests/delegate/test_cli.py": {
+      "self_patch": 8
+    },
+    "tests/serve/test_api_readiness.py": {
+      "self_patch": 2
+    },
+    "tests/test_agent_image.py": {
+      "skip_xfail": 2
+    },
+    "tests/test_agent_image_scan_gate.py": {
+      "skip_xfail": 7
+    },
+    "tests/test_artifact_store.py": {
+      "source_text": 1
+    },
+    "tests/test_audit_anchor_workflow.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_bounded_run_keys.py": {
+      "interaction_only": 1,
+      "self_patch": 34,
+      "source_text": 2,
+      "skip_xfail": 2,
+      "test_imports": 2
+    },
+    "tests/test_breaker.py": {
+      "self_patch": 1
+    },
+    "tests/test_budget.py": {
+      "interaction_only": 1
+    },
+    "tests/test_c3_poll_bounds.py": {
+      "self_patch": 1
+    },
+    "tests/test_cache_ordering.py": {
+      "interaction_only": 1,
+      "self_patch": 4
+    },
+    "tests/test_canary.py": {
+      "self_patch": 3
+    },
+    "tests/test_certificate_ref.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_certification_conformance.py": {
+      "source_text": 2,
+      "skip_xfail": 1,
+      "test_imports": 1
+    },
+    "tests/test_certification_gate.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_ci_approval_revoke.py": {
+      "self_patch": 7
+    },
+    "tests/test_ci_fix.py": {
+      "self_patch": 46,
+      "test_imports": 12
+    },
+    "tests/test_cli.py": {
+      "self_patch": 157
+    },
+    "tests/test_cli_characterization.py": {
+      "self_patch": 22
+    },
+    "tests/test_cli_config.py": {
+      "self_patch": 5
+    },
+    "tests/test_cli_dispatch_loop.py": {
+      "self_patch": 2,
+      "test_imports": 1
+    },
+    "tests/test_cli_epic_heartbeat.py": {
+      "self_patch": 2
+    },
+    "tests/test_cli_init.py": {
+      "self_patch": 12
+    },
+    "tests/test_cli_json_reads.py": {
+      "self_patch": 8
+    },
+    "tests/test_cli_json_results.py": {
+      "self_patch": 2
+    },
+    "tests/test_cli_loop.py": {
+      "self_patch": 13,
+      "test_imports": 1
+    },
+    "tests/test_cli_no_change.py": {
+      "self_patch": 1
+    },
+    "tests/test_cli_plan.py": {
+      "self_patch": 1
+    },
+    "tests/test_cli_schema_boundary.py": {
+      "self_patch": 3
+    },
+    "tests/test_cli_serve.py": {
+      "self_patch": 5
+    },
+    "tests/test_cli_status.py": {
+      "self_patch": 3,
+      "test_imports": 2
+    },
+    "tests/test_cli_store_wiring.py": {
+      "self_patch": 5,
+      "source_text": 1
+    },
+    "tests/test_cli_triage.py": {
+      "self_patch": 1
+    },
+    "tests/test_codex_runner.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_command_guard.py": {
+      "self_patch": 1
+    },
+    "tests/test_commit_message.py": {
+      "interaction_only": 1,
+      "self_patch": 4
+    },
+    "tests/test_config_override_enforcement.py": {
+      "self_patch": 2
+    },
+    "tests/test_contained_execution.py": {
+      "interaction_only": 4,
+      "self_patch": 4,
+      "source_text": 1
+    },
+    "tests/test_container_run_primitive.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_continuation_recovery.py": {
+      "self_patch": 14,
+      "skip_xfail": 1,
+      "test_imports": 12
+    },
+    "tests/test_credential_issuer.py": {
+      "interaction_only": 2
+    },
+    "tests/test_delegate_driver.py": {
+      "self_patch": 9
+    },
+    "tests/test_dependencies.py": {
+      "interaction_only": 1,
+      "self_patch": 5
+    },
+    "tests/test_description_retry_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_direct_egress_route.py": {
+      "self_patch": 15
+    },
+    "tests/test_dispatch_core.py": {
+      "interaction_only": 27,
+      "self_patch": 75,
+      "test_imports": 4
+    },
+    "tests/test_dispatch_core_characterization.py": {
+      "self_patch": 1
+    },
+    "tests/test_dispatch_placement.py": {
+      "interaction_only": 1,
+      "self_patch": 5,
+      "source_text": 1
+    },
+    "tests/test_dispatch_plan_record.py": {
+      "self_patch": 1
+    },
+    "tests/test_dispatch_ready_admission.py": {
+      "self_patch": 2,
+      "test_imports": 1
+    },
+    "tests/test_dispatch_sandbox.py": {
+      "self_patch": 12,
+      "source_text": 1,
+      "test_imports": 10
+    },
+    "tests/test_docker_daemon_lock.py": {
+      "source_text": 5,
+      "skip_xfail": 3
+    },
+    "tests/test_docs_truthfulness.py": {
+      "self_patch": 7,
+      "source_text": 4,
+      "skip_xfail": 1,
+      "test_imports": 8
+    },
+    "tests/test_doctor_cli.py": {
+      "self_patch": 44,
+      "source_text": 1
+    },
+    "tests/test_drive.py": {
+      "self_patch": 2
+    },
+    "tests/test_drive_heartbeat.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_drive_inbox.py": {
+      "self_patch": 1
+    },
+    "tests/test_driver_ci_recovery.py": {
+      "self_patch": 3
+    },
+    "tests/test_driver_closed_unmerged.py": {
+      "self_patch": 1
+    },
+    "tests/test_driver_dispatch.py": {
+      "self_patch": 30,
+      "test_imports": 4
+    },
+    "tests/test_driver_lock.py": {
+      "self_patch": 7
+    },
+    "tests/test_driver_merge_queue.py": {
+      "self_patch": 3
+    },
+    "tests/test_driver_overlay.py": {
+      "source_text": 1
+    },
+    "tests/test_driver_repo_host.py": {
+      "source_text": 1
+    },
+    "tests/test_driver_review_detach.py": {
+      "self_patch": 2
+    },
+    "tests/test_driver_review_stage.py": {
+      "self_patch": 2,
+      "test_imports": 1
+    },
+    "tests/test_driver_tick.py": {
+      "self_patch": 46
+    },
+    "tests/test_driver_tick_journal.py": {
+      "self_patch": 1
+    },
+    "tests/test_entrypoint_contract.py": {
+      "self_patch": 1
+    },
+    "tests/test_epic_amend.py": {
+      "self_patch": 1
+    },
+    "tests/test_epic_archive.py": {
+      "self_patch": 7
+    },
+    "tests/test_epic_driver_cli.py": {
+      "self_patch": 62
+    },
+    "tests/test_epic_driver_gh_smoke.py": {
+      "self_patch": 1
+    },
+    "tests/test_epic_node_states.py": {
+      "self_patch": 1
+    },
+    "tests/test_epic_plan_run.py": {
+      "self_patch": 14
+    },
+    "tests/test_epic_watch_journaled.py": {
+      "self_patch": 6
+    },
+    "tests/test_event_label_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_evidence.py": {
+      "source_text": 2
+    },
+    "tests/test_factory_exception_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_factory_header_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_factory_status_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_factory_timeline_fixture.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_fleet.py": {
+      "interaction_only": 1,
+      "self_patch": 7,
+      "skip_xfail": 2
+    },
+    "tests/test_fleet_epic_isolation.py": {
+      "interaction_only": 2,
+      "self_patch": 3
+    },
+    "tests/test_fleet_placement.py": {
+      "self_patch": 1
+    },
+    "tests/test_flight_evidence.py": {
+      "self_patch": 1,
+      "source_text": 1
+    },
+    "tests/test_github_dryrun_smoke.py": {
+      "self_patch": 1
+    },
+    "tests/test_gitleaks_allowlist.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_governance_store_wiring.py": {
+      "self_patch": 2,
+      "source_text": 1
+    },
+    "tests/test_governed_round2_credentials.py": {
+      "self_patch": 2,
+      "test_imports": 4
+    },
+    "tests/test_governed_round2_loop_adoption.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_governed_round2_proxy_evidence.py": {
+      "self_patch": 1
+    },
+    "tests/test_governed_round2_startup_evidence.py": {
+      "self_patch": 1
+    },
+    "tests/test_governed_round7_reviewer_teardown.py": {
+      "self_patch": 2
+    },
+    "tests/test_graph_cli.py": {
+      "self_patch": 7
+    },
+    "tests/test_graph_plan.py": {
+      "self_patch": 1
+    },
+    "tests/test_hold_category_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_host_git_boundary.py": {
+      "self_patch": 3,
+      "source_text": 2
+    },
+    "tests/test_hosts_providers.py": {
+      "self_patch": 3,
+      "skip_xfail": 1
+    },
+    "tests/test_hosts_provision.py": {
+      "self_patch": 4
+    },
+    "tests/test_hosts_remote_dispatch.py": {
+      "self_patch": 5
+    },
+    "tests/test_id_sweep_gate.py": {
+      "source_text": 1
+    },
+    "tests/test_import_contract.py": {
+      "source_text": 1,
+      "skip_xfail": 1
+    },
+    "tests/test_integration.py": {
+      "self_patch": 1
+    },
+    "tests/test_issued_key_grandchildren.py": {
+      "self_patch": 2,
+      "test_imports": 1
+    },
+    "tests/test_issued_key_sandbox.py": {
+      "self_patch": 1
+    },
+    "tests/test_labels.py": {
+      "interaction_only": 5,
+      "self_patch": 4
+    },
+    "tests/test_ledger_guard.py": {
+      "interaction_only": 2,
+      "self_patch": 1
+    },
+    "tests/test_lemonade_runner.py": {
+      "self_patch": 1
+    },
+    "tests/test_linear_mutation_outcome.py": {
+      "self_patch": 1,
+      "test_imports": 2
+    },
+    "tests/test_linear_outage_tick.py": {
+      "self_patch": 2
+    },
+    "tests/test_liveness_owner.py": {
+      "self_patch": 22,
+      "source_text": 1,
+      "test_imports": 4
+    },
+    "tests/test_liveness_sandbox_registration.py": {
+      "self_patch": 9,
+      "test_imports": 10
+    },
+    "tests/test_logs_screen.py": {
+      "self_patch": 1,
+      "test_imports": 2
+    },
+    "tests/test_loop_containment.py": {
+      "self_patch": 3,
+      "test_imports": 1
+    },
+    "tests/test_loops_ci.py": {
+      "self_patch": 5
+    },
+    "tests/test_loops_delegate.py": {
+      "interaction_only": 1,
+      "self_patch": 14
+    },
+    "tests/test_loops_verification.py": {
+      "self_patch": 9
+    },
+    "tests/test_merge_liveness_credentials.py": {
+      "self_patch": 5
+    },
+    "tests/test_model_catalog_docs.py": {
+      "source_text": 1
+    },
+    "tests/test_model_eol_snapshot.py": {
+      "interaction_only": 1,
+      "source_text": 1
+    },
+    "tests/test_model_refresh.py": {
+      "self_patch": 2
+    },
+    "tests/test_motion_parity.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_needs_you_archive.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_needs_you_between_rounds.py": {
+      "test_imports": 3
+    },
+    "tests/test_needs_you_commands.py": {
+      "self_patch": 1,
+      "skip_xfail": 1,
+      "test_imports": 1
+    },
+    "tests/test_needs_you_merged_and_stalled.py": {
+      "self_patch": 1,
+      "test_imports": 2
+    },
+    "tests/test_needs_you_one_item_one_row.py": {
+      "test_imports": 4
+    },
+    "tests/test_needs_you_one_set.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_needs_you_parity.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_notifier.py": {
+      "interaction_only": 4
+    },
+    "tests/test_openshell_certification.py": {
+      "self_patch": 14,
+      "source_text": 2
+    },
+    "tests/test_openshell_checkout.py": {
+      "interaction_only": 1,
+      "self_patch": 4,
+      "skip_xfail": 2
+    },
+    "tests/test_openshell_client.py": {
+      "self_patch": 2
+    },
+    "tests/test_openshell_launch.py": {
+      "interaction_only": 1,
+      "self_patch": 5,
+      "skip_xfail": 3
+    },
+    "tests/test_openshell_launcher.py": {
+      "skip_xfail": 2
+    },
+    "tests/test_openshell_review.py": {
+      "self_patch": 3,
+      "skip_xfail": 1
+    },
+    "tests/test_orchestrator.py": {
+      "interaction_only": 10,
+      "self_patch": 19
+    },
+    "tests/test_orchestrator_cpu_retry.py": {
+      "interaction_only": 1
+    },
+    "tests/test_outcome_sweep_batching.py": {
+      "self_patch": 1
+    },
+    "tests/test_outcomes.py": {
+      "interaction_only": 1,
+      "self_patch": 4
+    },
+    "tests/test_overlap.py": {
+      "interaction_only": 2,
+      "self_patch": 2
+    },
+    "tests/test_override_parity.py": {
+      "self_patch": 7
+    },
+    "tests/test_policy_mark_gate.py": {
+      "source_text": 1
+    },
+    "tests/test_process_groups.py": {
+      "test_imports": 2
+    },
+    "tests/test_prompt.py": {
+      "self_patch": 1
+    },
+    "tests/test_proxy_round10.py": {
+      "test_imports": 1
+    },
+    "tests/test_proxy_round11.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_proxy_round12.py": {
+      "self_patch": 1
+    },
+    "tests/test_proxy_round13.py": {
+      "self_patch": 3
+    },
+    "tests/test_proxy_round14.py": {
+      "self_patch": 3
+    },
+    "tests/test_proxy_round20.py": {
+      "self_patch": 4,
+      "test_imports": 2
+    },
+    "tests/test_proxy_round21.py": {
+      "test_imports": 1
+    },
+    "tests/test_proxy_round22.py": {
+      "test_imports": 3
+    },
+    "tests/test_proxy_round23.py": {
+      "self_patch": 1,
+      "test_imports": 6
+    },
+    "tests/test_proxy_round24.py": {
+      "test_imports": 4
+    },
+    "tests/test_proxy_round25.py": {
+      "test_imports": 4
+    },
+    "tests/test_proxy_round26.py": {
+      "self_patch": 2,
+      "test_imports": 2
+    },
+    "tests/test_proxy_round7.py": {
+      "self_patch": 3,
+      "test_imports": 1
+    },
+    "tests/test_proxy_round8.py": {
+      "self_patch": 2,
+      "test_imports": 2
+    },
+    "tests/test_proxy_round9.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_publication_apply.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_publication_artifact.py": {
+      "self_patch": 1
+    },
+    "tests/test_publication_attest.py": {
+      "self_patch": 1
+    },
+    "tests/test_publication_canonical.py": {
+      "self_patch": 1,
+      "skip_xfail": 2
+    },
+    "tests/test_publication_copy_sync.py": {
+      "self_patch": 1
+    },
+    "tests/test_publication_credentials.py": {
+      "self_patch": 9
+    },
+    "tests/test_publication_extract.py": {
+      "self_patch": 2,
+      "skip_xfail": 4
+    },
+    "tests/test_publication_held_parking.py": {
+      "self_patch": 1
+    },
+    "tests/test_publication_ignore.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_publication_integration_parent.py": {
+      "self_patch": 1,
+      "source_text": 6
+    },
+    "tests/test_publication_intent_lineage.py": {
+      "test_imports": 3
+    },
+    "tests/test_publication_job_store.py": {
+      "source_text": 1
+    },
+    "tests/test_publication_output_scan.py": {
+      "self_patch": 6,
+      "test_imports": 1
+    },
+    "tests/test_publication_producer.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_publication_repository.py": {
+      "self_patch": 1,
+      "skip_xfail": 1
+    },
+    "tests/test_publication_round3.py": {
+      "self_patch": 22
+    },
+    "tests/test_publication_shadow.py": {
+      "self_patch": 1,
+      "skip_xfail": 1
+    },
+    "tests/test_publication_shadow_hook.py": {
+      "interaction_only": 1
+    },
+    "tests/test_publication_success_routing.py": {
+      "self_patch": 4,
+      "test_imports": 1
+    },
+    "tests/test_publication_transient_push.py": {
+      "self_patch": 1,
+      "skip_xfail": 1
+    },
+    "tests/test_publication_worker.py": {
+      "source_text": 5,
+      "skip_xfail": 1
+    },
+    "tests/test_readiness_probe.py": {
+      "self_patch": 23,
+      "source_text": 1
+    },
+    "tests/test_registry.py": {
+      "interaction_only": 1,
+      "self_patch": 1
+    },
+    "tests/test_remediation_containment.py": {
+      "self_patch": 6
+    },
+    "tests/test_remediation_flow_gate.py": {
+      "self_patch": 11
+    },
+    "tests/test_remediation_publication_deferral.py": {
+      "self_patch": 1,
+      "skip_xfail": 1
+    },
+    "tests/test_remediation_wiring.py": {
+      "interaction_only": 1,
+      "self_patch": 3
+    },
+    "tests/test_repo_inventory.py": {
+      "source_text": 1
+    },
+    "tests/test_report.py": {
+      "interaction_only": 1,
+      "self_patch": 13
+    },
+    "tests/test_report_export.py": {
+      "self_patch": 2,
+      "test_imports": 2
+    },
+    "tests/test_report_store_wiring.py": {
+      "source_text": 1
+    },
+    "tests/test_reservation_pinned_sandbox.py": {
+      "interaction_only": 1,
+      "self_patch": 1
+    },
+    "tests/test_resolve.py": {
+      "self_patch": 35,
+      "test_imports": 6
+    },
+    "tests/test_review.py": {
+      "self_patch": 55,
+      "source_text": 1,
+      "test_imports": 5
+    },
+    "tests/test_review_checkout.py": {
+      "self_patch": 2
+    },
+    "tests/test_review_comment.py": {
+      "interaction_only": 2,
+      "self_patch": 5
+    },
+    "tests/test_review_dispatch.py": {
+      "source_text": 2
+    },
+    "tests/test_review_environment.py": {
+      "self_patch": 24,
+      "skip_xfail": 1
+    },
+    "tests/test_review_frontend.py": {
+      "self_patch": 2
+    },
+    "tests/test_review_model_override.py": {
+      "self_patch": 1
+    },
+    "tests/test_review_monorepo_subdir_fixture.py": {
+      "source_text": 1
+    },
+    "tests/test_review_outcome.py": {
+      "self_patch": 6
+    },
+    "tests/test_review_stage_held_cap.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_review_stage_production_wiring.py": {
+      "self_patch": 7
+    },
+    "tests/test_review_stderr_pipe.py": {
+      "self_patch": 3
+    },
+    "tests/test_review_stop_rule.py": {
+      "test_imports": 1
+    },
+    "tests/test_review_verdict_forgery.py": {
+      "self_patch": 2
+    },
+    "tests/test_reviewer_worktree_convergence.py": {
+      "self_patch": 1,
+      "source_text": 2
+    },
+    "tests/test_round13_liveness.py": {
+      "self_patch": 6,
+      "test_imports": 4
+    },
+    "tests/test_round14_liveness.py": {
+      "self_patch": 2,
+      "test_imports": 2
+    },
+    "tests/test_round15_liveness.py": {
+      "self_patch": 3,
+      "test_imports": 4
+    },
+    "tests/test_round16_liveness.py": {
+      "self_patch": 3,
+      "test_imports": 3
+    },
+    "tests/test_round17_liveness.py": {
+      "self_patch": 1,
+      "test_imports": 6
+    },
+    "tests/test_round18_linear_compensation.py": {
+      "self_patch": 8,
+      "source_text": 1,
+      "test_imports": 1
+    },
+    "tests/test_round18_liveness.py": {
+      "interaction_only": 1,
+      "self_patch": 5,
+      "test_imports": 2
+    },
+    "tests/test_round19_loop_abandonment.py": {
+      "self_patch": 5,
+      "test_imports": 8
+    },
+    "tests/test_round21_admission_owner.py": {
+      "self_patch": 2,
+      "test_imports": 2
+    },
+    "tests/test_round22_dispatcher_liveness.py": {
+      "self_patch": 6,
+      "test_imports": 1
+    },
+    "tests/test_round23_linear_ambiguity.py": {
+      "self_patch": 1,
+      "test_imports": 4
+    },
+    "tests/test_round23_loop_resume_claim.py": {
+      "self_patch": 3,
+      "test_imports": 1
+    },
+    "tests/test_round24_claim_recovery.py": {
+      "self_patch": 4,
+      "test_imports": 3
+    },
+    "tests/test_round24_lease_and_claim_events.py": {
+      "self_patch": 12,
+      "test_imports": 2
+    },
+    "tests/test_round25_checkout_mode_generation.py": {
+      "self_patch": 3,
+      "test_imports": 2
+    },
+    "tests/test_round25_claim_states.py": {
+      "self_patch": 2,
+      "test_imports": 3
+    },
+    "tests/test_round26_binding_evidence.py": {
+      "self_patch": 3,
+      "test_imports": 4
+    },
+    "tests/test_round26_claim_windows.py": {
+      "self_patch": 3,
+      "test_imports": 7
+    },
+    "tests/test_round27_claim_truth.py": {
+      "self_patch": 3,
+      "test_imports": 4
+    },
+    "tests/test_round28_claim_semantics.py": {
+      "self_patch": 3,
+      "test_imports": 5
+    },
+    "tests/test_run_credentials.py": {
+      "interaction_only": 1,
+      "self_patch": 12
+    },
+    "tests/test_run_report_sink.py": {
+      "self_patch": 1,
+      "skip_xfail": 5
+    },
+    "tests/test_run_requests.py": {
+      "self_patch": 4
+    },
+    "tests/test_run_store.py": {
+      "self_patch": 1,
+      "test_imports": 2
+    },
+    "tests/test_run_store_reservations.py": {
+      "source_text": 1
+    },
+    "tests/test_runner_container_args.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_runner_liveness.py": {
+      "self_patch": 2
+    },
+    "tests/test_runner_quota.py": {
+      "self_patch": 3
+    },
+    "tests/test_runtime_backend.py": {
+      "interaction_only": 2,
+      "self_patch": 5
+    },
+    "tests/test_sandbox.py": {
+      "interaction_only": 5,
+      "self_patch": 165,
+      "source_text": 1,
+      "skip_xfail": 2
+    },
+    "tests/test_sandbox_client_exit.py": {
+      "self_patch": 1
+    },
+    "tests/test_sandbox_containment.py": {
+      "self_patch": 2,
+      "skip_xfail": 3
+    },
+    "tests/test_sandbox_network_cli.py": {
+      "self_patch": 6
+    },
+    "tests/test_sandbox_stream_parity.py": {
+      "self_patch": 2,
+      "source_text": 1
+    },
+    "tests/test_scheduler.py": {
+      "interaction_only": 13,
+      "self_patch": 6
+    },
+    "tests/test_scheduler_store_wiring.py": {
+      "source_text": 1
+    },
+    "tests/test_schema_version_literal_gate.py": {
+      "source_text": 1
+    },
+    "tests/test_security.py": {
+      "skip_xfail": 3
+    },
+    "tests/test_selector.py": {
+      "self_patch": 18
+    },
+    "tests/test_self_check.py": {
+      "self_patch": 3
+    },
+    "tests/test_serial_phase.py": {
+      "source_text": 3,
+      "skip_xfail": 1
+    },
+    "tests/test_serve_api_audit.py": {
+      "self_patch": 1
+    },
+    "tests/test_serve_api_description.py": {
+      "self_patch": 2
+    },
+    "tests/test_serve_api_dispatch.py": {
+      "self_patch": 1
+    },
+    "tests/test_serve_api_evidence.py": {
+      "self_patch": 1
+    },
+    "tests/test_serve_inbox_api.py": {
+      "interaction_only": 1
+    },
+    "tests/test_serve_sweep.py": {
+      "self_patch": 4
+    },
+    "tests/test_serve_tui_store_wiring.py": {
+      "source_text": 1
+    },
+    "tests/test_service_dashboard.py": {
+      "self_patch": 7
+    },
+    "tests/test_service_dispatch_plan.py": {
+      "self_patch": 1
+    },
+    "tests/test_service_epics.py": {
+      "self_patch": 2
+    },
+    "tests/test_service_runs.py": {
+      "self_patch": 5,
+      "test_imports": 2
+    },
+    "tests/test_service_verbs.py": {
+      "interaction_only": 1,
+      "self_patch": 5
+    },
+    "tests/test_service_work.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_setup_agents_md.py": {
+      "self_patch": 1
+    },
+    "tests/test_shard.py": {
+      "skip_xfail": 1
+    },
+    "tests/test_silence_on_failure.py": {
+      "source_text": 1
+    },
+    "tests/test_skills_cli.py": {
+      "self_patch": 2
+    },
+    "tests/test_staleness.py": {
+      "self_patch": 31,
+      "skip_xfail": 2
+    },
+    "tests/test_standalone_review.py": {
+      "self_patch": 3
+    },
+    "tests/test_subprocess_utils.py": {
+      "self_patch": 16
+    },
+    "tests/test_surface_convergence.py": {
+      "skip_xfail": 3
+    },
+    "tests/test_switchyard_accounting.py": {
+      "self_patch": 2
+    },
+    "tests/test_switchyard_image_skip.py": {
+      "source_text": 2
+    },
+    "tests/test_switchyard_supervisor.py": {
+      "self_patch": 3
+    },
+    "tests/test_temp_root_isolation.py": {
+      "source_text": 1
+    },
+    "tests/test_test_integrity.py": {
+      "test_imports": 1
+    },
+    "tests/test_tracker_config_and_factory.py": {
+      "interaction_only": 1,
+      "self_patch": 4
+    },
+    "tests/test_tracking.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_triage_deny_by_default.py": {
+      "self_patch": 2
+    },
+    "tests/test_tui_actions.py": {
+      "interaction_only": 28,
+      "self_patch": 10
+    },
+    "tests/test_tui_app.py": {
+      "interaction_only": 2
+    },
+    "tests/test_tui_approval_dialog.py": {
+      "interaction_only": 3
+    },
+    "tests/test_tui_holds_queue.py": {
+      "interaction_only": 15,
+      "self_patch": 7,
+      "source_text": 1
+    },
+    "tests/test_tui_review.py": {
+      "interaction_only": 9,
+      "self_patch": 9
+    },
+    "tests/test_verify_command.py": {
+      "self_patch": 20
+    },
+    "tests/test_verify_parity.py": {
+      "source_text": 2
+    },
+    "tests/test_verify_shards.py": {
+      "source_text": 1
+    },
+    "tests/test_w42_round14.py": {
+      "self_patch": 4,
+      "test_imports": 4
+    },
+    "tests/test_w42_round15.py": {
+      "self_patch": 3
+    },
+    "tests/test_w42_round16.py": {
+      "self_patch": 3
+    },
+    "tests/test_w42_round17.py": {
+      "self_patch": 5,
+      "test_imports": 1
+    },
+    "tests/test_w42_round18.py": {
+      "self_patch": 6,
+      "test_imports": 2
+    },
+    "tests/test_w42_round19.py": {
+      "self_patch": 3,
+      "test_imports": 3
+    },
+    "tests/test_w42_round20.py": {
+      "self_patch": 8,
+      "test_imports": 3
+    },
+    "tests/test_w42_round21.py": {
+      "self_patch": 5,
+      "test_imports": 3
+    },
+    "tests/test_w42_round22.py": {
+      "self_patch": 1,
+      "skip_xfail": 1,
+      "test_imports": 3
+    },
+    "tests/test_w42_round23.py": {
+      "self_patch": 3,
+      "test_imports": 4
+    },
+    "tests/test_w42_round24.py": {
+      "test_imports": 2
+    },
+    "tests/test_w42_round25.py": {
+      "self_patch": 2,
+      "test_imports": 3
+    },
+    "tests/test_w42_round26.py": {
+      "self_patch": 1,
+      "test_imports": 1
+    },
+    "tests/test_worktree.py": {
+      "interaction_only": 1,
+      "self_patch": 19,
+      "test_imports": 1
+    },
+    "tests/test_zero_change_close.py": {
+      "interaction_only": 1
+    },
+    "tests/tui/test_analytics_screen.py": {
+      "interaction_only": 9,
+      "self_patch": 2
+    },
+    "tests/tui/test_palette.py": {
+      "source_text": 3,
+      "skip_xfail": 1
+    }
+  }
+}

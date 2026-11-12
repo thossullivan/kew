@@ -1,0 +1,277 @@
+<!doctype html>
+<!--
+UXWork.html - kew Work screen, UX pass (2026-10-02). Static artboard, 1440x900, holds at 1280.
+
+Implements (brief 2026-10-02-ui-ux-brief.md):
+- 2.1 Every row selects in place (?item=2219); no row is a link out. Detail pane order:
+  header with epic crumb from entry.epic_ref -> Needs-you block (what / why / since / do this)
+  -> Pipeline -> Evidence ledger. Description stays below the fold, unchanged.
+- 2.1 One command per row, served by the backend (A2 `command`), in mono with a Copy button
+  and the `c` key. Secondary actions in one quiet row: Show in epic (in-app), PR #2231 ->, Issue #2219 ->.
+- 2.1 Keyboard: j/k and arrows, Enter, Esc, /, c, f shown in the list footer.
+- 2.1 / P3 State words come from attention_kind: "merge" for the merge decision, "held" for the
+  continuation hold. Category glyph and colour match the Monitor Holds column
+  (magenta diamond = merge decision, amber ring = held).
+- Section 7 decision 1 / P4: archived epics leave needs-you. containment (#1144 #1147) and
+  governance-hardening (#1111 #1116) are gone; the header reads 2, not 6.
+- P5: SFD-232's command is `kew epic continue go-live-2026-09 SFD-232` (not `kew epic resume`).
+  #2219's command is the real `kew epic merge ui-refine 2219 --head <sha>` for its READY head.
+
+Decisions (Tom, 2026-10-02), applied here:
+- Work keeps the "Ready" (glance.ready_queue) and "Recently done" (glance.recent_completions)
+  groups under the needs-you rows, so j/k has a list to move through. Both reads are already in
+  /api/dashboard.
+- Focus ring is 2px cyan (--focus, #05d9e8, about 11:1 on ink), shown on the selected row.
+- The header "N needs you" counter is a link to /work?filter=needs-you.
+- Nav is Work, Monitor, Epics (no Evals tab).
+
+Other notes:
+- Frame is 1440x900, not the factory-ui 1440x960.
+- The selected item's header drops DWork's Claim / Hold / Flags buttons: none applies to a
+  READY PR waiting on a merge. They return for items where they act.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kew Work (UX pass)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0714;--ink-raised:#0d0a18;--ink-selected:#151025;--ink-track:#1d1730;
+  --hair:#221c33;--hair-quiet:#1a1528;--hair-strong:#342a4a;--hair-box:#2a2240;--guide:#16111f;
+  --text-1:#ebe6f2;--text-2:#b5acc8;--text-3:#8d84a3;--text-4:#6a6082;--text-5:#5a5070;
+  --edge-done:#3a3052;
+  --accent:#ff2a6d;--accent-2:#05d9e8;--success:#2ee6a6;--warn:#ffc94a;--danger:#ff4365;
+  --status-blocked:#b48ade;
+  --halo-cyan:rgba(5,217,232,.16);--halo-magenta:rgba(255,42,109,.16);
+  --focus:#05d9e8;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text-1);font-family:var(--sans)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.frame{width:100%;min-width:1280px;max-width:1440px;height:900px;margin:0 auto;display:flex;flex-direction:column;
+  background:var(--ink);font-variant-numeric:tabular-nums;overflow:hidden;position:relative}
+.mono{font-family:var(--mono)}
+.cap{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.t1{color:var(--text-1)}.t2{color:var(--text-2)}.t3{color:var(--text-3)}.t5{color:var(--text-5)}
+.c-acc{color:var(--accent)}.c-cyan{color:var(--accent-2)}.c-ok{color:var(--success)}.c-warn{color:var(--warn)}
+.sep{width:1px;height:14px;background:var(--hair-strong);display:inline-block}
+.grow{flex-grow:1}
+/* focus: visible ring, one per artboard shows it */
+.focus-ring{outline:2px solid var(--focus);outline-offset:2px}
+.focus-inset{box-shadow:inset 0 0 0 2px var(--focus)}
+/* header */
+.top{height:56px;flex-shrink:0;padding:0 32px;display:flex;align-items:center;gap:40px;border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-weight:600;font-size:26px;letter-spacing:-.03em;line-height:1}
+.brand i{width:12px;height:24px;background:var(--accent);display:inline-block}
+.nav{display:flex;gap:28px;height:56px;font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+.nav a,.nav span{display:flex;align-items:center;height:56px;border-bottom:2px solid transparent;padding-top:2px;color:var(--text-2)}
+.nav [aria-current]{border-bottom-color:var(--text-1);color:var(--text-1)}
+.meta{display:flex;align-items:center;gap:24px;font-family:var(--mono);font-size:13px;color:var(--text-2)}
+.meta .n{color:var(--text-1)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dia{width:7px;height:7px;background:var(--accent);transform:rotate(45deg);display:inline-block;flex-shrink:0}
+.ring{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--warn);display:inline-block;flex-shrink:0}
+.counter{display:flex;align-items:center;gap:8px}
+a.counter:hover .n{color:var(--accent-2)}
+/* buttons */
+.btn{height:36px;padding:0 14px;border-radius:4px;border:1px solid var(--hair-strong);display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:13px;color:var(--text-1);white-space:nowrap}
+.btn:hover{border-color:var(--text-4)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:600}
+.btn.quiet{border-color:transparent;color:var(--text-2);padding:0 10px}
+.btn .ext{font-size:12px}
+.kbd{font-family:var(--mono);font-size:11px;line-height:16px;min-width:18px;height:18px;padding:0 5px;border-radius:3px;
+  border:1px solid var(--hair-strong);border-bottom-width:2px;color:var(--text-2);display:inline-flex;align-items:center;justify-content:center}
+.btn.primary .kbd{border-color:rgba(10,7,20,.35);color:var(--ink)}
+code.cmd{font-family:var(--mono);font-size:13px;color:var(--accent-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdbox{display:flex;align-items:center;gap:12px;height:44px;padding:0 6px 0 14px;border-radius:4px;background:var(--ink-selected);
+  border:1px solid var(--hair-box)}
+.cmdbox .prompt{font-family:var(--mono);font-size:13px;color:var(--text-4);user-select:none}
+.cmdbox code{flex:1;min-width:0}
+
+.body{flex-grow:1;display:flex;min-height:0}
+.list{width:420px;flex-shrink:0;border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+.search{padding:18px 28px 14px;display:flex;gap:8px}
+.search input{flex-grow:1;height:40px;padding:0 14px;border-radius:4px;border:1px solid var(--hair-strong);background:transparent;
+  color:var(--text-1);font-family:var(--mono);font-size:13px}
+.search input::placeholder{color:var(--text-3)}
+.search .slash{position:absolute;right:12px;top:11px}
+.iconbtn{width:40px;height:40px;border-radius:4px;border:1px solid var(--hair-strong);display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.iconbtn.on{border-color:var(--accent);color:var(--accent);background:var(--halo-magenta)}
+.colhead{display:grid;grid-template-columns:72px minmax(0,1fr) 84px;gap:12px;padding:0 28px 9px;border-bottom:1px solid var(--hair)}
+.group{display:flex;align-items:center;gap:10px;padding:16px 28px 8px}
+.group .cnt{color:var(--text-2)}
+.rows{flex-grow:1;overflow:hidden}
+.row{display:grid;grid-template-columns:72px minmax(0,1fr) 84px;gap:12px;align-items:center;height:46px;padding:0 28px;
+  border-bottom:1px solid var(--hair-quiet);position:relative;cursor:pointer}
+.row:hover{background:#110c1e}
+.row.two{height:62px}
+.row .no{font-family:var(--mono);font-size:13px;color:var(--text-3)}
+.row .ttl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.row .ttl b{font-weight:400;font-size:15px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .ttl small{font-family:var(--mono);font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .st{display:flex;justify-content:flex-end;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;color:var(--text-3)}
+.row.sel{background:var(--ink-selected)}
+.row.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.row.sel .no,.row.sel .ttl b{color:var(--text-1)}
+.row.sel .ttl b{font-weight:500}
+.keys{flex-shrink:0;border-top:1px solid var(--hair);padding:12px 28px;display:flex;flex-wrap:wrap;gap:8px 16px;font-family:var(--mono);font-size:12px;color:var(--text-3)}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+
+.detail{flex-grow:1;min-width:0;padding:24px 44px 24px 44px;display:flex;flex-direction:column;overflow:hidden}
+.crumbs{display:flex;align-items:center;gap:8px;min-height:20px}
+.crumbs a{color:var(--text-2)}.crumbs a:hover{color:var(--accent-2)}
+h1{margin:14px 0 0;max-width:880px;font-family:var(--mono);font-weight:500;font-size:24px;line-height:1.32;letter-spacing:-.015em;color:var(--text-1)}
+.facts{margin-top:12px;display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:13px;color:var(--text-2);flex-wrap:wrap}
+.facts .v{color:var(--text-1)}
+
+.ny{margin-top:22px;border:1px solid var(--hair-box);border-left:3px solid var(--accent);border-radius:4px;background:var(--ink-raised);
+  padding:18px 24px 18px 22px}
+.ny-head{display:flex;align-items:center;gap:10px}
+.ny-head .big-dia{width:11px;height:11px;background:var(--accent);transform:rotate(45deg);box-shadow:0 0 0 5px var(--halo-magenta)}
+.ny-lead{margin:12px 0 0;font-size:20px;font-weight:500;line-height:1.35;color:var(--text-1)}
+.ledger{margin-top:14px;display:grid;grid-template-columns:96px minmax(0,1fr);row-gap:0}
+.ledger > .k{padding:10px 0;border-top:1px solid var(--hair-quiet);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);line-height:20px}
+.ledger > .v{padding:10px 0;border-top:1px solid var(--hair-quiet);font-size:15px;line-height:20px;color:var(--text-2)}
+.ledger > .v .m{font-family:var(--mono);font-size:13px;color:var(--text-1)}
+.dothis{display:flex;flex-direction:column;gap:8px}
+.dothis .note{font-size:13px;color:var(--text-3);line-height:18px}
+.actions{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--hair-quiet)}
+
+.sec-h{display:flex;align-items:baseline;gap:16px;margin-bottom:12px}
+.sec-h h2{margin:0;font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+.lower{margin-top:24px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0;min-height:0}
+.pipe{padding-right:32px}
+.stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.stage{display:flex;flex-direction:column;gap:9px}
+.stage .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.track{position:relative;height:14px}
+.track .ln{position:absolute;left:7px;right:0;top:6px;height:2px}
+.track .pt{position:absolute;left:0;top:0;width:14px;height:14px;border-radius:50%}
+.stage .tx{font-family:var(--mono);font-size:13px;line-height:1.4;padding-right:12px}
+.evid{padding-left:32px;border-left:1px solid var(--hair)}
+.evid ol{margin:0;padding:0;list-style:none}
+.evid li{display:grid;grid-template-columns:26px 18px minmax(0,1fr) auto;column-gap:10px;align-items:center;height:40px}
+.evid .n{font-family:var(--mono);font-size:13px;color:var(--text-3)}
+.evid .nm{display:flex;flex-direction:column;min-width:0}
+.evid .nm b{font-weight:400;font-size:14px;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evid .nm small{font-family:var(--mono);font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evid .tm{font-family:var(--mono);font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:10px}
+.copied{font-family:var(--mono);font-size:12px;color:var(--success)}
+@media (max-width:1360px){
+  .evid .word{display:none}
+  .cmdbox{height:auto;min-height:44px;padding-top:6px;padding-bottom:6px}
+  .cmdbox code.cmd{white-space:normal;overflow-wrap:anywhere;line-height:18px}
+  .detail{padding-left:36px;padding-right:32px}
+  .lower{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <header class="top">
+    <div class="brand"><span>kew</span><i></i></div>
+    <nav class="nav" aria-label="Factory views">
+      <a href="UXWork.html" aria-current="page">Work</a><a href="UXMonitor.html">Monitor</a><a href="UXEpic.html">Epics</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="meta">
+      <span class="counter"><span class="dot" style="background:var(--accent-2)"></span><span class="n">0</span> working</span>
+      <a class="counter" href="UXWork.html?filter=needs-you" data-app-href="/work?filter=needs-you" title="Open the needs-you list in Work"><span class="dia"></span><span class="n">2</span> needs you</a>
+      <span class="sep" style="height:20px;background:var(--hair)"></span>
+      <span class="t3">thossullivan/kew</span>
+    </div>
+  </header>
+  <div class="body">
+    <aside class="list" aria-label="Issues">
+      <div class="search">
+        <label for="q" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search issues</label>
+        <span style="position:relative;flex-grow:1;display:flex"><input id="q" type="search" placeholder="Search issues"><span class="kbd slash">/</span></span>
+        <button class="iconbtn on" type="button" aria-pressed="true" title="Needs-you filter (f)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        </button>
+      </div>
+      <div class="colhead cap"><span>No.</span><span>Issue</span><span style="text-align:right">State</span></div>
+      <div class="rows" role="listbox" aria-label="Work items">
+        <div class="group cap"><span class="dia"></span><span class="c-acc">Needs you</span><span class="cnt">2</span></div>
+        <div class="row two sel focus-inset" role="option" aria-current="true" tabindex="0"><span class="no">2219</span><span class="ttl"><b>Rate-limited reviewer run holds the node as review_unparseable instead of retrying</b><small>merge decision &#183; 1h</small></span><span class="st"><span class="dia"></span><span class="c-acc">merge</span></span></div><div class="row two" role="option"><span class="no">SFD-232</span><span class="ttl"><b>security: enforce auditable sandbox posture #1217</b><small>continuation &#183; held 18d</small></span><span class="st"><span class="ring"></span><span class="c-warn">held</span></span></div>
+        <div class="group cap"><span>Ready</span><span class="cnt">1</span></div>
+        <div class="row" role="option"><span class="no">1177</span><span class="ttl"><b>[Pricing] MODEL_PRICING drift vs LiteLLM snapshot</b></span><span class="st"><span class="dot" style="border:1px solid #5a5070"></span>idle</span></div>
+        <div class="group cap"><span>Recently done</span><span class="cnt">5</span></div>
+        <div class="row" role="option"><span class="no">2210</span><span class="ttl"><b>UI polish: Epics list noise, readable event stream, Work default pane</b></span><span class="st"><span class="dot" style="background:var(--success)"></span><span class="c-ok">done</span></span></div><div class="row" role="option"><span class="no">2208</span><span class="ttl"><b>UI: hold rows name their epic and item, with the right category and action</b></span><span class="st"><span class="dot" style="background:var(--success)"></span><span class="c-ok">done</span></span></div><div class="row" role="option"><span class="no">2207</span><span class="ttl"><b>UI: one needs-you source for the header, Monitor, epic legend and Work</b></span><span class="st"><span class="dot" style="background:var(--success)"></span><span class="c-ok">done</span></span></div><div class="row" role="option"><span class="no">2206</span><span class="ttl"><b>kew epic archive: retire a finished or abandoned epic from active views</b></span><span class="st"><span class="dot" style="background:var(--success)"></span><span class="c-ok">done</span></span></div><div class="row" role="option"><span class="no">2209</span><span class="ttl"><b>UI: epic DAG layout: labels, spacing, sticky layers, distinct wait glyphs</b></span><span class="st"><span class="dot" style="background:var(--success)"></span><span class="c-ok">done</span></span></div>
+      </div>
+      <div class="keys" aria-label="Keyboard">
+        <span><span class="kbd">j</span><span class="kbd">k</span>move</span>
+        <span><span class="kbd">&#8629;</span>open</span>
+        <span><span class="kbd">esc</span>clear</span>
+        <span><span class="kbd">c</span>copy command</span>
+        <span><span class="kbd">f</span>needs you</span>
+      </div>
+    </aside>
+    <main class="detail" aria-label="Selected item #2219">
+      <div class="crumbs cap">
+        <span class="t2">#2219</span><span class="t5">/</span><a href="UXEpic.html" title="Epic ui-refine">epic ui-refine</a>
+        <div class="grow"></div>
+        <span class="t3" style="letter-spacing:.06em;text-transform:none;font-size:12px">1 of 2 needing you</span>
+      </div>
+      <h1>Rate-limited reviewer run holds the node as review_unparseable instead of retrying</h1>
+      <div class="facts">
+        <span style="display:flex;align-items:center;gap:8px;color:var(--accent-2)"><span class="dot" style="border:2px solid var(--accent-2);width:9px;height:9px"></span>in review</span>
+        <span class="sep"></span><span>risk <span class="v">contained</span></span>
+        <span class="sep"></span><span><span class="c-warn">$93.73</span> spent</span>
+        <span class="sep"></span><span>PR <span class="v">#2231</span></span>
+        <span class="sep"></span><span>run <span class="v">aa34590b</span></span>
+        <span class="sep"></span><span>17 attempts</span>
+      </div>
+
+      <section class="ny" aria-label="Needs you: merge decision">
+        <div class="ny-head">
+          <span class="big-dia" aria-hidden="true"></span>
+          <span class="cap c-acc" style="margin-left:4px">Needs you</span><span class="cap t5">&#183;</span><span class="cap t2">Merge decision</span>
+          <div class="grow"></div>
+          <span class="mono" style="font-size:13px;color:var(--text-2)">waiting <span class="t1">1h 01m</span></span>
+        </div>
+        <p class="ny-lead">PR #2231 passed review. Merging it is your call.</p>
+        <div class="ledger">
+          <span class="k">Why</span>
+          <span class="v">Review round 8 returned <span class="c-ok">READY</span> on head <span class="m">be214719</span>. kew merges a node only on a non-author approval, and you author every agent PR, so this merge waits for you.</span>
+          <span class="k">Since</span>
+          <span class="v"><span class="m">09:03:19</span> today, when the round-8 verdict landed</span>
+          <span class="k" style="line-height:44px;padding-top:12px">Do this</span>
+          <div class="v dothis" style="padding-top:12px">
+            <div class="cmdbox">
+              <span class="prompt" aria-hidden="true">$</span>
+              <code class="cmd">kew epic merge ui-refine 2219 --head be214719ea3af05163a69015fb421c8ed70c0886</code>
+              <button class="btn primary" type="button" style="height:32px;padding:0 10px 0 12px" aria-label="Copy command (c)">Copy <span class="kbd">c</span></button>
+            </div>
+            <span class="note">Merges this one node. kew re-checks CI, the verdict and the merge queue against exactly this head first.</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="UXEpic.html">Show in epic <span aria-hidden="true">&#8594;</span></a>
+          <a class="btn quiet" href="https://github.com/thossullivan/kew/pull/2231" target="_blank" rel="noreferrer">PR #2231 <span class="ext" aria-hidden="true">&#8599;</span></a>
+          <a class="btn quiet" href="https://github.com/thossullivan/kew/issues/2219" target="_blank" rel="noreferrer">Issue #2219 <span class="ext" aria-hidden="true">&#8599;</span></a>
+        </div>
+      </section>
+
+      <div class="lower">
+        <section class="pipe" aria-label="Pipeline">
+          <div class="sec-h"><h2>Pipeline &#183; main</h2><div class="grow"></div><span class="mono t3" style="font-size:11px">4 stages</span></div>
+          <div class="stages"><div class="stage"><span class="lbl">Implement</span><div class="track"><div class="ln" style="background:var(--success)"></div><div class="pt" style="background:var(--success)"></div></div><div class="tx"><span class="t1">run 63d0e29f</span><br><span class="c-ok">success</span></div></div><div class="stage"><span class="lbl">Publish</span><div class="track"><div class="ln" style="background:var(--success)"></div><div class="pt" style="background:var(--success)"></div></div><div class="tx"><span class="t1">scan clean</span><br><span class="c-ok">bdd4547c</span></div></div><div class="stage"><span class="lbl">Review</span><div class="track"><div class="ln" style="background:#ff2a6d"></div><div class="pt" style="background:var(--success)"></div></div><div class="tx"><span class="t1">round 8</span><br><span class="c-ok">ready</span></div></div><div class="stage"><span class="lbl">Merge</span><div class="track"><div style="position:absolute;left:1px;top:1px;width:12px;height:12px;background:var(--accent);transform:rotate(45deg);box-shadow:0 0 0 4px var(--halo-magenta)"></div></div><div class="tx"><span class="c-acc">needs you</span><br><span class="t3">merge decision</span></div></div></div>
+        </section>
+        <section class="evid" aria-label="Evidence ledger">
+          <div class="sec-h"><h2>Evidence ledger</h2><div class="grow"></div><span class="mono t3" style="font-size:13px"><span class="c-ok">4</span> / 4 attested</span></div>
+          <ol><li><span class="n">01</span><span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:var(--success)"></span><span class="nm"><b>Sandboxed</b><small>sandboxed</small></span><span class="tm">00:37:04<span class="cap c-ok" style="display:flex;align-items:center;gap:6px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg><span class="word">attested</span></span></span></li><li><span class="n">02</span><span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:var(--success)"></span><span class="nm"><b>Canonical publication</b><small>canonical</small></span><span class="tm">00:37:04<span class="cap c-ok" style="display:flex;align-items:center;gap:6px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg><span class="word">attested</span></span></span></li><li><span class="n">03</span><span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:var(--success)"></span><span class="nm"><b>Scan clean</b><small>clean &#183; bdd4547c</small></span><span class="tm">01:04:10<span class="cap c-ok" style="display:flex;align-items:center;gap:6px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg><span class="word">attested</span></span></span></li><li><span class="n">04</span><span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:var(--success)"></span><span class="nm"><b>Verdict</b><small>READY &#183; round 8</small></span><span class="tm">09:03:19<span class="cap c-ok" style="display:flex;align-items:center;gap:6px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg><span class="word">attested</span></span></span></li></ol>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "seq": 2111,
+      "ts": "2026-10-21T03:00:01+00:00",
+      "event": "dispatch_owner_recorded",
+      "actor_type": "policy",
+      "item_id": "108",
+      "payload": {
+        "owner_pid": 4208
+      }
+    },
+    {
+      "seq": 2112,
+      "ts": "2026-10-21T03:00:02+00:00",
+      "event": "routing_decision",
+      "actor_type": "agent",
+      "item_id": "108",
+      "payload": {
+        "recommended_runner": "claude-code",
+        "applied": false
+      }
+    },
+    {
+      "seq": 2113,
+      "ts": "2026-10-21T03:00:23+00:00",
+      "event": "sandbox_resolved",
+      "actor_type": "host",
+      "item_id": "108",
+      "payload": {
+        "posture": "sandboxed"
+      }
+    },
+    {
+      "seq": 2114,
+      "ts": "2026-10-21T03:26:00+00:00",
+      "event": "dispatch_completed",
+      "actor_type": "host",
+      "item_id": "108",
+      "payload": {
+        "status": "success"
+      }
+    }
+  ],
+  "run_id": "f220f966",
+  "next_seq": 2115
+}

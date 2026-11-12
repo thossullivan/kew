@@ -1,0 +1,42 @@
+{
+  "id": "needs-you",
+  "title": "What needs me, and what do I run?",
+  "start": "/work",
+  "steps": [
+    {
+      "route": "/work",
+      "target": "needs-you-count",
+      "docs": "web/index.md",
+      "anchor": "cockpit-shell",
+      "passage": "needs-you/1"
+    },
+    {
+      "route": "/work",
+      "target": "work-detail",
+      "docs": "web/index.md",
+      "anchor": "what-needs-you-counts",
+      "passage": "needs-you/2"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "target": "epic-heartbeat",
+      "docs": "how-it-works.md",
+      "anchor": "the-supervised-drive",
+      "passage": "needs-you/3"
+    },
+    {
+      "route": "/monitor",
+      "target": "merge-decision",
+      "docs": "web/index.md",
+      "anchor": "holds-and-blocks",
+      "passage": "needs-you/4"
+    },
+    {
+      "route": "/monitor",
+      "target": "hold-command",
+      "docs": "web/index.md",
+      "anchor": "holds-and-blocks",
+      "passage": "needs-you/5"
+    }
+  ]
+}

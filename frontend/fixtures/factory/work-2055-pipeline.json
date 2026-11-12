@@ -1,0 +1,68 @@
+{
+  "item_id": "2055",
+  "lanes": [
+    {
+      "name": "main",
+      "stages": [
+        {
+          "stage": "implement",
+          "state": "done",
+          "label": "run f5dcb6a5",
+          "detail": "success",
+          "evidence": { "kind": "run", "ref": "f5dcb6a5" }
+        },
+        {
+          "stage": "publish",
+          "state": "done",
+          "label": "scan clean",
+          "detail": "3670e43f",
+          "evidence": { "kind": "output_scan", "ref": "3670e43f" }
+        },
+        {
+          "stage": "review",
+          "state": "done",
+          "label": "round 1",
+          "detail": "ready",
+          "evidence": { "kind": "review_verdict", "ref": "3670e43f" }
+        },
+        {
+          "stage": "merge",
+          "state": "needs_you",
+          "label": "needs you",
+          "detail": "merge decision",
+          "evidence": {
+            "kind": "pull_request",
+            "ref": "https://github.com/thossullivan/kew/pull/2059"
+          }
+        }
+      ]
+    }
+  ],
+  "unavailable": [],
+  "composed_at": "2026-10-03T14:47:40+00:00",
+  "merge_verify": {
+    "outcome": "failed",
+    "head": "3670e43f9a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "is_current_head": true,
+    "error_category": null,
+    "held_out": {
+      "outcome": "failed",
+      "failed": [
+        "tests/test_queue.py::test_lease_expires_after_ttl",
+        "tests/test_queue.py::test_claim_is_exclusive",
+        "tests/test_queue.py::test_retry_label_is_renamed"
+      ],
+      "declared": [
+        "tests/test_queue.py::test_retry_label_is_renamed"
+      ],
+      "undeclared": [
+        "tests/test_queue.py::test_lease_expires_after_ttl",
+        "tests/test_queue.py::test_claim_is_exclusive"
+      ],
+      "failed_more": 0,
+      "declared_more": 0,
+      "undeclared_more": 0
+    },
+    "recorded_at": "2026-10-03T14:47:20+00:00"
+  }
+}

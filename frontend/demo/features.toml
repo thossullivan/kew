@@ -1,0 +1,55 @@
+# The console's main surfaces and the work that built them, for
+# `kew report provenance --features frontend/demo/features.toml`.
+#
+# Corrected against the ledger and the merged PRs that built each surface on 2026-11-04.
+#
+# Per feature: id, title, the console route(s), and the epics and/or issue
+# numbers that built it. Any other key is refused.
+
+[[features]]
+id = "epics-list"
+title = "Epics list"
+routes = ["/epics"]
+issues = [2091, 2206, 2210, 2283, 2297, 2304, 2844, 2882, 2900, 3054]
+
+[[features]]
+id = "epic-graph"
+title = "Epic graph"
+routes = ["/epics/[ref]"]
+issues = [2067, 2071, 2077, 2080, 2086, 2089, 2209, 2249, 2250, 2270, 2271, 2284, 2299, 2300, 2303, 2305, 2333, 2385, 2473, 2533, 2543, 2544, 2560, 2780, 2782, 2783, 2843, 2892, 2938, 2948, 3053, 3056, 3142]
+
+[[features]]
+id = "monitor"
+title = "Monitor"
+routes = ["/monitor"]
+issues = [2070, 2076, 2079, 2082, 2083, 2084, 2208, 2210, 2247, 2248, 2282, 2847, 2875, 2889, 2896, 2915, 2921, 2982, 3052]
+
+[[features]]
+id = "needs-you"
+title = "Needs you"
+routes = ["/work", "/monitor"]
+issues = [2207, 2243, 2244, 2245, 2279, 2280, 2328, 2536, 2537, 2538, 2539, 2784, 2842, 2883, 2884, 2893, 3051]
+
+[[features]]
+id = "work"
+title = "Work"
+routes = ["/work"]
+issues = [2072, 2073, 2075, 2078, 2081, 2085, 2087, 2088, 2210, 2246, 2272, 2281, 2302, 2372, 2445, 2515, 2522, 2535, 2572, 2652, 2741, 2776, 2785, 2786, 2845, 2848, 2878, 2895, 2916, 2933, 2975, 3055, 3140, 3336]
+
+[[features]]
+id = "prompts"
+title = "Prompts"
+routes = ["/prompts"]
+issues = [3018, 3019, 3023, 3025, 3026, 3071, 3072, 3075, 3086, 3089, 3090, 3092, 3093, 3119]
+
+[[features]]
+id = "budget"
+title = "Budget and spend"
+routes = ["/budget"]
+issues = [574, 601, 614, 619, 2070, 2092]
+
+[[features]]
+id = "runs"
+title = "Runs"
+routes = ["/runs", "/runs/[id]"]
+issues = [572, 595, 597, 599, 617, 621, 1525, 1541, 2091, 2300, 2377, 2850, 2897, 3057]

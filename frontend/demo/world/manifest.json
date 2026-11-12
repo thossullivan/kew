@@ -1,0 +1,31 @@
+{
+  "epoch": "2026-10-21T15:00:00+00:00",
+  "repo": "acme/ledger",
+  "epic_ref": "ledger-v2",
+  "refused_item": "107",
+  "awaiting_merge_item": "108",
+  "failed_item": "109",
+  "blocked_item": "110",
+  "hold_id": "114",
+  "run_id": "fc4a4ea4",
+  "needs_you": 5,
+  "orphan_pr": 231,
+  "queue_candidates": [
+    "115",
+    "116"
+  ],
+  "held_out_failed": [
+    "tests/test_import.py::test_resent_file_posts_once",
+    "tests/test_balances.py::test_balance_unchanged_after_reimport",
+    "tests/test_import.py::test_duplicate_row_warning_text"
+  ],
+  "held_out_declared": [
+    "tests/test_import.py::test_duplicate_row_warning_text"
+  ],
+  "refused_head": "69566afe",
+  "spend": {
+    "epic_usd": 45.65,
+    "daily_usd": 18.89,
+    "weekly_usd": 45.65
+  }
+}

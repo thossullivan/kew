@@ -1,0 +1,59 @@
+{
+  "rows": [
+    {
+      "item_id": "2055",
+      "epic_ref": "launch-fixes",
+      "pr_number": 2059,
+      "pr_url": "https://github.com/thossullivan/kew/pull/2059",
+      "last_verdict": {
+        "round": 1,
+        "verdict": "READY",
+        "head_sha": "3670e43f9a1b2c3d4e5f60718293a4b5c6d7e8f9",
+        "recorded_at": "2026-10-03T14:46:40+00:00"
+      },
+      "latest_head": {
+        "sha": "3670e43f9a1b2c3d4e5f60718293a4b5c6d7e8f9",
+        "source": "snapshot",
+        "at": "2026-10-03T14:02:00+00:00"
+      },
+      "review_state": "current",
+      "base": {
+        "state": "clean",
+        "reason": "the head merges into its base",
+        "since": "2026-10-03T11:00:00+00:00",
+        "at": "2026-10-03T14:48:00+00:00",
+        "source": "snapshot"
+      },
+      "observed_at": "2026-10-03T14:48:00+00:00"
+    },
+    {
+      "item_id": "SFD-227",
+      "epic_ref": "go-live-2026-09",
+      "pr_number": 2218,
+      "pr_url": "https://github.com/thossullivan/kew/pull/2218",
+      "last_verdict": {
+        "round": 1,
+        "verdict": "READY_WITH_RESIDUALS",
+        "head_sha": "77c1aa0b3e5d9f2148a6c3b5d7e9f10234567890",
+        "recorded_at": "2026-10-02T16:40:00+00:00"
+      },
+      "latest_head": {
+        "sha": "77c1aa0b3e5d9f2148a6c3b5d7e9f10234567890",
+        "source": "snapshot",
+        "at": "2026-10-02T16:10:00+00:00"
+      },
+      "review_state": "current",
+      "base": {
+        "state": "conflicted",
+        "reason": "the head and its base have conflicting changes",
+        "since": "2026-10-03T08:15:00+00:00",
+        "at": "2026-10-03T14:48:00+00:00",
+        "source": "snapshot"
+      },
+      "observed_at": "2026-10-03T14:48:00+00:00"
+    }
+  ],
+  "next_cursor": null,
+  "unavailable": [],
+  "composed_at": "2026-10-03T14:48:00+00:00"
+}

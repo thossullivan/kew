@@ -1,0 +1,13 @@
+{
+  "item_id": "108",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Multi-currency trial balance",
+  "url": "https://github.com/acme/ledger/issues/108",
+  "description": "A trial balance across currencies, converted at the rate of the closing day.",
+  "expected": "the trial balance of the sample books sums to zero.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

@@ -1,0 +1,491 @@
+{
+  "reviewed_at": "2026-10-08",
+  "models": [
+    {
+      "id": "claude-fable-5",
+      "display_name": "Fable 5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 10.0,
+        "output_per_mtok": 50.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-haiku-4",
+      "display_name": "Haiku 4",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 0.8,
+        "output_per_mtok": 4.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "display_name": "Haiku 4.5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 1.0,
+        "output_per_mtok": 5.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-4",
+      "display_name": "Opus 4",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 15.0,
+        "output_per_mtok": 75.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-4-5",
+      "display_name": "Opus 4.5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 5.0,
+        "output_per_mtok": 25.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-4-6",
+      "display_name": "Opus 4.6",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 5.0,
+        "output_per_mtok": 25.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-4-7",
+      "display_name": "Opus 4.7",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 5.0,
+        "output_per_mtok": 25.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-4-8",
+      "display_name": "Opus 4.8",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 5.0,
+        "output_per_mtok": 25.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-opus-5",
+      "display_name": "Opus 5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 5.0,
+        "output_per_mtok": 25.0
+      },
+      "lifecycle": {
+        "status": "ok",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [
+        "complex"
+      ],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": true
+    },
+    {
+      "id": "claude-opus-5-5",
+      "display_name": "Opus 5.5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 4.0,
+        "output_per_mtok": 20.0
+      },
+      "lifecycle": {
+        "status": "ok",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-sonnet-4",
+      "display_name": "Sonnet 4",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 15.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "display_name": "Sonnet 4.5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 15.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "display_name": "Sonnet 4.6",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 15.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [
+        "default",
+        "medium"
+      ],
+      "default_lanes": [
+        "default"
+      ],
+      "aliases": [],
+      "configured": true
+    },
+    {
+      "id": "claude-sonnet-5",
+      "display_name": "Sonnet 5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 2.0,
+        "output_per_mtok": 10.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "display_name": "Sonnet 5.5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 2.0,
+        "output_per_mtok": 10.0
+      },
+      "lifecycle": {
+        "status": "ok",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": true
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "display_name": "GPT-5.6 Luna",
+      "provider": "openai",
+      "runner": "codex",
+      "price": {
+        "input_per_mtok": 0.4,
+        "output_per_mtok": 1.8
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [
+        "simple"
+      ],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": true
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "display_name": "GPT-5.6 Sol",
+      "provider": "openai",
+      "runner": "codex",
+      "price": {
+        "input_per_mtok": 10.0,
+        "output_per_mtok": 45.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": true,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-flash",
+      "display_name": "DeepSeek V4 Flash",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 0.44,
+        "output_per_mtok": 1.664
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-flash-0731",
+      "display_name": "DeepSeek V4 Flash (0731)",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": null,
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-pro",
+      "display_name": "DeepSeek V4 Pro",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 1.91,
+        "output_per_mtok": 4.2
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/google/gemini-3.8-flash",
+      "display_name": "Gemini 3.8 Flash",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 1.35,
+        "output_per_mtok": 6.75
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/moonshotai/kimi-k2.7-code",
+      "display_name": "Kimi K2.7 Code",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 1.9,
+        "output_per_mtok": 8.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/qwen/qwen3-coder-next",
+      "display_name": "Qwen3 Coder Next",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 0.3,
+        "output_per_mtok": 1.5
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    },
+    {
+      "id": "openrouter/z-ai/glm-5.2",
+      "display_name": "GLM-5.2",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 2.31,
+        "output_per_mtok": 8.0
+      },
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null
+      },
+      "routable": false,
+      "routed_lanes": [],
+      "default_lanes": [],
+      "aliases": [],
+      "configured": false
+    }
+  ]
+}

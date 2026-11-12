@@ -1,0 +1,13 @@
+{
+  "item_id": "103",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Double-entry posting rule",
+  "url": "https://github.com/acme/ledger/issues/103",
+  "description": "Refuse a posting whose debits and credits do not balance, and say by how much.",
+  "expected": "an unbalanced posting is refused with the difference.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

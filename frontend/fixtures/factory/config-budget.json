@@ -1,0 +1,22 @@
+{
+  "budget.per_issue_usd": {
+    "effective": 25.0,
+    "file_value": 25.0,
+    "override": null
+  },
+  "budget.daily_usd": {
+    "effective": 250.0,
+    "file_value": 250.0,
+    "override": null
+  },
+  "budget.weekly_usd": {
+    "effective": 1500.0,
+    "file_value": 600.0,
+    "override": {
+      "value": 1500.0,
+      "set_by": "operator",
+      "set_at": "2026-09-24T15:23:40+00:00",
+      "reason": "weekly cap reached at $600"
+    }
+  }
+}

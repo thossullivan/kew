@@ -1,0 +1,13 @@
+{
+  "item_id": "SFD-229",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-09-29T10:08:00+00:00",
+  "title": "budget caps per epic, with a preflight refusal",
+  "url": "https://linear.app/kew/issue/SFD-229",
+  "description": "An epic spends against the fleet's daily and weekly caps with no cap of its own, so one epic can drain a day nobody meant to give it. Give an epic a pool, and refuse a dispatch in preflight once the pool it would spend from is gone.",
+  "expected": "a dispatch that would overrun the epic's pool is refused before it starts.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-09-29T10:08:00+00:00"
+}

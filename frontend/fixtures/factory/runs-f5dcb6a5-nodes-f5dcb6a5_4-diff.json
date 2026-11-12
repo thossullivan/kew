@@ -1,0 +1,87 @@
+{
+  "node_id": "f5dcb6a5:4",
+  "text": "artifact sha256:6b86dba45abdb265c4f277f10a3595ef7c242796956f02ea3b71509c8b78bc2f\nbase 4be1d07a93c2e6f15a08d7b3c9e2f4a6d1b8c053\ntree 7e3a9c5f01d4b82e6c9a3f7d5b1e0c8a2f6d4b97\nverification exact_tree\nsealed through audit sequence 4\n# the sealed package carries final content only; the base content the counts would be measured against is not part of this route\nchanged 100644 sha256:100605c45a382d81457d1c481d44cde6eac816d6fdf8ab5b30d1bdf73948da64 145 docs/how-it-works.md\nchanged 100644 sha256:675b8b108fb0030dbd9b1ebc17f2e2e110595f296ccc9c725ca428eda051f312 340 kew/src/kew/review_comments.py\nchanged 100644 sha256:abd8628c190818cdfda0b192da03a48a04a93303a1b9fce7d4055a618b8df3fa 295 kew/src/kew/review_gate.py\nchanged 100644 sha256:371bdb47ed55182b49b397c66dca14f4ccd5ac41a99144f3bce6afb2508d3990 93 kew/src/kew/templates/review_comment.md.j2\nchanged 100644 sha256:65dbf77abe9bc15cb11d254f47d92d00c204a0c8a71d4877440f67d92eebcfbd 372 kew/tests/test_review_gate_lows.py\ndeleted - - 0 kew/src/kew/review_holdback_legacy.py\n",
+  "run_id": "f5dcb6a5",
+  "attempt_number": 1,
+  "base_sha": "4be1d07a93c2e6f15a08d7b3c9e2f4a6d1b8c053",
+  "tree_sha": "7e3a9c5f01d4b82e6c9a3f7d5b1e0c8a2f6d4b97",
+  "package_digest": "sha256:6b86dba45abdb265c4f277f10a3595ef7c242796956f02ea3b71509c8b78bc2f",
+  "receipt_digest": "sha256:5f1c9a07e2b4461aaa32054eecc9fd7ca9964d1f8d6020371dd7e907e2ac288d",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "docs/how-it-works.md",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:100605c45a382d81457d1c481d44cde6eac816d6fdf8ab5b30d1bdf73948da64",
+      "byte_length": 145,
+      "text": "## Review gate\n\nA low finding is posted as a PR comment and held back from the\nremediation round; it never blocks the merge decision on its own.\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "kew/src/kew/review_comments.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:675b8b108fb0030dbd9b1ebc17f2e2e110595f296ccc9c725ca428eda051f312",
+      "byte_length": 340,
+      "text": "\"\"\"Post low-severity review findings as one PR comment.\"\"\"\n\nfrom __future__ import annotations\n\n\ndef low_findings_comment(findings: list[str]) -> str:\n    \"\"\"The one comment body that carries every held-back low finding.\"\"\"\n    lines = [f\"- {f}\" for f in findings]\n    return \"Held back from remediation (low):\\n\" + \"\\n\".join(lines) + \"\\n\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "kew/src/kew/review_gate.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:abd8628c190818cdfda0b192da03a48a04a93303a1b9fce7d4055a618b8df3fa",
+      "byte_length": 295,
+      "text": "\"\"\"The review gate: which findings a remediation round must address.\"\"\"\n\nfrom __future__ import annotations\n\nHOLD_BACK = frozenset({\"low\"})\n\n\ndef must_remediate(severity: str) -> bool:\n    \"\"\"A low finding is commented on and held back, never remediated.\"\"\"\n    return severity not in HOLD_BACK\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "kew/src/kew/templates/review_comment.md.j2",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:371bdb47ed55182b49b397c66dca14f4ccd5ac41a99144f3bce6afb2508d3990",
+      "byte_length": 93,
+      "text": "Held back from remediation (low):\n{% for finding in findings %}\n- {{ finding }}\n{% endfor %}\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "kew/tests/test_review_gate_lows.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:65dbf77abe9bc15cb11d254f47d92d00c204a0c8a71d4877440f67d92eebcfbd",
+      "byte_length": 372,
+      "text": "from kew.review_comments import low_findings_comment\nfrom kew.review_gate import must_remediate\n\n\ndef test_a_low_finding_is_held_back() -> None:\n    assert must_remediate(\"low\") is False\n    assert must_remediate(\"high\") is True\n\n\ndef test_held_back_lows_are_one_comment() -> None:\n    body = low_findings_comment([\"naming\", \"docstring\"])\n    assert body.count(\"- \") == 2\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "kew/src/kew/review_holdback_legacy.py",
+      "change": "deleted",
+      "mode": "",
+      "digest": "",
+      "byte_length": 0,
+      "text": null,
+      "text_availability": "unavailable",
+      "detail": "the package records the removal, not the removed bytes"
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

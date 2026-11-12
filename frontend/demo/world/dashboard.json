@@ -1,0 +1,252 @@
+{
+  "banner": {
+    "fleet_stopped": false,
+    "no_live_driver": false
+  },
+  "rows": [
+    {
+      "type": "approval_hold",
+      "consequence": "money",
+      "age": "2026-10-21T14:13:00+00:00",
+      "reason": "awaiting approval — no history — assuming per-issue cap of $25.00",
+      "primary_action": "approve",
+      "issue_num": 114,
+      "item_id": "114",
+      "estimate_usd": 25,
+      "epic_ref": null,
+      "url": null,
+      "pr_number": null,
+      "work_unread": false,
+      "attention_kind": "approval",
+      "label": "",
+      "command": "",
+      "sentence": "approve a run estimated at $25.00, the per-issue cap; no cost history to estimate from",
+      "title": "Rebuild the balances cache from the journal",
+      "link": null,
+      "node_ids": [],
+      "repo": null
+    },
+    {
+      "type": "pr_review",
+      "consequence": "review",
+      "age": "2026-10-21T03:56:00+00:00",
+      "reason": "merge decision on PR #208",
+      "primary_action": "open",
+      "issue_num": 108,
+      "item_id": "108",
+      "estimate_usd": null,
+      "epic_ref": "ledger-v2",
+      "url": "https://github.com/acme/ledger/pull/208",
+      "pr_number": 208,
+      "work_unread": false,
+      "attention_kind": "merge_decision",
+      "label": "",
+      "command": "",
+      "sentence": "PR #208 is open — the merge decision is yours",
+      "title": "Multi-currency trial balance",
+      "link": {
+        "label": "Open PR #208 to merge",
+        "href": "https://github.com/acme/ledger/pull/208"
+      },
+      "node_ids": [],
+      "repo": null
+    },
+    {
+      "type": "pr_review",
+      "consequence": "review",
+      "age": "2026-10-21T11:07:00+00:00",
+      "reason": "merge decision on PR #207",
+      "primary_action": "open",
+      "issue_num": 107,
+      "item_id": "107",
+      "estimate_usd": null,
+      "epic_ref": "ledger-v2",
+      "url": "https://github.com/acme/ledger/pull/207",
+      "pr_number": 207,
+      "work_unread": false,
+      "attention_kind": "merge_decision",
+      "label": "",
+      "command": "",
+      "sentence": "Merge verify failed at 69566afe: 2 of main's tests fail on this PR — the merge decision is yours",
+      "title": "Idempotent import of a re-sent file",
+      "link": {
+        "label": "Open PR #207 to merge",
+        "href": "https://github.com/acme/ledger/pull/207"
+      },
+      "verify_link": {
+        "label": "See the failed merge verify",
+        "href": "/work?item=107#merge-verify"
+      },
+      "node_ids": [],
+      "repo": null
+    },
+    {
+      "type": "epic_wait",
+      "consequence": "wait",
+      "age": "2026-10-21T07:40:00+00:00",
+      "reason": "#109 — failed-terminal (exit 137, host_restart_repeated)",
+      "primary_action": "check why the host keeps going down, then kew epic retry the node",
+      "issue_num": 109,
+      "item_id": "109",
+      "estimate_usd": null,
+      "epic_ref": "ledger-v2",
+      "url": "https://github.com/acme/ledger/issues/109",
+      "pr_number": null,
+      "work_unread": false,
+      "attention_kind": "host_restart_repeated",
+      "label": "the host restarted under this node twice",
+      "command": "kew epic retry ledger-v2 109",
+      "sentence": "the host restarted under this node twice",
+      "title": "Close a period and lock its entries",
+      "link": null,
+      "node_ids": [],
+      "repo": null
+    },
+    {
+      "type": "orphan_pr",
+      "consequence": "hygiene",
+      "age": "2026-10-21T12:00:00+00:00",
+      "reason": "orphan PR — no-record",
+      "primary_action": "ack",
+      "issue_num": null,
+      "item_id": "",
+      "estimate_usd": null,
+      "epic_ref": null,
+      "url": "https://github.com/acme/ledger/pull/231",
+      "pr_number": 231,
+      "work_unread": false,
+      "attention_kind": "",
+      "label": "",
+      "command": "",
+      "sentence": "PR #231 is open on fix/rounding-typo, a branch no kew run recorded",
+      "title": "",
+      "link": null,
+      "node_ids": [],
+      "repo": null
+    }
+  ],
+  "glance": {
+    "fleet": {
+      "stopped": false,
+      "pending": 1
+    },
+    "caps": {
+      "daily": {
+        "window_days": 1,
+        "spent": 18.89,
+        "cap": 80,
+        "agentic": 18.89,
+        "interactive": 0
+      },
+      "weekly": {
+        "window_days": 7,
+        "spent": 45.65,
+        "cap": 400,
+        "agentic": 45.65,
+        "interactive": 0
+      }
+    },
+    "routing": [
+      {
+        "complexity": "small",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "medium",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "large",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      }
+    ],
+    "ready_queue": [
+      {
+        "issue_num": 113,
+        "item_id": "113",
+        "title": "Import from an OFX bank file",
+        "complexity": "medium",
+        "route": "claude-code/claude-opus-5",
+        "estimate_usd": 3.5
+      }
+    ],
+    "queue_candidates": [
+      {
+        "issue_num": 115,
+        "item_id": "115",
+        "title": "Export a trial balance as CSV"
+      },
+      {
+        "issue_num": 116,
+        "item_id": "116",
+        "title": "Warn on a posting dated in a closed period"
+      }
+    ],
+    "recent_completions": [
+      {
+        "run_id": "0d1ef5f0",
+        "issue_num": 107,
+        "item_id": "107",
+        "title": "Idempotent import of a re-sent file",
+        "status": "success",
+        "cost_usd": 1.54,
+        "model": "claude-opus-5",
+        "finished_at": "2026-10-21T10:50:00+00:00"
+      },
+      {
+        "run_id": "d903a58e",
+        "issue_num": 107,
+        "item_id": "107",
+        "title": "Idempotent import of a re-sent file",
+        "status": "success",
+        "cost_usd": 2.53,
+        "model": "claude-opus-5",
+        "finished_at": "2026-10-21T10:25:00+00:00"
+      },
+      {
+        "run_id": "5cad8a97",
+        "issue_num": 107,
+        "item_id": "107",
+        "title": "Idempotent import of a re-sent file",
+        "status": "success",
+        "cost_usd": 2.03,
+        "model": "claude-opus-5",
+        "finished_at": "2026-10-21T10:11:00+00:00"
+      }
+    ],
+    "pressure": {
+      "delivery_repo": "acme/ledger",
+      "engaged": true,
+      "countable": true,
+      "used": 2,
+      "total": 4,
+      "held": 0,
+      "oldest_hold_age_seconds": null,
+      "diff_burden_lines": 318,
+      "saturated": false,
+      "reasons": [],
+      "enforcement": "inactive",
+      "enforcement_detail": "the human-review policy is configured and reported, but not active",
+      "policy_generation": 1,
+      "observation": {
+        "dimension": "review_capacity",
+        "availability": "available",
+        "provenance": "observed",
+        "observed_at": "2026-10-21T15:00:00+00:00",
+        "detail": null
+      }
+    }
+  },
+  "as_of": {
+    "runs": "2026-10-21T15:00:00+00:00",
+    "tracker": "2026-10-21T15:00:00+00:00",
+    "forge": "2026-10-21T15:00:00+00:00"
+  },
+  "unavailable": [],
+  "needs_you_by_epic": {
+    "ledger-v2": 3
+  }
+}

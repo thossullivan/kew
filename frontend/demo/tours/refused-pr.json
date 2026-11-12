@@ -1,0 +1,37 @@
+{
+  "id": "refused-pr",
+  "title": "Why was this PR refused?",
+  "start": "/runs/5cad8a97",
+  "steps": [
+    {
+      "route": "/runs/5cad8a97",
+      "target": "review-verdict",
+      "docs": "how-it-works.md",
+      "anchor": "governed-adversarial-review",
+      "passage": "refused-pr/1"
+    },
+    {
+      "route": "/runs/0d1ef5f0",
+      "target": "review-verdict",
+      "docs": "how-it-works.md",
+      "anchor": "governed-adversarial-review",
+      "passage": "refused-pr/2"
+    },
+    {
+      "route": "/work",
+      "query": { "item": "107" },
+      "target": "merge-verify",
+      "docs": "security.md",
+      "anchor": "verification-hosts",
+      "passage": "refused-pr/3"
+    },
+    {
+      "route": "/work",
+      "query": { "item": "107" },
+      "target": "held-out-tests",
+      "docs": "security.md",
+      "anchor": "verification-hosts",
+      "passage": "refused-pr/4"
+    }
+  ]
+}

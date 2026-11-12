@@ -1,0 +1,83 @@
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "claude-code"}}
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "claude_code.token.usage",
+              "sum": {
+                "aggregationTemporality": 1,
+                "isMonotonic": true,
+                "dataPoints": [
+                  {"timeUnixNano": "1719403200000000000", "asInt": "1200",
+                   "attributes": [
+                     {"key": "type", "value": {"stringValue": "input"}},
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "main"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asInt": "340",
+                   "attributes": [
+                     {"key": "type", "value": {"stringValue": "output"}},
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "main"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asInt": "600",
+                   "attributes": [
+                     {"key": "type", "value": {"stringValue": "input"}},
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "subagent"}},
+                     {"key": "agent.name", "value": {"stringValue": "custom"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asInt": "150",
+                   "attributes": [
+                     {"key": "type", "value": {"stringValue": "output"}},
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "subagent"}},
+                     {"key": "agent.name", "value": {"stringValue": "custom"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asInt": "200",
+                   "attributes": [
+                     {"key": "type", "value": {"stringValue": "input"}},
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "auxiliary"}}]}
+                ]
+              }
+            },
+            {
+              "name": "claude_code.cost.usage",
+              "sum": {
+                "aggregationTemporality": 1,
+                "isMonotonic": true,
+                "dataPoints": [
+                  {"timeUnixNano": "1719403200000000000", "asDouble": 0.018,
+                   "attributes": [
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "main"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asDouble": 0.009,
+                   "attributes": [
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "subagent"}},
+                     {"key": "agent.name", "value": {"stringValue": "custom"}}]},
+                  {"timeUnixNano": "1719403200000000000", "asDouble": 0.003,
+                   "attributes": [
+                     {"key": "model", "value": {"stringValue": "claude-opus-4-8"}},
+                     {"key": "session.id", "value": {"stringValue": "sess-aaa"}},
+                     {"key": "query_source", "value": {"stringValue": "auxiliary"}}]}
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

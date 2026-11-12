@@ -1,0 +1,340 @@
+# Weekly model-catalog freshness, two independent jobs (#2718):
+#
+# * catalog-refresh runs `kew models refresh --write` (OpenRouter prices and
+#   model-eol lifecycle), regenerates the catalog's docs list and www view,
+#   and opens or updates ONE PR from `models-refresh/weekly`, labeled
+#   `model-catalog-refresh` + `needs-human-merge`. A person merges it; no
+#   automation does. A refused refresh (a large price change, a schema
+#   failure) files a `pricing-drift` issue instead and never opens a PR.
+# * pricing-drift audits the model catalog against LiteLLM's pricing snapshot
+#   as a cross-check from a third source. On drift it files a `ready`-labeled
+#   issue that kew dispatches to its own agent (PR -> human merge).
+#
+# This workflow is the ONLY place in the loop that touches the network for
+# prices — kew itself never fetches pricing at runtime.
+# Runs GitHub-hosted, like the rest of CI — see ci.yml's header for why.
+#
+# SHARED-CLONE HAZARD (retired): this job installs deps from `kew/`
+# (working-directory: kew). On the persistent self-hosted runner the clone at
+# `_work/kew/kew` was SHARED with other workflows, and an earlier workflow's
+# non-cone sparse checkout could leave it pruned to a single file — making
+# every `working-directory: kew` step fail with
+#   working directory '.../_work/kew/kew/kew' No such file or directory
+# Hosted runners get a fresh clone per job, so the self-heal step that guarded
+# this is gone.
+
+on:
+  schedule:
+    # Weekly on Mondays at 06:30 UTC (offset from scheduled-audits at 06:00)
+    - cron: "30 6 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  # Every write below (the refresh branch, its PR, the refusal and drift
+  # issues) runs only while this repository is private. A public copy still
+  # runs both checks and fails a refused refresh, but pushes nothing and files
+  # nothing: the drift issue carries the `ready` label an agent picks up and
+  # names a private parent issue.
+  visibility:
+    # A schedule event's payload carries no repository object, so
+    # github.event.repository.visibility is empty on a scheduled run. Read the
+    # repository's visibility from the API instead. Hosted, checks out
+    # nothing, and runs no repository code. A failed read fails this job, and
+    # the jobs that need it do not run.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      visibility: ${{ steps.read.outputs.visibility }}
+    steps:
+      - name: Read repository visibility
+        id: read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "visibility=${visibility}" >> "$GITHUB_OUTPUT"
+
+  catalog-refresh:
+    needs: visibility
+    runs-on: ubuntu-latest
+    # Two runs at once would race their force-pushes of the refresh branch.
+    concurrency:
+      group: models-refresh-weekly
+      cancel-in-progress: false
+    permissions:
+      # Push the refresh commit to `models-refresh/weekly`. The only `git push`
+      # below names that ref explicitly; no step pushes any other ref.
+      contents: write
+      # Open the refresh PR, or update the body of the one already open.
+      pull-requests: write
+      # Label the PR, and file or comment on the `pricing-drift` issue when the
+      # refresh is refused.
+      issues: write
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The token is NOT left in git config for the uv/kew steps; the push
+          # step passes it to that one git command only.
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync --locked
+
+      - name: Refresh the model catalog
+        id: refresh
+        working-directory: kew
+        # Never --accept-large-change: a price that moves more than 2x is a
+        # refusal for a person to check, not something this job applies.
+        run: |
+          set +e
+          uv run kew models refresh --write --report "$RUNNER_TEMP/models-refresh.md" \
+            2> "$RUNNER_TEMP/models-refresh.err"
+          exit_code=$?
+          set -e
+          cat "$RUNNER_TEMP/models-refresh.err" >&2
+          if [ "$exit_code" -eq 0 ]; then
+            echo "refused=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::kew models refresh refused (exit $exit_code); nothing written"
+            echo "refused=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Regenerate the catalog docs list and www view
+        if: steps.refresh.outputs.refused == 'false'
+        working-directory: kew
+        run: uv run python scripts/model_catalog_docs.py
+
+      - name: Build the refresh PR body
+        id: body
+        if: steps.refresh.outputs.refused == 'false'
+        working-directory: kew
+        run: |
+          uv run python scripts/model_refresh_pr.py \
+            --report "$RUNNER_TEMP/models-refresh.md" \
+            --label model-catalog-refresh --label needs-human-merge \
+            --output "$RUNNER_TEMP/models-refresh-pr.md" >> "$GITHUB_OUTPUT"
+
+      - name: Push the refresh branch
+        if: steps.body.outputs.changed == 'true' && needs.visibility.outputs.visibility == 'private'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          paths=(kew/src/kew/models.json docs/cli/model-eol.md www/src/lib/data/model-lifecycle.json)
+          if git diff --quiet -- kew/src/kew/models.json; then
+            echo "::error::the report lists changes but kew/src/kew/models.json is unchanged"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c models-refresh/weekly
+          git add -- "${paths[@]}"
+          git commit -m "chore(models): weekly model catalog refresh"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          # --force: the branch is rebuilt from main every week, so last week's
+          # commit is replaced, never merged into. Only this one ref is pushed.
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+            push --force origin HEAD:refs/heads/models-refresh/weekly
+
+      - name: Open or update the refresh PR
+        if: steps.body.outputs.changed == 'true' && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const head = 'models-refresh/weekly';
+            const labels = ['model-catalog-refresh', 'needs-human-merge'];
+            const body = fs.readFileSync(
+              process.env.RUNNER_TEMP + '/models-refresh-pr.md', 'utf8');
+            const { data: open } = await github.rest.pulls.list({
+              owner, repo, state: 'open', head: owner + ':' + head,
+            });
+            let number;
+            if (open.length > 0) {
+              number = open[0].number;
+              await github.rest.pulls.update({ owner, repo, pull_number: number, body });
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner, repo, head, base: 'main',
+                title: 'chore(models): weekly model catalog refresh',
+                body,
+              });
+              number = pr.number;
+            }
+            await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels });
+
+      - name: File the refusal on a pricing-drift issue
+        if: steps.refresh.outputs.refused == 'true' && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const title = '[Pricing] Model catalog refresh refused';
+            const refusal = fs.readFileSync(
+              process.env.RUNNER_TEMP + '/models-refresh.err', 'utf8').trim();
+            // The refusal quotes fetched text; fence it longer than any
+            // backtick run inside so it stays inert.
+            const longest = Math.max(0, ...(refusal.match(/`+/g) || []).map(r => r.length));
+            const fence = '`'.repeat(Math.max(3, longest + 1));
+            const body = [
+              '`kew models refresh` refused this week\'s refresh, so the weekly',
+              'job opened no PR and wrote nothing. A person checks the values',
+              'below against their sources; a large change that is real is applied',
+              'by hand with `kew models refresh --write --accept-large-change`.',
+              '',
+              fence,
+              refusal,
+              fence,
+              '',
+              '---',
+              '',
+              'Filed by the [pricing-freshness workflow](' + context.serverUrl + '/' +
+                owner + '/' + repo + '/actions/runs/' + context.runId + ').',
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'pricing-drift',
+            });
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number, body,
+              });
+            } else {
+              // No `ready` label: a refusal is for a person, not an agent.
+              await github.rest.issues.create({
+                owner, repo, title, labels: ['pricing-drift'], body,
+              });
+            }
+
+      - name: Fail the run on a refused refresh
+        if: steps.refresh.outputs.refused == 'true'
+        run: exit 1
+
+  pricing-drift:
+    needs: visibility
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Read-only job — never leave the token in local git config.
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Download LiteLLM pricing snapshot
+        # RUNNER_TEMP (not /tmp) so concurrent or past runs on a persistent
+        # self-hosted runner can't clobber or leak a stale report.
+        run: |
+          curl -sSfL --retry 3 \
+            "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json" \
+            -o "$RUNNER_TEMP/litellm-pricing.json"
+
+      - name: Audit the model catalog for drift
+        id: audit
+        working-directory: kew
+        env:
+          # Optional repo variable: absolute path to a dispatch.db on a
+          # self-hosted runner, for real run-impact estimation.
+          KEW_DISPATCH_DB: ${{ vars.KEW_DISPATCH_DB }}
+        run: |
+          args=(--snapshot "$RUNNER_TEMP/litellm-pricing.json" --output "$RUNNER_TEMP/pricing-report.md")
+          if [ -n "$KEW_DISPATCH_DB" ] && [ -f "$KEW_DISPATCH_DB" ]; then
+            args+=(--run-store "$KEW_DISPATCH_DB")
+          fi
+          if [ -f "$GITHUB_WORKSPACE/kew.toml" ]; then
+            args+=(--config "$GITHUB_WORKSPACE/kew.toml")
+          fi
+          set +e
+          uv run python scripts/pricing_audit.py "${args[@]}"
+          exit_code=$?
+          set -e
+          if [ "$exit_code" -eq 0 ]; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          elif [ "$exit_code" -eq 1 ]; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::pricing audit failed with exit code $exit_code"
+            exit "$exit_code"
+          fi
+
+      - name: File ready-labeled issue on drift
+        if: steps.audit.outputs.drift == 'true' && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const title = '[Pricing] Model catalog drift vs LiteLLM snapshot';
+            // The title before #2709's wording; an issue still open under it
+            // keeps receiving this week's comment instead of a duplicate.
+            const legacyTitle = '[Pricing] MODEL_PRICING drift vs LiteLLM snapshot';
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pricing-drift',
+            });
+            const report = fs.readFileSync(
+              process.env.RUNNER_TEMP + '/pricing-report.md', 'utf8');
+            const body = [
+              'Weekly pricing freshness check found drift between the model catalog',
+              '(`kew/src/kew/models.json`) and LiteLLM\'s',
+              '`model_prices_and_context_window.json`.',
+              '',
+              report,
+              '---',
+              '',
+              'Filed by the [pricing-freshness workflow](' + context.serverUrl + '/' +
+                context.repo.owner + '/' + context.repo.repo +
+                '/actions/runs/' + context.runId + '). Parent: #269.',
+            ].join('\n');
+            const existing = open.find(i => i.title === title || i.title === legacyTitle);
+            if (existing) {
+              // Re-file as a comment rather than returning: a finding that is
+              // still true this week must say so with THIS week's run link. The
+              // previous `some(...) && return` left #1175/#1176 carrying bodies
+              // frozen at 2026-07-27 while every run since found the current set
+              // and said nothing — an issue that looks live with stale content.
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['ready', 'pricing-drift'],
+                body,
+              });
+            }

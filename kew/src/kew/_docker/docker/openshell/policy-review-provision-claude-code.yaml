@@ -1,0 +1,50 @@
+# OpenShell containment policy for REVIEW ENVIRONMENT PROVISIONING, Claude Code
+# image (docker/agent.Dockerfile, pinned as kew-agent:docker-<digest>).
+#
+# The reviewer can only execute a PR's acceptance commands against an installed
+# environment, and the image ships uv and an interpreter and nothing else. So
+# the host installs the PR's locked dependency tree first
+# (kew/src/kew/review_environment.py) — which means running the PR's OWN build
+# backend, with a package index reachable. That is the opposite of what the
+# reviewer needs, so it happens in its OWN sandbox under this policy, and the
+# two never share one.
+#
+# Three rules:
+#
+#  1. THE PACKAGE INDEX, AND NOTHING ELSE. No inference host: nothing in this
+#     sandbox talks to a model. No github.com: a dependency fetched from a git
+#     remote is not a locked wheel, and the host broker owns every forge call.
+#  2. UV IS THE ONLY GOVERNED BINARY. uv resolves and downloads the lockfile's
+#     wheels itself; the build backends it then executes are the PR's own code,
+#     and under `enforce` an ungoverned binary has NO egress at all. So the
+#     PR's setup.py cannot reach the network even while its wheels are being
+#     fetched for it.
+#  3. NO PROVIDER, EVER. The sandbox this policy governs is created with no
+#     OpenShell provider at all, so there is no credential in it to broker —
+#     not even the placeholder a dispatch carries. That is enforced in
+#     kew/src/kew/review_environment.py, not here; this comment is why.
+#
+# This boundary is NOT certifiable by `kew sandbox certify`: the certification
+# probe is a Node program, and node is deliberately ungoverned below, so the
+# probe would record a failed positive control for a policy that is working
+# exactly as written. kew.openshell_egress.certify_openshell_egress refuses the
+# flow by name rather than running a probe that cannot pass.
+version: "0.1"
+runner: claude-code
+image: kew-agent
+
+# /usr/local/bin/uv is where docker/agent.Dockerfile installs it
+# (UV_INSTALL_DIR=/usr/local/bin), on PATH for the agent user and root-owned on
+# the read-only root — so it is not a path the reviewed tree can replace.
+#
+# Both hosts are needed and neither is spare: uv reads the simple index at
+# pypi.org and downloads the wheels it names from files.pythonhosted.org.
+binaries:
+  - path: /usr/local/bin/uv
+    endpoints:
+      - host: pypi.org
+        ports: [443]
+        enforcement: enforce
+      - host: files.pythonhosted.org
+        ports: [443]
+        enforcement: enforce

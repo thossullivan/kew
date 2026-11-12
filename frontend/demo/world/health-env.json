@@ -1,0 +1,53 @@
+{
+  "as_seen_by": "the serve process",
+  "vars": [
+    {
+      "name": "GITHUB_TOKEN",
+      "purpose": "GitHub API and git push",
+      "required_by": "every repo read and publication",
+      "set": true
+    },
+    {
+      "name": "GH_TOKEN",
+      "purpose": "GitHub API (gh CLI’s own name)",
+      "required_by": "the gh CLI",
+      "set": false
+    },
+    {
+      "name": "LINEAR_API_KEY",
+      "purpose": "Linear GraphQL API",
+      "required_by": "a Linear-tracked project",
+      "set": false
+    },
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "purpose": "Anthropic API account",
+      "required_by": "claude-code, API billing",
+      "set": false
+    },
+    {
+      "name": "CLAUDE_CODE_OAUTH_TOKEN",
+      "purpose": "Claude subscription login, forwardable to a container",
+      "required_by": "claude-code, subscription billing",
+      "set": true
+    },
+    {
+      "name": "KEW_PROJECT",
+      "purpose": "which project directory kew resolves against",
+      "required_by": "every command",
+      "set": false
+    },
+    {
+      "name": "KEW_REPO",
+      "purpose": "the delivery repository override",
+      "required_by": "an operator override",
+      "set": false
+    },
+    {
+      "name": "KEW_LOG_DIR",
+      "purpose": "where the ledger lives",
+      "required_by": "an operator override",
+      "set": false
+    }
+  ]
+}

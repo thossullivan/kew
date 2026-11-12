@@ -1,0 +1,41 @@
+{
+  "item_id": "2060",
+  "lanes": [
+    {
+      "name": "main",
+      "stages": [
+        {
+          "stage": "implement",
+          "state": "pending",
+          "label": "not started",
+          "detail": "",
+          "evidence": null
+        },
+        {
+          "stage": "publish",
+          "state": "pending",
+          "label": "not started",
+          "detail": "",
+          "evidence": null
+        },
+        {
+          "stage": "review",
+          "state": "pending",
+          "label": "not started",
+          "detail": "",
+          "evidence": null
+        },
+        {
+          "stage": "merge",
+          "state": "pending",
+          "label": "not started",
+          "detail": "",
+          "evidence": null
+        }
+      ]
+    }
+  ],
+  "unavailable": [],
+  "composed_at": "2026-09-24T18:12:04+00:00",
+  "merge_verify": null
+}

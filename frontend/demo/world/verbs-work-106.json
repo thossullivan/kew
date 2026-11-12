@@ -1,0 +1,162 @@
+{
+  "identity": {
+    "source_tracker": "github",
+    "item_id": "106",
+    "item_ref": "#106",
+    "delivery_repo": "acme/ledger",
+    "epic_ref": "ledger-v2",
+    "node_id": "106",
+    "run_id": "ab4656b0",
+    "attempt_number": 1
+  },
+  "source": {
+    "tracker": "github",
+    "item_state": "open",
+    "synchronization": "synchronized",
+    "observation": {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    }
+  },
+  "route": {
+    "runner": "claude-code",
+    "model": "claude-opus-5",
+    "reported_model": "claude-opus-5",
+    "containment": "contained",
+    "provenance": "declared",
+    "claim": "honored"
+  },
+  "execution": {
+    "state": "in_flight",
+    "run_status": "pending",
+    "attempts": 1,
+    "started_at": "2026-10-21T14:40:12+00:00",
+    "finished_at": null,
+    "error_category": ""
+  },
+  "artifact": {
+    "state": "absent",
+    "publication": "not_required",
+    "branch": "agent/issue-106",
+    "pr_url": null,
+    "orphan": false
+  },
+  "judgment": {
+    "state": "not_applicable",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    },
+    "decided_at": null
+  },
+  "outcome": {
+    "state": "in_progress",
+    "detail": "implement is running"
+  },
+  "integration": {
+    "checks": "unknown",
+    "mergeability": "not_applicable",
+    "review_decision": "unknown",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    }
+  },
+  "readiness": {
+    "state": "unproven",
+    "fingerprint": null,
+    "evidence_ref": null,
+    "detail": "nothing has probed this boundary",
+    "observation": {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    }
+  },
+  "no_change": {
+    "state": "not_applicable",
+    "judgment_state": "",
+    "policy": "",
+    "reasons": [],
+    "sync_outstanding": 0,
+    "sync_failed": 0,
+    "effects_outstanding": 0
+  },
+  "review_pressure": {
+    "delivery_repo": "acme/ledger",
+    "engaged": true,
+    "countable": true,
+    "used": 2,
+    "total": 4,
+    "held": 0,
+    "oldest_hold_age_seconds": null,
+    "diff_burden_lines": 318,
+    "saturated": false,
+    "reasons": [],
+    "enforcement": "inactive",
+    "enforcement_detail": "the human-review policy is configured and reported, but not active",
+    "policy_generation": 1,
+    "observation": {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    }
+  },
+  "exception": {
+    "state": "in_flight",
+    "detail": "run pending",
+    "blocking": false,
+    "dimension": "execution"
+  },
+  "safest_action": {
+    "action": "wait",
+    "reason": "run pending — a second dispatch would duplicate it",
+    "blocked_by": null
+  },
+  "actions": [],
+  "view_revision": "wv1:106ab4656b0000000000000000000000",
+  "composed_at": "2026-10-21T15:00:00+00:00",
+  "observations": [
+    {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    },
+    {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-21T15:00:00+00:00",
+      "detail": null
+    }
+  ]
+}

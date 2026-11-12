@@ -1,0 +1,139 @@
+{
+  "schema": "kew/model-lifecycle-view@1",
+  "reviewedAt": "2026-10-08",
+  "models": [
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "status": "ok",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "provider-lifecycle-doc",
+          "url": "https://docs.anthropic.com/en/docs/about-claude/model-deprecations",
+          "checkedAt": "2026-08-16"
+        },
+        {
+          "kind": "provider-catalog",
+          "url": "https://docs.anthropic.com/en/docs/about-claude/models/overview",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": true,
+      "priced": false
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "provider": "openai",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "provider-catalog",
+          "url": "https://developers.openai.com/api/docs/models",
+          "checkedAt": "2026-09-01"
+        }
+      ],
+      "routed": true,
+      "priced": false
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-flash",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/deepseek/deepseek-v4-flash",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-pro",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/deepseek/deepseek-v4-pro",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    },
+    {
+      "id": "openrouter/google/gemini-3.8-flash",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/google/gemini-3.8-flash",
+          "checkedAt": "2026-09-03"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    },
+    {
+      "id": "openrouter/moonshotai/kimi-k2.7-code",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/moonshotai/kimi-k2.7-code",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    },
+    {
+      "id": "openrouter/qwen/qwen3-coder-next",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/qwen/qwen3-coder-next",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    },
+    {
+      "id": "openrouter/z-ai/glm-5.2",
+      "provider": "openrouter",
+      "status": "untracked",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "router-catalog",
+          "url": "https://openrouter.ai/z-ai/glm-5.2",
+          "checkedAt": "2026-08-16"
+        }
+      ],
+      "routed": false,
+      "priced": true
+    }
+  ]
+}

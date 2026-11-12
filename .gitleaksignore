@@ -1,0 +1,20 @@
+# Historical false positives (fingerprints of commits already pushed).
+#
+# Prefer a pattern allowlist in .gitleaks.toml over adding entries here.
+# Fingerprints bind to a commit SHA, so they do not survive the same content
+# being merged, rebased or cherry-picked: the finding simply returns under a
+# new SHA. Only use a fingerprint when the content is genuinely one-off and
+# already in history.
+#
+# PR #448: a fake Linear API key fixture in tests, neutralized at HEAD in the
+# same PR; this entry silences the already-pushed commit in history scans.
+5576434637d4d1726b8f3213f93c46cb8ea6f749:kew/tests/test_linear_client.py:generic-api-key:19
+
+# PR #2991: a fake run-request submission key fixture (0123456789abcdef twice)
+# in two test files, neutralized at HEAD by the operator; these entries
+# silence the already-merged squash commit in history scans.
+a3309a91fe646cd2b245797dc661a30e7a1366ce:kew/tests/test_serve_api_run_requests.py:generic-api-key:299
+a3309a91fe646cd2b245797dc661a30e7a1366ce:kew/tests/test_run_requests.py:generic-api-key:1010
+# #3195 (T2): log-tail redaction test fixtures, split into concatenations at the next head.
+549c5963481b2b7a8e61d382682f228f6f8331e7:kew/tests/test_main_health.py:slack-bot-token:1713
+549c5963481b2b7a8e61d382682f228f6f8331e7:kew/tests/test_main_health.py:private-key:1696

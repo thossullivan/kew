@@ -1,0 +1,16 @@
+{
+  "daily": {
+    "window_days": 1,
+    "spent": 178.05,
+    "cap": 250.0,
+    "agentic": 178.05,
+    "interactive": 0.0
+  },
+  "weekly": {
+    "window_days": 7,
+    "spent": 915.05,
+    "cap": 1500.0,
+    "agentic": 915.05,
+    "interactive": 0.0
+  }
+}

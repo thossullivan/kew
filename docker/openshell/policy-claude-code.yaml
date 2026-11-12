@@ -1,0 +1,67 @@
+# OpenShell containment policy for the kew Claude Code runner image
+# (docker/agent.Dockerfile, pinned as kew-agent:docker-<digest>).
+#
+# Loaded by the host: `openshell sandbox exec --policy <this file> ...`. It
+# governs the container boundary ONLY. kew still owns host-side publication,
+# the publication filter, the audit chain and image-ID launch; nothing here
+# relaxes any of those.
+#
+# Two rules this file exists to hold:
+#
+#  1. INFERENCE ENDPOINTS ONLY. The one thing a contained dispatch must reach
+#     is the model API. Telemetry and autoupdate hosts are deliberately absent
+#     — kew-openshell-launch exports
+#     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 so the runner does not spend
+#     the run retrying against them. github.com is deliberately absent too:
+#     the container holds no GitHub token by design, and the host broker owns
+#     every push and PR.
+#  2. `enforcement: enforce` ON EVERY ENDPOINT. An endpoint left in OpenShell's
+#     observe/report mode is an ALLOWED endpoint that merely logs — the policy
+#     would read like containment and behave like an open egress. The policy
+#     tests in kew/tests/test_openshell_policy.py fail on any other value.
+version: "0.1"
+runner: claude-code
+image: kew-agent
+
+# Image paths, not names resolved through PATH: a policy keyed on a name would
+# follow whatever a writable PATH entry shadowed it with.
+#
+#   /usr/bin/claude  npm global bin (prefix /usr, per /usr/lib/node_modules in
+#                    docker/agent.Dockerfile) — what kew-openshell-launch
+#                    resolves and execs. npm installs it as a SYMLINK, so it is
+#                    a name for the next path, not a process of its own
+#   /usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
+#                    THE NATIVE BINARY, and so the process that owns the API
+#                    socket. docker/agent.Dockerfile installs the matching
+#                    @anthropic-ai/claude-code-linux-<arch> package and runs
+#                    install.cjs precisely to materialize it (a build that
+#                    skipped that step left only a failing stub), and the
+#                    Dockerfile asserts this exact path before sealing the
+#                    layer. The package declares `bin: claude -> bin/claude.exe`
+#                    — nothing in a dispatch runs the CLI through node, which is
+#                    why governing node alone governed nothing
+#   /usr/bin/node    the nodesource interpreter. Still governed because the
+#                    package's own wrapper (cli-wrapper.cjs) and install.cjs are
+#                    node programs; a run that reaches node should fail on a
+#                    model call, not on egress
+#
+# A binary absent from this list fails CLOSED under `enforce` (denied egress,
+# no traffic), so an incomplete list costs a visible dispatch failure, never a
+# silent leak. That is the whole reason the native binary belongs here: left
+# out, every contained Claude dispatch fails closed at the first model call.
+binaries:
+  - path: /usr/bin/claude
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/bin/node
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce

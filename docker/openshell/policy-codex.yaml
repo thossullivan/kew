@@ -1,0 +1,95 @@
+# OpenShell containment policy for the kew Codex runner image
+# (docker/agent-codex.Dockerfile, pinned as kew-agent-codex:docker-<digest>).
+#
+# The Claude Code policy (docker/openshell/policy-claude-code.yaml) carries the
+# full rationale; this file is its Codex sibling and holds the same two rules:
+# inference endpoints only, and `enforcement: enforce` on every one.
+#
+# Three hosts, because ChatGPT-mode Codex is not a single-endpoint client:
+#
+#   api.openai.com    the inference API itself
+#   chatgpt.com       the ChatGPT backend Codex talks to under
+#                     `auth_mode: chatgptAuthTokens`, which is the mode
+#                     kew-openshell-launch writes into $HOME/.codex/auth.json
+#   auth.openai.com   token exchange/refresh for that same mode
+#
+# Nothing else. No telemetry sink, no package registry, and no github.com: the
+# container holds no GitHub token by design and the host broker owns every push
+# and PR.
+version: "0.1"
+runner: codex
+image: kew-agent-codex
+
+# Image paths, not names resolved through PATH: a policy keyed on a name would
+# follow whatever a writable PATH entry shadowed it with.
+#
+#   /usr/bin/codex   npm global bin (prefix /usr, per /usr/lib/node_modules in
+#                    docker/agent-codex.Dockerfile) — what kew-openshell-launch
+#                    resolves and execs. npm installs it as a SYMLINK to
+#                    bin/codex.js, so it is a name for a node program, not a
+#                    process of its own
+#   /usr/bin/node    the nodesource interpreter. bin/codex.js runs under it and
+#                    SPAWNS the native binary below, so node is a real process
+#                    in every dispatch — governed so a run that reaches it
+#                    fails on a model call rather than on egress
+#   .../@openai/codex-linux-arm64/vendor/aarch64-unknown-linux-musl/bin/codex
+#   .../@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex
+#                    THE NATIVE BINARY, and so the process that owns the API
+#                    socket. `@openai/codex` ships only bin/codex.js and
+#                    resolves this out of a platform optionalDependency, so the
+#                    path is arch-specific and BOTH are listed: an image
+#                    carries exactly one of them, and a path that does not
+#                    exist governs nothing and costs nothing. The Dockerfile
+#                    `test -x`'s the one for its build arch before sealing the
+#                    layer, which is what keeps these strings from being a
+#                    guess (tests/test_openshell_policy.py requires the two to
+#                    agree).
+#
+# A binary absent from this list fails CLOSED under `enforce` (denied egress,
+# no traffic), so an incomplete list costs a visible dispatch failure, never a
+# silent leak.
+binaries:
+  - path: /usr/bin/codex
+    endpoints:
+      - host: api.openai.com
+        ports: [443]
+        enforcement: enforce
+      - host: chatgpt.com
+        ports: [443]
+        enforcement: enforce
+      - host: auth.openai.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/bin/node
+    endpoints:
+      - host: api.openai.com
+        ports: [443]
+        enforcement: enforce
+      - host: chatgpt.com
+        ports: [443]
+        enforcement: enforce
+      - host: auth.openai.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-arm64/vendor/aarch64-unknown-linux-musl/bin/codex
+    endpoints:
+      - host: api.openai.com
+        ports: [443]
+        enforcement: enforce
+      - host: chatgpt.com
+        ports: [443]
+        enforcement: enforce
+      - host: auth.openai.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex
+    endpoints:
+      - host: api.openai.com
+        ports: [443]
+        enforcement: enforce
+      - host: chatgpt.com
+        ports: [443]
+        enforcement: enforce
+      - host: auth.openai.com
+        ports: [443]
+        enforcement: enforce

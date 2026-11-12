@@ -1,0 +1,81 @@
+name: Docs build gate
+
+# Formerly "Deploy docs" (mkdocs gh-deploy → GitHub Pages). The Pages mirror
+# was unpublished on 2026-08-06 after the internal-docs leak (~214 working
+# pages published and sitemap-indexed; see PR #1407). kew.dev/docs is the only published
+# docs surface now, deployed manually via www/deploy.sh from a CLEAN checkout
+# at main (mkdocs builds untracked files — that is how a never-committed page
+# ended up live once).
+#
+# This job is a pure gate: it proves the docs still build, and that no internal
+# working material can reach a built site again (the mkdocs.yml exclude_docs
+# list — not_in_nav only suppresses warnings and was the leak's root cause).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      # everything scripts/check-docs.sh scans for stale internal-docs paths
+      - 'scripts/check-docs.sh'
+      - 'README.md'
+      - 'www/**'
+      - 'kew/src/**'
+      - 'kew/tests/**'
+      - 'kew/docs/**'
+      - 'evidence-packs/**'
+      - '.kew/**'
+      - 'kew.toml'
+      - '.claude/**'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.dockerignore'
+      - '.github/**'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      # everything scripts/check-docs.sh scans for stale internal-docs paths
+      - 'scripts/check-docs.sh'
+      - 'README.md'
+      - 'www/**'
+      - 'kew/src/**'
+      - 'kew/tests/**'
+      - 'kew/docs/**'
+      - 'evidence-packs/**'
+      - '.kew/**'
+      - 'kew.toml'
+      - '.claude/**'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.dockerignore'
+      - '.github/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # The gate runs MkDocs and Material, through uvx, at the exact versions
+    # kew/scripts/tool-pins.env names.
+    # scripts/verify.sh runs the same script on every commit.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # full history: check-docs.sh verifies every `path@4a387c0b` pointer
+          # against that commit and skips the check on a shallow clone
+          fetch-depth: 0
+          # PR-controlled scripts/check-docs.sh runs next; it needs no
+          # authenticated Git operation, so keep the token out of .git/config.
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      # One script, run identically here and from kew/scripts/verify.sh, so the
+      # parity contract (kew/tests/test_verify_parity.py) sees one signature on
+      # both sides — the same shape as the www gate.
+      - name: Docs gate
+        run: bash scripts/check-docs.sh

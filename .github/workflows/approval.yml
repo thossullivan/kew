@@ -1,0 +1,131 @@
+name: Remote Approval
+
+# Remote approve/deny of needs-approval holds (#236). AUTH IS A JOB-LEVEL GATE so
+# an unauthorized issue_comment never allocates the self-hosted runner. Runs on
+# the self-hosted runner because the real run-store lives there
+# (KEW_DISPATCH_DB repo var) — a hosted runner would decide against an empty
+# database. So the job runs only while this repository is private: in any
+# other repository the job-level gate skips it, and its runner expression
+# resolves to `ubuntu-latest` (only 'private' selects self-hosted). A public
+# repository registers no self-hosted runner (docs/operations.md, "Public
+# repository runner rule").
+#
+# This is the ONE self-hosted workflow with a trigger a stranger can reach
+# (anyone may comment on a public issue), so the job-level `if:` is load-bearing
+# in a way the others' are not: it must reject before allocation, and the
+# authoritative permission check below runs again inside the job.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  decide:
+    if: >
+      github.event.repository.visibility == 'private' &&
+      github.event.issue.state == 'open' &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      contains(github.event.issue.labels.*.name, 'needs-approval') &&
+      (startsWith(github.event.comment.body, '/approve') ||
+       startsWith(github.event.comment.body, '/deny'))
+    runs-on: ${{ github.event.repository.visibility == 'private' && 'self-hosted' || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      issues: write
+    # Serialize decisions per issue: two authorized comments on the same issue
+    # must not race on the label flip / run-store write.
+    concurrency:
+      group: approval-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      # Runner boundary (F1). First step, before any checkout: it runs no
+      # repository code. Refuses a runner that is not GitHub-hosted unless the
+      # repository is private; an empty or unknown value fails closed.
+      - name: Runner boundary — self-hosted requires a private repository
+        if: runner.environment != 'github-hosted' && github.event.repository.visibility != 'private'
+        env:
+          BOUNDARY_RUNNER: ${{ runner.environment }}
+          BOUNDARY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: |
+          echo "::error::This job landed on a '$BOUNDARY_RUNNER' runner in a '$BOUNDARY_VISIBILITY' repository. Only a private repository may use the self-hosted runner. Unregister the runner from this repository."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # Shared-clone heal (see ci.yml). This job has always run self-hosted,
+      # so it has always been exposed to a leftover non-cone sparse checkout
+      # pruning the clone out from under it — it simply had not hit one yet.
+      - name: Preflight — ensure kew/ checkout layout
+        shell: bash
+        run: |
+          git sparse-checkout disable 2>/dev/null || true
+          git config --unset core.sparseCheckout 2>/dev/null || true
+          git checkout -f HEAD 2>/dev/null || true
+          if [ ! -f kew/pyproject.toml ]; then
+            echo "::error::kew/ package directory missing from checkout at $PWD."
+            echo "::error::The self-hosted runner's shared clone is in a bad state (likely a leftover sparse checkout from an earlier workflow)."
+            echo "::error::Runner-host fix: delete _work/kew on the runner to force a fresh clone."
+            exit 1
+          fi
+          echo "Checkout layout OK: kew/ present at $PWD/kew"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      # author_association (the job `if:`) is a cheap pre-filter, but OWNER/MEMBER/
+      # COLLABORATOR is a *relationship*, not a permission level (a triage/read
+      # collaborator, or an org member without repo write, can carry it). This step
+      # is the authoritative check: the real repo permission, fail-closed.
+      - name: Verify commenter has write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.event.comment.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          perm="$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq '.permission')"
+          case "$perm" in
+            admin|maintain|write) echo "authorized: @$ACTOR ($perm)" ;;
+            *) echo "::error::@$ACTOR lacks write access (permission=$perm)"; exit 1 ;;
+          esac
+
+      - name: Install kew
+        working-directory: kew
+        run: uv sync
+
+      - name: Apply decision
+        working-directory: kew
+        env:
+          KEW_ACTOR: ${{ github.event.comment.user.login }}
+          KEW_DISPATCH_DB: ${{ vars.KEW_DISPATCH_DB }}
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ github.event.comment.body }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          : "${KEW_DISPATCH_DB:?set the KEW_DISPATCH_DB repo variable to the run-store db path}"
+          export KEW_LOG_DIR="$(dirname "$KEW_DISPATCH_DB")"
+          cmd="$(printf '%s' "$BODY" | head -n1 | awk '{print $1}')"   # /approve | /deny
+          reason="$(printf '%s' "$BODY" | head -n1 | cut -s -d' ' -f2-)"
+          uv run kew "${cmd#/}" "$ISSUE" --reason "$reason"
+
+      - name: Acknowledge on the issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ github.event.comment.body }}
+          ACTOR: ${{ github.event.comment.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          cmd="$(printf '%s' "$BODY" | head -n1 | awk '{print $1}')"
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO" \
+            --body "kew processed \`${cmd}\` from @${ACTOR} (see the run log / audit trail)."

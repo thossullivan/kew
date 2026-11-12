@@ -1,0 +1,47 @@
+{
+  "node_id": "f9910678:3",
+  "text": "artifact sha256:af99106780000000000000000000000000000000000000000000000000000000\nbase f9910678f9910678f9910678f9910678f9910678\ntree 8760199f8760199f8760199f8760199f8760199f\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0ff9910678000000000000000000000000000000000000000000000000000000 98 src/ledger/parse_ledger_entries_from_a_csv_.py\nchanged 100644 sha256:1ff9910678000000000000000000000000000000000000000000000000000000 105 tests/test_parse_ledger_entries_from_a_csv_.py\n",
+  "run_id": "f9910678",
+  "attempt_number": 1,
+  "base_sha": "f9910678f9910678f9910678f9910678f9910678",
+  "tree_sha": "8760199f8760199f8760199f8760199f8760199f",
+  "package_digest": "sha256:af99106780000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:rf99106780000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/parse_ledger_entries_from_a_csv_.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0ff9910678000000000000000000000000000000000000000000000000000000",
+      "byte_length": 98,
+      "text": "\"\"\"Read the bank-exported CSV into ledger entries, one per row, keeping the source row number.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_parse_ledger_entries_from_a_csv_.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1ff9910678000000000000000000000000000000000000000000000000000000",
+      "byte_length": 105,
+      "text": "def test_parse_ledger_entries_from_a_csv_():\n    \"\"\"every row of the sample export becomes one entry.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

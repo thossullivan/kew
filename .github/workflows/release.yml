@@ -1,0 +1,640 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # A release is cut by a person: run this workflow on main with
+  # release_version set to the version the tree already states
+  # (docs/operations.md, "Cutting a release"). A push to main, or a run with
+  # release_version empty, tests and builds the packages and publishes nothing.
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to release, X.Y.Z, equal to the tree's version. Empty: build and check only."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # The Switchyard image tooling is opt-in: "1" exactly when the repository is
+  # private, where serial-tests runs on the private runner. The kew-switchyard
+  # image builds only from its pinned private source input, which exists on
+  # that runner alone, so every other path gets "" and skips that image's
+  # prerequisite and the tests marked requires_switchyard_image
+  # (tests/conftest.py), each printing why. Nothing else is skipped, and the
+  # archive secret reaches only the steps this value opts in. Opting the hosted
+  # runner in is the switch in docs/operations.md
+  # ("Public repository runner rule").
+  KEW_SWITCHYARD_IMAGE: ${{ github.event.repository.visibility == 'private' && '1' || '' }}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # The complete serial release suite. It selects its runner by repository
+  # visibility: the self-hosted runner while this repository is private,
+  # `ubuntu-latest` otherwise (only the exact value 'private' selects
+  # self-hosted). The runner selection is not the security boundary; a public
+  # repository registers no self-hosted runner (docs/operations.md, "Public
+  # repository runner rule"). Packaging and publication are always hosted.
+  #
+  # On the self-hosted runner these tests consume host-provisioned Docker
+  # inputs: the kew-allowlist network and the input-pinned agent and
+  # Switchyard images. A GitHub-hosted runner starts without them, so a
+  # hosted-only step builds the network and the pinned agent image first. The
+  # Switchyard image is not built there (KEW_SWITCHYARD_IMAGE above opts in
+  # only on the private runner): the prerequisite check skips only that image,
+  # and the tests that need it are deselected. The prerequisite check itself
+  # never builds anything.
+  serial-tests:
+    runs-on: ${{ github.event.repository.visibility == 'private' && 'self-hosted' || 'ubuntu-latest' }}
+    # The runner lock serializes the shared Docker daemon across CI and Release (#1948).
+    # Waiting gets 90 minutes. The holder bounds work and draining at 45 minutes.
+    # Release can wait 15 minutes for draining. Job time includes both waits.
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      # Runner boundary (F1). First step, before any checkout: it runs no
+      # repository code. Refuses a runner that is not GitHub-hosted unless the
+      # repository is private; an empty or unknown value fails closed. The
+      # hosted path always passes.
+      - name: Runner boundary — self-hosted requires a private repository
+        if: runner.environment != 'github-hosted' && github.event.repository.visibility != 'private'
+        env:
+          BOUNDARY_RUNNER: ${{ runner.environment }}
+          BOUNDARY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: |
+          echo "::error::This job landed on a '$BOUNDARY_RUNNER' runner in a '$BOUNDARY_VISIBILITY' repository. Only a private repository may use the self-hosted runner. Unregister the runner from this repository."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The trusted runner reuses a shared clone. Repair stale sparse-checkout
+      # state before any step assumes that kew/ exists.
+      - name: Preflight — ensure kew/ checkout layout
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          git sparse-checkout disable 2>/dev/null || true
+          git config --unset core.sparseCheckout 2>/dev/null || true
+          git checkout -f HEAD 2>/dev/null || true
+          if [ ! -f kew/pyproject.toml ]; then
+            echo "::error::kew/ package directory missing from checkout at $PWD."
+            echo "::error::The self-hosted runner's shared clone is in a bad state."
+            echo "::error::Runner-host fix: delete _work/kew on the runner to force a fresh clone."
+            exit 1
+          fi
+          echo "Checkout layout OK: kew/ present at $PWD/kew"
+
+      - name: Install uv
+        timeout-minutes: 3
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        timeout-minutes: 5
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        timeout-minutes: 6
+        working-directory: kew
+        run: uv sync
+
+      # A hosted VM has no host state. Build the kew-allowlist network and the
+      # pinned agent image; the private runner never runs this step.
+      - name: Preflight — provision Docker inputs on the hosted runner
+        if: runner.environment == 'github-hosted'
+        timeout-minutes: 20
+        run: bash .github/scripts/provision_hosted_docker_inputs.sh
+
+      # An opted-in job must actually run the sidecar certification. If the
+      # marker, the conftest deselection or this switch ever drifts, the marked
+      # tests would silently vanish from a job that believes it runs them, so
+      # assert the selection is non-empty before the suite starts. Collection
+      # touches no Docker state, so it runs before the daemon lock.
+      - name: Preflight — the opted-in run selects the Switchyard image tests
+        timeout-minutes: 5
+        run: bash .github/scripts/assert_switchyard_tests_selected.sh
+
+      # The lock serializes the operator host's shared Docker daemon. A
+      # GitHub-hosted VM runs one job and shares no daemon, so it skips both
+      # lock steps.
+      - name: Docker daemon lock — acquire
+        if: runner.environment == 'self-hosted'
+        timeout-minutes: 91
+        run: python3 .github/scripts/docker_daemon_lock.py acquire --timeout-seconds 5400 --hold-max-seconds 2700
+
+      # The real packet tests consume existing host state. Check every required
+      # object first. Never build substitutes or pull missing images here.
+      - name: Verify serial test prerequisites
+        timeout-minutes: 2
+        run: |
+          docker network inspect kew-allowlist >/dev/null
+          worker_image="$(uv run --project kew python -c 'import sys; from pathlib import Path; import tomllib; from kew.sandbox import agent_image_inputs_digest; root = Path.cwd(); sandbox = tomllib.loads((root / "kew.toml").read_text())["sandbox"]; sandbox.get("network", "allowlist") == "allowlist" or sys.exit("sandbox network is not the approved allowlist"); digest = agent_image_inputs_digest(root)[:12]; configured = sandbox["images"]["claude-code"]; expected = f"kew-agent:docker-{digest}"; configured == expected or sys.exit(f"claude-code image pin mismatch: configured={configured!r}, expected={expected!r}"); print(configured)')"
+          proxy_image="kew-switchyard:${worker_image#*:}"
+          docker image inspect "$worker_image" >/dev/null
+          case "${KEW_SWITCHYARD_IMAGE:-}" in
+            1) docker image inspect "$proxy_image" >/dev/null ;;
+            "") echo "Skipping the $proxy_image prerequisite: the pinned Switchyard input includes unreleased upstream patches; it builds on the private runner until they are public" ;;
+            *) echo "::error::KEW_SWITCHYARD_IMAGE must be unset, empty or 1."; exit 1 ;;
+          esac
+
+      - name: Run serial tests
+        timeout-minutes: 23
+        working-directory: kew
+        env:
+          KEW_SWITCHYARD_SOURCE_ARCHIVE: ${{ env.KEW_SWITCHYARD_IMAGE == '1' && secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}
+        run: uv run pytest -m serial
+
+      - name: Docker daemon lock — release
+        if: always() && runner.environment == 'self-hosted'
+        timeout-minutes: 16
+        run: python3 .github/scripts/docker_daemon_lock.py release --job-status ${{ job.status }}
+
+  # The release job runs only in the canonical repository: the one the site and
+  # its install gate name (REPO_SLUG in www/src/lib/data/install.js, the one
+  # place the slug is written). A job `if:` cannot read a file or the workflow
+  # env, so this job reads the slug and the release job reads its answer. A
+  # fork or the private development repository gets false and never reaches a
+  # release step.
+  canonical:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      canonical: ${{ steps.slug.outputs.canonical }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Compare this repository with the site's slug
+        id: slug
+        run: python3 .github/scripts/release_preflight.py canonical
+
+      # The cheap half of the preflight, in parallel with serial-tests, so a
+      # wrong ref, version or changelog fails within a minute instead of after
+      # the suite: the release job never starts. The tag check stays in the
+      # release job, which has every tag.
+      - name: Check the release request
+        if: steps.slug.outputs.canonical == 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: python3 .github/scripts/release_preflight.py resolve --skip-tag-check --notes "$RUNNER_TEMP/release-notes.md"
+
+  release:
+    needs: [serial-tests, canonical]
+    runs-on: ubuntu-latest
+    if: needs.canonical.outputs.canonical == 'true' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
+    # Reads only. This job runs the repository's code (its dependencies, npm
+    # lifecycle scripts, the suite), and a job token is readable from the
+    # runner by whatever runs in the job, so the write token lives in
+    # tag-release, which runs none of it.
+    permissions:
+      contents: read
+    outputs:
+      released: ${{ steps.version.outputs.released }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Every tag, so the preflight below can refuse one that exists. No
+          # step pushes, so the token is not left in .git/config. The
+          # preflight's `git ls-remote` reads a public repository's tags
+          # without credentials (and this job runs in no other repository).
+          fetch-depth: 0
+          persist-credentials: false
+
+      # With release_version empty: released=false and the tree's version.
+      # With it set, the canonical job's checks again, plus the tag: refuses
+      # unless no tag v<version> exists, or this is a re-run that finds one at
+      # this commit (tag=existing; tag-release then checks which run made it).
+      # The CHANGELOG.md section becomes the release notes.
+      - name: Resolve the release
+        id: version
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: python3 .github/scripts/release_preflight.py resolve --notes "$RUNNER_TEMP/release-files/release-notes.md"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Run tests
+        working-directory: kew
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy src/
+          uv run pytest -n auto -m "not serial"
+
+      # Self-hosted runners reuse the workspace; stale wheels would break
+      # the dist/*.whl glob in the smoke test below.
+      - name: Clean dist
+        run: rm -rf kew/dist
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+
+      # Every run builds and checks the packages, so a push to main proves the
+      # artifacts a release would publish. The web bundle first: it is
+      # gitignored, and the wheel check below fails without it. kew/uv.lock is
+      # not re-locked here: the version bump's pull request commits it, and
+      # tests/test_packaging_metadata.py fails a lock that disagrees.
+      - name: Build the web bundle and the wheel
+        run: |
+          bash scripts/build_web.sh
+          cd kew
+          uv build
+
+      # npm rehearsal (the npm twin of the TestPyPI publish). Proves the
+      # create-kew tarball packs and validates without publishing. A dry run
+      # does NOT exercise OIDC auth.
+      - name: npm publish dry-run (create-kew)
+        if: steps.version.outputs.released == 'true'
+        working-directory: create-kew
+        run: |
+          npm pack --dry-run
+          npm publish --dry-run --provenance --access public
+
+      - name: Twine check
+        working-directory: kew
+        run: |
+          source scripts/tool-pins.env
+          uvx twine=="${TWINE_VERSION}" check dist/*
+
+      - name: Verify web UI is in the wheel
+        working-directory: kew
+        run: |
+          python3 - <<'PY'
+          import glob, zipfile
+          wheels = sorted(glob.glob("dist/*.whl"))
+          assert wheels, "no wheel found in dist/"
+          whl = wheels[-1]
+          names = zipfile.ZipFile(whl).namelist()
+          assert "kew/serve/web/index.html" in names, f"web UI missing: {whl}"
+          print("OK: web UI shipped in", whl)
+          PY
+
+      # Cold install into an isolated tool dir (never touches a real kew
+      # install on a self-hosted machine), then assert version and help.
+      - name: Cold-install smoke test
+        working-directory: kew
+        env:
+          UV_TOOL_DIR: ${{ runner.temp }}/uv-smoke-tools
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/uv-smoke-tools/bin
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          uv tool install --force dist/*.whl
+          export PATH="$UV_TOOL_BIN_DIR:$PATH"
+          test "$(kew --version)" = "kew $VERSION"
+          kew --help > /dev/null
+
+      # Supply-chain posture (#266): a CycloneDX SBOM of the SHIPPED (runtime)
+      # dependency tree, attached to the GitHub release by tag-release. `uv
+      # sync --no-dev` prunes dev deps first so the SBOM reflects what the
+      # wheel actually pulls in; the publish jobs use the uploaded dist
+      # artifact, not the venv. Written beside the release notes, outside
+      # kew/dist/, which holds only what PyPI gets.
+      - name: Generate the SBOM (CycloneDX)
+        if: steps.version.outputs.released == 'true'
+        working-directory: kew
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          uv sync --no-dev
+          source scripts/tool-pins.env
+          uvx --from cyclonedx-bom=="${CYCLONEDX_BOM_VERSION}" cyclonedx-py environment .venv -o "$RUNNER_TEMP/release-files/kew-cli-${VERSION}.sbom.cdx.json"
+
+      # overwrite: a re-run repeats these uploads, and an artifact name is
+      # otherwise taken for the whole run after its first attempt.
+      - name: Upload dist artifact
+        if: steps.version.outputs.released == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist
+          path: kew/dist/
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the release notes and SBOM artifact
+        if: steps.version.outputs.released == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-files
+          path: ${{ runner.temp }}/release-files/
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Note publish gate status
+        if: steps.version.outputs.released == 'true' && vars.PUBLISH_RELEASE != 'true'
+        run: echo "Publish is gated (repo variable PUBLISH_RELEASE is not 'true'); the publish-pypi and publish-npm jobs will be skipped. The npm dry-run rehearsal proceeds; the TestPyPI rehearsal is reported separately (it has its own gate)." >> "$GITHUB_STEP_SUMMARY"
+
+      # The TestPyPI rehearsal needs a pending trusted publisher registered on
+      # test.pypi.org (docs/operations.md, "Before the first release"). Until an operator completes that
+      # account-side step and sets the repo variable, the rehearsal is SKIPPED
+      # loudly rather than failing every release with unverifiable OIDC claims.
+      # Gated on the release alone, like publish-testpypi, so every run that
+      # would rehearse says why it did not.
+      - name: Note TestPyPI rehearsal status
+        if: steps.version.outputs.released == 'true' && vars.TESTPYPI_PUBLISHER_REGISTERED != 'true'
+        run: echo "TestPyPI rehearsal SKIPPED — no trusted publisher registered (set repo variable TESTPYPI_PUBLISHER_REGISTERED='true' after registering the pending publisher on test.pypi.org per the release runbook in docs/operations.md, Before the first release)." >> "$GITHUB_STEP_SUMMARY"
+
+  # The one job that writes contents: it creates the tag v<version> and the
+  # GitHub release at the commit the release job tested, and attaches the
+  # files. It runs no repository code (no checkout, no install, no script from
+  # the tree), so no code the repository ships can read its token: it
+  # downloads the release job's artifacts and runs `gh` alone. Before creating
+  # or reusing anything it reads, through the API, where an existing tag
+  # points and which run made an existing release (the `run: <id>` line this
+  # job writes into the notes). It refuses a tag at another commit, a tag on a
+  # first attempt, a tag without this run's release, and a release another run
+  # made; only this run's own half-finished release is finished, by attaching
+  # the files it does not have yet. A file that is already attached is never
+  # replaced (docs/operations.md, "When a release fails").
+  tag-release:
+    needs: release
+    if: inputs.release_version != '' && needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Download the release notes and SBOM artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-files
+          path: release-files
+
+      - name: Create the tag and the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # The person's own input, and the release job's answer: that job runs
+          # the repository's code, so its output only has to agree with the
+          # input, and the tag is built from the input.
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          refuse() {
+            echo "::error::${1} Nothing was created or replaced. Follow \"When a release fails\" in docs/operations.md."
+            exit 1
+          }
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || refuse "release_version is not a plain X.Y.Z version."
+          [[ "$VERSION" == "$RELEASE_VERSION" ]] || refuse "The release job's version does not match release_version ${RELEASE_VERSION}."
+          tag="v${RELEASE_VERSION}"
+          marker="run: ${GITHUB_RUN_ID}"
+          files=(dist/* release-files/*.sbom.cdx.json)
+          # Where an existing tag points, peeled through an annotated tag. A
+          # failed or unreadable answer stops the step (set -e, the checks).
+          found="$(gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${tag}" --jq ".[] | select(.ref == \"refs/tags/${tag}\") | .object.type + \" \" + .object.sha")"
+          if [[ -n "$found" ]]; then
+            [[ "$found" =~ ^(commit|tag)\ [0-9a-f]{40}$ ]] || refuse "The lookup of tag ${tag} did not answer a ref."
+            sha="${found#* }"
+            if [[ "${found%% *}" == "tag" ]]; then
+              sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${sha}" --jq .object.sha)"
+            fi
+            [[ "$sha" == "$GITHUB_SHA" ]] || refuse "Tag ${tag} does not point at ${GITHUB_SHA}, the commit this run tested."
+            [[ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]] || refuse "Tag ${tag} already exists, and a first attempt never reuses a tag."
+          fi
+          # Every release that names the tag, drafts included.
+          ids="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" --jq ".[] | select(.tag_name == \"${tag}\") | .id")"
+          upload=()
+          if [[ -z "$ids" ]]; then
+            # Creating a release creates its tag in the same call, so a tag
+            # with no release was not made by this run.
+            [[ -z "$found" ]] || refuse "Tag ${tag} exists with no release, so this run did not make it."
+            printf '\n%s\n' "$marker" >> release-files/release-notes.md
+            gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$tag" --notes-file release-files/release-notes.md
+            upload=("${files[@]}")
+          else
+            [[ "$ids" != *$'\n'* ]] || refuse "More than one release names ${tag}."
+            [[ "$ids" =~ ^[0-9]+$ ]] || refuse "The release listing for ${tag} did not answer a release id."
+            body="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${ids}" --jq .body)"
+            [[ $'\n'"${body//$'\r'/}"$'\n' == *$'\n'"${marker}"$'\n'* ]] || refuse "Release ${tag} was not created by this run (${GITHUB_RUN_ID})."
+            # Finish it: attach only the files it does not have yet. A file
+            # already attached is never replaced, even by a rebuilt one.
+            have="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases/${ids}/assets" --jq ".[].name")"
+            for file in "${files[@]}"; do
+              case $'\n'"${have}"$'\n' in
+                *$'\n'"${file##*/}"$'\n'*) ;;
+                *) upload+=("$file") ;;
+              esac
+            done
+            echo "Release ${tag} is this run's, from an earlier attempt: attaching ${#upload[@]} missing file(s)."
+          fi
+          if [[ "${#upload[@]}" -gt 0 ]]; then
+            gh release upload "$tag" -R "$GITHUB_REPOSITORY" "${upload[@]}"
+          fi
+
+  # Live sandbox gate (#691/#695): prove the containerized dispatch path works
+  # end-to-end (runtime → pinned image build → launch → prompt-file handoff)
+  # before any publish. ubuntu-latest ships docker. The workflow validates the
+  # configured claude-code pin against docker/. It builds that exact local tag
+  # from docker/agent.Dockerfile without pulling a prebuilt kew-agent image
+  # (the Dockerfile's own base image and package fetches still run). The pin
+  # names the docker/ INPUTS, not reproducible image bytes; the smoke proves
+  # the containment and launch layers, not byte identity. It then launches one
+  # container through kew's own build_run_argv/launch_container.
+  sandbox-smoke:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      # CI's bare bridge network proves the container/launch layers only.
+      # The egress restriction itself is host iptables and is NOT verified by this gate.
+      - name: Create sandbox allowlist network
+        run: docker network create --driver bridge kew-allowlist
+
+      # An explicit exit, not `assert`: PYTHONOPTIMIZE strips assertions, and a
+      # stripped check would build current inputs under a stale tag. Symlinks
+      # under docker/ are refused outright: the inputs digest hashes a link's
+      # TARGET TEXT, not the file it points at, so a symlinked Dockerfile could
+      # change what `docker build -f` reads without changing the pin.
+      - name: Build pinned sandbox agent image
+        run: |
+          image="$(uv run --project kew python -c 'import sys; from pathlib import Path; import tomllib; from kew.sandbox import agent_image_inputs_digest; root = Path.cwd(); links = sorted(str(p.relative_to(root)) for p in (root / "docker").rglob("*") if p.is_symlink()); not links or sys.exit(f"symlinks under docker/ are not pinnable inputs: {links}"); configured = tomllib.loads((root / "kew.toml").read_text())["sandbox"]["images"]["claude-code"]; expected = f"kew-agent:docker-{agent_image_inputs_digest(root)[:12]}"; configured == expected or sys.exit(f"claude-code image pin mismatch: configured={configured!r}, expected={expected!r}"); print(configured)')"
+          # The full inputs digest label a launch of the pin tag requires,
+          # from the module `kew sandbox build` labels with.
+          label="$(uv run --project kew python -m kew.image_inputs "$PWD")"
+          docker build --label "$label" -f docker/agent.Dockerfile -t "$image" .
+
+      - name: kew sandbox smoke
+        working-directory: kew
+        # The smoke's final "auth" layer checks for a dispatch credential in
+        # the env (#732). CI proves the CONTAINER layers only — this runner
+        # never dispatches — so satisfy the env check with a dummy value.
+        env:
+          ANTHROPIC_API_KEY: ci-smoke-dummy
+        run: uv run kew sandbox smoke
+
+  # pypa/gh-action-pypi-publish is a Docker container action (Linux only),
+  # so both publish jobs are pinned to ubuntu-latest, NOT vars.RUNNER_TARGET.
+  # OIDC trusted publishing: no tokens — the environment name must match the
+  # pending publisher registered on (test.)pypi.org (docs/operations.md,
+  # "Before the first release").
+  #
+  # No publish job runs without release_version: a push carries no inputs, and
+  # each condition below names the input as well as the release job's answer.
+  publish-testpypi:
+    needs: [release, tag-release, sandbox-smoke]
+    if: inputs.release_version != '' && needs.release.outputs.released == 'true' && vars.TESTPYPI_PUBLISHER_REGISTERED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/kew-cli
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          # PEP 740 provenance attestations (#266). Default-on for trusted
+          # publishing; set explicitly so the supply-chain posture is intentional.
+          attestations: true
+
+  publish-pypi:
+    needs: [release, tag-release, sandbox-smoke]
+    if: inputs.release_version != '' && needs.release.outputs.released == 'true' && vars.PUBLISH_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kew-cli
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          # A re-run after a partial publish skips the files PyPI already
+          # holds instead of failing on them. PyPI never accepts a file name
+          # twice, so a published file cannot be replaced this way.
+          skip-existing: true
+          # PEP 740 provenance attestations (#266). Default-on for trusted
+          # publishing; set explicitly so the supply-chain posture is intentional.
+          attestations: true
+
+  # npm trusted publishing (OIDC): no tokens — the "npm" GitHub environment name
+  # must match the trusted publisher registered on npmjs.com (docs/operations.md,
+  # "Before the first release"). Ordered after publish-pypi so kew-cli exists before
+  # the create-kew wizard that points users at it. Shares the PUBLISH_RELEASE
+  # gate with publish-pypi, so gate-off skips both.
+  publish-npm:
+    needs: [release, tag-release, publish-pypi]
+    if: inputs.release_version != '' && needs.release.outputs.released == 'true' && vars.PUBLISH_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/create-kew
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      # No git push happens here; don't leave the token in .git/config while
+      # npm publish (and any lifecycle scripts) run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; pin for reproducibility.
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@11.5.1
+
+      # This job checks out the commit the release job tested, whose
+      # create-kew/package.json the preflight already matched to the release.
+      # Check it again here rather than stamp it: a mismatch is a refusal.
+      # The person's input is the version; the release job's output (that job
+      # runs the repository's code) only has to agree with it.
+      - name: Check the create-kew version
+        working-directory: create-kew
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$VERSION" != "$RELEASE_VERSION" ]]; then
+            echo "::error::release_version is not a plain X.Y.Z version, or the release job's version does not match it."
+            exit 1
+          fi
+          found="$(node -p "require('./package.json').version")"
+          if [ "$found" != "$RELEASE_VERSION" ]; then
+            echo "::error::create-kew/package.json says $found, the release is $RELEASE_VERSION"
+            exit 1
+          fi
+
+      # Idempotency guard: re-runs of an already-published version are no-ops
+      # (the npm twin of PyPI's skip-existing). The version was checked above.
+      - name: Publish create-kew to npm
+        working-directory: create-kew
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          v="$RELEASE_VERSION"
+          if npm view "create-kew@${v}" version >/dev/null 2>&1; then
+            echo "create-kew@${v} already published; skipping." >> "$GITHUB_STEP_SUMMARY"
+          else
+            npm publish --provenance --access public
+          fi

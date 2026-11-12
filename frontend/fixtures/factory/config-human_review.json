@@ -1,0 +1,24 @@
+{
+  "delivery_repo": "kew-dev/kew",
+  "values": {
+    "human_review.max_pending_reviews": 6,
+    "human_review.max_diff_lines": 2000,
+    "human_review.max_paths": 40
+  },
+  "generation": 3,
+  "expires_at": "2026-09-30T00:00:00+00:00",
+  "source": "override",
+  "approvers": [],
+  "pending_reviews": 2,
+  "over_cap": false,
+  "pending_reversion": {
+    "at": "2026-09-30T00:00:00+00:00",
+    "reason": "expired",
+    "to": {
+      "human_review.max_pending_reviews": 3,
+      "human_review.max_diff_lines": 2000,
+      "human_review.max_paths": 40,
+      "generation": 4
+    }
+  }
+}

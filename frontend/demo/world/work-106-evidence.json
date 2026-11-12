@@ -1,0 +1,43 @@
+{
+  "item_id": "106",
+  "rows": [
+    {
+      "n": 1,
+      "label": "Sandboxed",
+      "event": "sandbox_resolved",
+      "summary": "sandboxed",
+      "ts": "2026-10-21T14:40:35+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 2,
+      "label": "Canonical publication",
+      "event": "publication_posture",
+      "summary": "",
+      "ts": "",
+      "state": "pending"
+    },
+    {
+      "n": 3,
+      "label": "Scan clean",
+      "event": "publication_output_scan",
+      "summary": "",
+      "ts": "",
+      "state": "pending"
+    },
+    {
+      "n": 4,
+      "label": "Verdict",
+      "event": "adversarial_review_verdict",
+      "summary": "",
+      "ts": "",
+      "state": "pending"
+    }
+  ],
+  "attested_count": 1,
+  "total": 4,
+  "chain_verified": true,
+  "reason": "",
+  "unavailable": [],
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

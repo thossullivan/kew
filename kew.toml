@@ -1,0 +1,251 @@
+# kew.toml: kew's configuration for dispatching issues against this repository.
+
+[project]
+name = "kew"
+# repo auto-detected from gh
+
+[agent]
+timeout_minutes = 120
+# The single-run ceiling. Governed remediations of integration work cost more
+# than a single feature dispatch; the per-issue cap and the cost-anomaly breaker
+# still bound aggregate and runaway spend.
+max_budget_usd = 50.0
+# The orchestrator resolves the model from the config loaded in the operator
+# project; the agent's clone carries the COMMITTED file, so keep the two in
+# agreement on main. The model must be a routable row in kew/src/kew/models.json.
+model = "claude-opus-5"
+
+[agent.claude_code]
+autocompact_pct = 70
+skip_permissions = true
+
+[agent.lemonade]
+base_url = "http://localhost:13305/v1"
+max_steps = 30
+
+[agent.codex]
+# `service_tier` stays unset so the official CLI keeps its default tier
+# (docs/runners/codex.md).
+reasoning_effort = "xhigh"
+
+[routing]
+# Per-complexity routing. String values are RUNNER names, so use explicit
+# entries.
+#
+# Every lane runs the official Codex runner. Its containment posture is
+# `native` (Codex's own workspace-write sandbox, network off), so dispatch does
+# not depend on the agent container image. The model is priced in
+# kew/src/kew/pricing.py. The reviewer keeps its own route in [review] below.
+default = { runner = "codex", model = "gpt-5.6-sol" }
+simple = { runner = "codex", model = "gpt-5.6-sol" }
+medium = { runner = "codex", model = "gpt-5.6-sol" }
+complex = { runner = "codex", model = "gpt-5.6-sol" }
+
+[budget]
+# The per-issue cap leaves room for retries above one run at the
+# [agent] max_budget_usd ceiling.
+per_issue_usd = 75.0
+# Fleet limits, sized for several epic drivers sharing the fleet.
+daily_usd = 250.0
+weekly_usd = 600.0
+
+[branches]
+prefix = "agent/issue-"
+worktree_base = ".worktrees"
+
+[labels]
+ready = "ready"
+in_progress = "in-progress"
+agent_working = "agent-working"
+agent_failed = "agent-failed"
+agent_pr = "agent-pr"
+pr_pending_review = "pr-pending-review"
+blocked = "blocked"
+priorities = ["p0-critical", "p1-high", "p2-medium", "p3-low"]
+
+[labels.complexity]
+simple = { tokens = "~30k", scope = "1-2 files" }
+medium = { tokens = "~60k", scope = "2-4 files" }
+complex = { tokens = "~100k", scope = "cross-cutting" }
+
+[commands]
+ci = "uv run pytest -v"
+format = "uv run ruff format --check . && uv run ruff check ."
+verify = "bash scripts/verify.sh"
+# Governed remediation rounds run only the tests covering their changes.
+test_targeted = "uv run pytest {paths}"
+# Repo-wide gates a targeted round would otherwise skip: every test carrying
+# the `policy` mark, enforced by tests/test_policy_mark_gate.py.
+test_policy_mark = "policy"
+# Pre-review gate: the merge gate's static checks, run on an agent head inside
+# `[sandbox] check_image` with no network before any reviewer is paid. Taken
+# from kew/scripts/verify.sh's static phase (the xenon line is AGENTS.md's exact
+# command) so a head this passes is not refused by the merge verify for the same
+# check. `ui_check` stays unset: the check image's Chromium is not yet proven to
+# run the ui-checks contained.
+static = 'cd kew && uv run ruff check . && uv run ruff format --check . && uv run mypy src/ && uv run lint-imports && uv run xenon --max-absolute B --max-modules B --max-average A -e "$(paste -sd, .xenon-excludes)" src/ && uv run pytest -m policy'
+commit_prefix = "feat(#{issue}): "
+
+[prompt]
+include_safety_rules = true
+include_execution_strategy = true
+include_coderabbit = false
+include_dispatch_report = true
+
+[review]
+# Governed adversarial review. adversarial=true: every review-enabled epic node
+# dispatches a fresh-context reviewer that attests a verdict on the audit chain.
+# Dispatched agents read THIS committed file.
+adversarial = true
+# blocking=true: a non-READY verdict HELDs the node; the merge pass merges only
+# when the latest verdict is READY, the verdict's head_sha is the current head,
+# and the approval postdates the verdict (test_driver_review_merge.py). The
+# reviewer runs through the contained claude-code image, and a node gets at
+# most two remediation rounds before HELD, where a person accepts or defers the
+# residual findings.
+blocking = true
+runner = "claude-code"
+model = "claude-opus-5"
+max_rounds = 2
+# One Opus pass over a several-thousand-line diff costs more than the $10
+# default; the remediation pool keeps its default.
+max_review_usd = 30.0
+# Review stop rule: only a round whose findings are ALL low merges as
+# READY-with-residuals. Any medium or high still keeps the node in remediation,
+# and a failed acceptance criterion blocks whatever the severities.
+# The threshold has to stay BELOW max_rounds (2, above) or the stop-rule config
+# stops being predictable. The rule fires strictly AFTER the threshold round and
+# counts EVERY recorded round, while max_rounds counts only remediation cycles.
+# With a threshold of 2 or more the usual outcome is dead config: the driver
+# HELDs `review_rounds_exhausted` at max_rounds first, and releasing that hold
+# restarts round numbering at 1, so the named round never comes round. But a
+# merge-queue round bumps the round number without spending a cycle, so the
+# same threshold can instead fire one round PAST the cap and merge a round the
+# cap was there to hold. At 1 the rule decides round 2, this repo's last
+# remediation round before the hold: all-low merges with its residuals filed as
+# one issue, anything else still HELDs for a person.
+stop_rule_after_rounds = 1
+stop_rule_max_severity = "low"
+
+[breaker]
+# Anomaly headroom across routes. Bucket-relative guarding and all dollar
+# spending limits stay enabled.
+cost_anomaly_factor = 6.0
+# The near-zero-bucket backstop. Relative thresholds still scale with each
+# bucket's observed cost.
+min_anomaly_threshold_usd = 4.0
+# Bucket-relative floor: threshold >= bucket_median * this. Kept equal to
+# cost_anomaly_factor, so on an established bucket this term never wins and
+# contributes nothing. Its whole job here is the under-sampled path (a bucket
+# with at least three samples but fewer than min_samples), where it replaces a
+# flat absolute floor. Such a bucket arms only once its own median has reached
+# the median over the route's *other* run_kinds; that reference gates arming
+# and never sets the threshold, because it measures other work. Setting this to
+# 0 leaves the under-sampled path dormant rather than handing it back to the
+# flat floor.
+anomaly_floor_multiple = 6.0
+
+[sandbox]
+# Default `auto`: accept a runner-native boundary, or use the configured
+# container runtime. Without either boundary, kew refuses the run unless
+# `dangerously_skip_containment = true` explicitly admits an UNCONTAINED host
+# run (ledger posture `uncontained`): the agent inherits this environment, and
+# only Claude Code carries kew's command hook there. The flag bypasses a
+# missing runtime, `enabled = false`, a missing runner credential, and a
+# runner that cannot be contained. On the container path (a runtime is present
+# and `enabled` is not false) an unmapped image or an undeclared in-container
+# credential still refuses; with no runtime, or `enabled = false`, the flag
+# admits the host run before image mapping is consulted.
+#
+# Runner-aware resolution: on a host WITH a runtime, a dispatch whose resolved
+# runner has a container posture but no mapped image is REFUSED, not downgraded
+# to the host. The codex runner's posture is `native` (its own sandbox), so the
+# delivery lanes above never consult the image map; the contained claude-code
+# reviewer does, and its image is mapped in [sandbox.images].
+#
+
+# Pins are named docker-<digest12>, the first 12 hex of
+# kew.sandbox.agent_image_inputs_digest over every file under docker/. That
+# identity survives squash merges, covers uncommitted edits, and needs no git
+# history. tests/test_agent_image_scan_gate.py fails whenever the pins do not
+# name the digest of the docker/ tree in the checkout.
+#
+# Why the pins exist at all: dispatch launches what THIS map names. The CI gate
+# scans freshly built :ci-scan images that nothing dispatches into, so it
+# cannot see a stale pin carrying a known CVE; the test above can.
+#
+# Each is pinned explicitly rather than left to the `[sandbox] image` default,
+# so a dispatch names the exact bytes it ran.
+#
+# The codex pin is inert today and recorded anyway: the codex runner's posture
+# is `native`, so the delivery lanes never consult the image map. Pinning it
+# with the other two keeps the three images one build; a pin added later, after
+# a docker/ change, would name a different digest.
+# The image the pre-review gate and the `[resolve]` checks run in: the
+# claude-code pin below plus kew's locked Python environment, the frontend's
+# node_modules, Chromium and semgrep. The tag is what
+# `bash scripts/build-check-image.sh --print-tag` prints; it moves whenever the
+# Dockerfile, frontend/package.json, a lock or the base pin does, so rebuild
+# and re-pin together.
+check_image = "kew-check:dbaf17b794bb"
+
+[sandbox.images]
+claude-code = "kew-agent:docker-d148816b388f"
+codex = "kew-agent-codex:docker-d148816b388f"
+opencode = "kew-agent-opencode:docker-d148816b388f"
+
+[security]
+# blocked_prefix_patterns = []
+# blocked_exact_patterns = []
+
+[retry]
+max_attempts = 3
+max_resume_attempts = 2
+backoff_base_seconds = 30
+backoff_multiplier = 2.0
+retriable_exit_codes = [1]
+
+[parallel]
+# Reviews, remediations, and operator dispatches all draw from this one pool;
+# a smaller pool lets ad hoc dispatches starve an epic's due review. Sizing
+# rule in docs/tuning.md.
+max_workers = 6
+
+# The publication broker's shadow mode. Canonical mode cannot safely produce
+# the legacy comparison input, so it emits `shadow.skipped` with reason
+# `canonical_publication` instead.
+#
+# Requires the configured image to carry the producer (both docker/agent*.
+# Dockerfile do; rebuild after pulling if a dispatch reports "the image has no
+# extraction entrypoint"). A comparison can never fail a dispatch: the seam
+# catches everything and warns.
+[publication]
+publish = "canonical"
+shadow = true
+
+[logging]
+dir = "./logs/dispatch"
+
+[resolve]
+strategy = "merge"
+auto = true
+# Checks a conflict resolution must pass before kew pushes it, run in
+# `[sandbox] check_image`, which has both environments built in. The frontend
+# check goes through the image's kew-check-frontend rather than `cd frontend`:
+# the checkout is read-only, so node_modules and svelte-kit's generated dir
+# cannot sit in it (scripts/check-image.Dockerfile).
+python_checks = "cd kew && uv run ruff check . && uv run ruff format --check . && uv run mypy src/"
+frontend_checks = "kew-check-frontend npm run check"
+
+[overlap]
+strategy = "serialize"  # "serialize" | "warn" | "off"
+
+[overlap.advanced]
+merge_context_ttl_minutes = 60
+
+[run_reports]
+# Every terminal run writes one markdown report to the machine-level sink
+# (default ~/.local/share/kew/runs), re-exported when the PR's fate settles.
+# Best-effort by contract: a report failure never fails a run. See
+# docs/run-reports.md.
+enabled = true

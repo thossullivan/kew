@@ -1,0 +1,15 @@
+{
+  "delivery_repo": "acme/ledger",
+  "values": {
+    "human_review.max_pending_reviews": 4,
+    "human_review.max_diff_lines": 2000,
+    "human_review.max_paths": 40
+  },
+  "generation": 1,
+  "expires_at": null,
+  "source": "system",
+  "approvers": [],
+  "pending_reviews": 2,
+  "over_cap": false,
+  "pending_reversion": null
+}

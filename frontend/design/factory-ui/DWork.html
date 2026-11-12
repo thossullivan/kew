@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kew Work view</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0714;font-family:'IBM Plex Sans',sans-serif;color:#ebe6f2}
+a{color:#ebe6f2}a:hover{color:#05d9e8}
+</style>
+</head>
+<body>
+<div style="width: 1440px; height: 960px; box-sizing: border-box; background: #0a0714; display: flex; flex-direction: column; font-family: 'IBM Plex Sans', sans-serif; color: #ebe6f2; font-variant-numeric: tabular-nums;">
+
+  <header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 32px; display: flex; align-items: center; gap: 40px; border-bottom: 1px solid #221c33;">
+    <div style="display: flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: -0.03em; line-height: 1;">
+      <span>kew</span><span style="width: 12px; height: 24px; background: #ff2a6d; display: inline-block;"></span>
+    </div>
+    <nav aria-label="Factory views" style="display: flex; gap: 28px; height: 56px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.02em;">
+      <a href="DWork.html" aria-current="page" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid #ebe6f2; padding-top: 2px; color: #ebe6f2; text-decoration: none;">Work</a>
+      <a href="DMonitor.html" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Monitor</a>
+      <span title="Evals is not part of kew" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Evals</span>
+      <a href="DEpic.html" style="display: flex; align-items: center; height: 56px; box-sizing: border-box; border-bottom: 2px solid transparent; padding-top: 2px; color: #b5acc8; text-decoration: none;">Epics</a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8;"></span><span style="color: #ebe6f2;">2</span> working</span>
+      <span style="display: flex; align-items: center; gap: 8px;"><span style="width: 7px; height: 7px; background: #ff2a6d; transform: rotate(45deg);"></span><span style="color: #ebe6f2;">1</span> needs you</span>
+      <span style="width: 1px; height: 20px; background: #221c33;"></span>
+      <span style="color: #8d84a3;">thossullivan/kew</span>
+    </div>
+  </header>
+
+  <div style="flex-grow: 1; display: flex; min-height: 0;">
+
+    <aside aria-label="Issues" style="width: 420px; flex-shrink: 0; box-sizing: border-box; border-right: 1px solid #221c33; display: flex; flex-direction: column;">
+      <div style="padding: 20px 28px 16px; display: flex; gap: 8px; align-items: center;">
+        <label for="d-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Search issues</label>
+        <input id="d-search" type="search" placeholder="Search issues" style="flex-grow: 1; height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 4px; border: 1px solid #342a4a; background: transparent; color: #ebe6f2; font-family: 'IBM Plex Mono', monospace; font-size: 13px;">
+        <button type="button" aria-label="Filter issues" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid #342a4a; background: transparent; color: #b5acc8; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        </button>
+      </div>
+      <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; padding: 0 28px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3; border-bottom: 1px solid #221c33;">
+        <span>No.</span><span>Issue</span><span style="text-align: right;">State</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column;">
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2060</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Changed-files inspection refuses on .venv</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;"><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #5a5070; box-sizing: border-box;"></span>idle</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2058</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dry run skips the ready and weekly checks</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;"><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #5a5070; box-sizing: border-box;"></span>idle</span>
+        </div>
+        <div aria-current="true" style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528; background: #151025;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2;">2055</span>
+          <span style="font-size: 15px; color: #ebe6f2; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Review gate lows: comment and hold-back</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #05d9e8;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8;"></span>in review</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2054</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Key-shape cap counts blob pairs</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;"><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #5a5070; box-sizing: border-box;"></span>idle</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2053</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">A stray stderr line fails a genuine round</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ff2a6d;"><span style="width: 7px; height: 7px; background: #ff2a6d; transform: rotate(45deg);"></span>manual</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2050</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Run-state vocabulary and kew wait</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;"><span style="display: inline-flex; gap: 2px;"><span style="width: 3px; height: 7px; background: #5a5070;"></span><span style="width: 3px; height: 7px; background: #5a5070;"></span><span style="width: 3px; height: 7px; background: #5a5070;"></span></span>3 tasks</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2047</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Review gate refuses a genuine verdict</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #2ee6a6;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #2ee6a6;"></span>success</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">2033</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Agent PR code on the self-hosted runner</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #05d9e8;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8; box-shadow: 0 0 0 3px rgba(5,217,232,0.18);"></span>working</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px; border-bottom: 1px solid #1a1528;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">1969</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Scan agent output before every push</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #2ee6a6;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #2ee6a6;"></span>success</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 96px; gap: 12px; align-items: center; height: 56px; padding: 0 28px;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">1803</span>
+          <span style="font-size: 15px; color: #b5acc8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Governor swap after containment decided</span>
+          <span style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #2ee6a6;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #2ee6a6;"></span>success</span>
+        </div>
+      </div>
+    </aside>
+
+    <main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 48px 32px; display: flex; flex-direction: column;">
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3;">#2055 <span style="color: #5a5070;">/</span> review gate <span style="color: #5a5070;">/</span> <a href="DEpic.html" style="color: #b5acc8; text-decoration: none;">epic launch-fixes</a></span>
+        <div style="flex-grow: 1;"></div>
+        <button type="button" style="height: 44px; padding: 0 18px; border-radius: 4px; border: 1px solid #342a4a; background: transparent; color: #ebe6f2; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">Claim</button>
+        <button type="button" style="height: 44px; padding: 0 18px; border-radius: 4px; border: 1px solid #342a4a; background: transparent; color: #ebe6f2; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">Hold</button>
+        <button type="button" style="height: 44px; padding: 0 18px; border-radius: 4px; border: 1px solid #342a4a; background: transparent; color: #ebe6f2; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">Flags</button>
+      </div>
+
+      <h1 style="margin: 18px 0 0; max-width: 840px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 26px; line-height: 1.32; letter-spacing: -0.015em; color: #ebe6f2;">Review gate lows: glue comment names the wrong counter; CPU-cap hold-back keeps every line</h1>
+
+      <div style="margin-top: 14px; display: flex; align-items: center; gap: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">
+        <span style="display: flex; align-items: center; gap: 8px; color: #05d9e8;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #05d9e8;"></span>in review</span>
+        <span aria-hidden="true" style="width: 1px; height: 14px; background: #342a4a;"></span><span>risk <span style="color: #ebe6f2;">contained</span></span>
+        <span aria-hidden="true" style="width: 1px; height: 14px; background: #342a4a;"></span><span><span style="color: #ffc94a;">$3.10</span> spent</span>
+        <span aria-hidden="true" style="width: 1px; height: 14px; background: #342a4a;"></span><span>PR <span style="color: #ebe6f2;">#2059</span></span>
+        <span aria-hidden="true" style="width: 1px; height: 14px; background: #342a4a;"></span><span>run <span style="color: #ebe6f2;">f5dcb6a5</span></span>
+      </div>
+
+      <section aria-label="Pipeline" style="margin-top: 30px;">
+        <div style="display: flex; align-items: baseline; gap: 24px; margin-bottom: 18px;">
+          <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #b5acc8;">Pipeline</h2>
+          <div style="flex-grow: 1;"></div>
+          <div style="display: flex; gap: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">
+            <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #2ee6a6;"></span>attested</span>
+            <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #05d9e8;"></span>working</span>
+            <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; background: #ff2a6d; transform: rotate(45deg);"></span>needs you</span>
+            <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; border: 1px solid #6a6082; box-sizing: border-box;"></span>pending</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 148px repeat(5, minmax(0, 1fr)); font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d84a3; border-bottom: 1px solid #221c33;">
+          <div style="padding-bottom: 10px;">Lane</div>
+          <div style="padding-bottom: 10px;">Reproduce</div>
+          <div style="padding-bottom: 10px;">Implement</div>
+          <div style="padding-bottom: 10px;">Publish</div>
+          <div style="padding-bottom: 10px;">Review</div>
+          <div style="padding-bottom: 10px;">Merge</div>
+        </div>
+        <div aria-hidden="true" style="display: grid; grid-template-columns: 148px repeat(5, minmax(0, 1fr)); height: 6px;">
+          <div></div>
+          <div style="border-left: 1px solid #342a4a;"></div>
+          <div style="border-left: 1px solid #342a4a;"></div>
+          <div style="border-left: 1px solid #342a4a;"></div>
+          <div style="border-left: 1px solid #342a4a;"></div>
+          <div style="border-left: 1px solid #342a4a;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 148px repeat(5, minmax(0, 1fr)); padding: 14px 0 16px; border-bottom: 1px solid #1a1528;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #ebe6f2; padding-top: 1px;">main</div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 6px; height: 2px; background: #342a4a;"></div><div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #6a6082; background: #0a0714;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #8d84a3;">not required<br>low</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 6px; height: 2px; background: #2ee6a6;"></div><div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: #2ee6a6;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #ebe6f2;">run f5dcb6a5</span><br><span style="color: #2ee6a6;">success</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 6px; height: 2px; background: #05d9e8;"></div><div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: #2ee6a6;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #ebe6f2;">scan clean</span><br><span style="color: #2ee6a6;">3670e43f</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 6px; height: 0; border-top: 2px dashed #5a5070;"></div><div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: #05d9e8; box-shadow: 0 0 0 5px rgba(5,217,232,0.16);"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #ebe6f2;">round 1</span><br><span style="color: #05d9e8;">reviewing</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 1px; top: 1px; width: 12px; height: 12px; background: #ff2a6d; transform: rotate(45deg);"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #ff2a6d;">needs you</span><br><span style="color: #8d84a3;">merge decision</span></div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 148px repeat(5, minmax(0, 1fr)); padding: 14px 0 16px; border-bottom: 1px solid #221c33;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8; padding-top: 1px;">release/[branch]</div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 7px; height: 0; border-top: 1px dashed #342a4a;"></div><div style="position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: #342a4a;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #8d84a3;">&#8212;</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 7px; height: 0; border-top: 1px dashed #342a4a;"></div><div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed #8d84a3; background: #0a0714;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #b5acc8;">awaiting<br>backport</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 7px; height: 0; border-top: 1px dashed #342a4a;"></div><div style="position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: #342a4a;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #8d84a3;">&#8212;</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 7px; right: 0; top: 7px; height: 0; border-top: 1px dashed #342a4a;"></div><div style="position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: #342a4a;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #8d84a3;">&#8212;</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="position: relative; height: 14px;"><div style="position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: #342a4a;"></div></div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.4; padding-right: 16px;"><span style="color: #8d84a3;">&#8212;</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Needs you: merge decision" style="display: grid; grid-template-columns: 148px minmax(0, 1fr) auto; align-items: center; column-gap: 0; padding: 16px 0; border-bottom: 1px solid #221c33;">
+        <span style="display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #ff2a6d;"><span aria-hidden="true" style="width: 11px; height: 11px; background: #ff2a6d; transform: rotate(45deg); box-shadow: 0 0 0 5px rgba(255,42,109,0.16);"></span>Needs you</span>
+        <span style="display: flex; flex-direction: column; gap: 3px;"><span style="font-size: 15px; font-weight: 500; color: #ebe6f2;">Merge decision</span><span style="font-size: 15px; color: #b5acc8;">kew opens the pull request; you decide whether it lands.</span></span>
+        <a href="https://github.com/thossullivan/kew/pull/2059" style="height: 44px; box-sizing: border-box; padding: 0 20px; border-radius: 4px; background: #ff2a6d; color: #0a0714; display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; text-decoration: none;">Open PR #2059 to merge <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+      </section>
+
+      <div style="margin-top: 26px; display: grid; grid-template-columns: 5fr 7fr; flex-grow: 1; min-height: 0;">
+        <section aria-label="Description" style="padding-right: 36px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: #b5acc8;">Description</h2>
+          <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #b5acc8;">The system-notice comment says a glued line fails on the split-lines count; the glue attack is caught by unparsed lines. The CPU-cap hold-back keeps every refusal-shaped line of an attempt; only the latest can drive the retry.</p>
+          <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #b5acc8;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #ebe6f2; margin-right: 8px;">Expected</span>the comment names the counter that fires; the hold-back keeps one line.</p>
+        </section>
+        <section aria-label="Evidence ledger" style="padding-left: 36px; border-left: 1px solid #221c33; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: #b5acc8;">Evidence ledger</h2>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8d84a3;">run f5dcb6a5 &#183; success &#183; PR #2059</span>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;"><span style="color: #2ee6a6;">3</span> / 4 attested</span>
+          </div>
+          <ol style="margin: 0; padding: 0; list-style: none;">
+            <li style="display: grid; grid-template-columns: 30px 24px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; height: 50px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">01</span>
+              <span aria-hidden="true" style="position: relative; height: 50px;"><span style="position: absolute; left: 7px; top: 20px; width: 10px; height: 10px; border-radius: 50%; background: #2ee6a6;"></span><span style="position: absolute; left: 11px; top: 28px; bottom: 0; width: 1.5px; background: #342a4a;"></span></span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; color: #ebe6f2;">Sandboxed</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">sandbox_resolved &#183; sandboxed</span></span>
+              <span style="display: flex; align-items: center; gap: 14px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">15:24:15</span><span style="display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #2ee6a6;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>attested</span></span>
+            </li>
+            <li style="display: grid; grid-template-columns: 30px 24px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; height: 50px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">02</span>
+              <span aria-hidden="true" style="position: relative; height: 50px;"><span style="position: absolute; left: 11px; top: 0; height: 20px; width: 1.5px; background: #342a4a;"></span><span style="position: absolute; left: 7px; top: 20px; width: 10px; height: 10px; border-radius: 50%; background: #2ee6a6;"></span><span style="position: absolute; left: 11px; top: 28px; bottom: 0; width: 1.5px; background: #342a4a;"></span></span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; color: #ebe6f2;">Canonical publication</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">publication_posture &#183; canonical</span></span>
+              <span style="display: flex; align-items: center; gap: 14px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">15:46:50</span><span style="display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #2ee6a6;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>attested</span></span>
+            </li>
+            <li style="display: grid; grid-template-columns: 30px 24px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; height: 50px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">03</span>
+              <span aria-hidden="true" style="position: relative; height: 50px;"><span style="position: absolute; left: 11px; top: 0; height: 20px; width: 1.5px; background: #342a4a;"></span><span style="position: absolute; left: 7px; top: 20px; width: 10px; height: 10px; border-radius: 50%; background: #2ee6a6;"></span><span style="position: absolute; left: 11px; top: 28px; bottom: 0; width: 0; border-left: 1.5px dashed #05d9e8;"></span></span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; color: #ebe6f2;">Scan clean</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">publication_output_scan &#183; clean &#183; 3670e43f</span></span>
+              <span style="display: flex; align-items: center; gap: 14px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #b5acc8;">15:46:54</span><span style="display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #2ee6a6;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>attested</span></span>
+            </li>
+            <li style="display: grid; grid-template-columns: 30px 24px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; height: 50px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">04</span>
+              <span aria-hidden="true" style="position: relative; height: 50px;"><span style="position: absolute; left: 11px; top: 0; height: 20px; width: 0; border-left: 1.5px dashed #05d9e8;"></span><span style="position: absolute; left: 6px; top: 19px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid #05d9e8; background: #0a0714;"></span></span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; color: #ebe6f2;">Verdict</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">review verdict &#183; round 1 reviewing</span></span>
+              <span style="display: flex; align-items: center; gap: 14px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8d84a3;">&#8212;</span><span style="display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #05d9e8;">pending</span></span>
+            </li>
+          </ol>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

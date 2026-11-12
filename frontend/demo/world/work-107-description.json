@@ -1,0 +1,13 @@
+{
+  "item_id": "107",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Idempotent import of a re-sent file",
+  "url": "https://github.com/acme/ledger/issues/107",
+  "description": "Importing the same file twice must post nothing the second time.",
+  "expected": "a re-sent file adds no posting and changes no balance.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

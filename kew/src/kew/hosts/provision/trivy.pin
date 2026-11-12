@@ -1,0 +1,54 @@
+# The pinned image scanner, in one place: the version `kew verify`'s agent-image
+# gate IS, the SHA-256 of each release archive it may be installed from, and the
+# SHA-256 of the trivy binary inside each of those archives. Below it, the uv
+# a verification host runs every job with, pinned the same way.
+#
+# Read by, and never copied into:
+#
+#   * `ubuntu-24.04.sh` (beside this file) — installs exactly this version on a
+#     verification host, verifying the archive against the digest below before
+#     it is extracted, and refuses any other version in its self-check. `kew
+#     hosts provision` copies this file up beside the recipe, so the pin travels
+#     with the recipe that reads it.
+#   * `scripts/scan-agent-image.sh` — the gate. A scanner that is not this
+#     version, or whose binary is not the one these archives hold, is a
+#     different gate, so it refuses rather than scanning.
+#   * `.github/workflows/ci.yml` — installs it on the runner the same way.
+#
+# A second literal in any of those is not a duplicated string: it is a host that
+# passes its own provisioning and then fails every verification at the last step
+# of the run, after the whole suite has already passed (#2462).
+#
+# The digests are pinned rather than fetched. A version string is self-reported,
+# so a substituted archive can answer "0.69.3" and return clean scans forever,
+# which in a supply-chain gate is the whole attack. Advancing the pin: fetch
+# https://github.com/aquasecurity/trivy/releases/download/v<VER>/trivy_<VER>_checksums.txt
+# and copy the four archive digests out of it; the four binary digests are the
+# SHA-256 of `trivy` extracted from each of those verified archives. The gate
+# compares the installed binary against its platform's binary digest, because
+# `trivy --version` is self-reported too, and a Homebrew trivy or any other
+# build is not these bytes even when it answers with this version.
+#
+# This file is SOURCED by bash (and read line-wise by tests), so it holds
+# nothing but comments and plain assignments — no expansion, no command, no
+# conditional.
+TRIVY_VERSION=0.69.3
+TRIVY_SHA256_LINUX_64BIT=1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+TRIVY_SHA256_LINUX_ARM64=7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd
+TRIVY_SHA256_MACOS_64BIT=fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e
+TRIVY_SHA256_MACOS_ARM64=a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5
+TRIVY_BINARY_SHA256_LINUX_64BIT=8266084a71d2e6a2333bc2c69b91c93c26dee9ef39ac2587ace2df54cc9b746b
+TRIVY_BINARY_SHA256_LINUX_ARM64=d860265c7ebd8128c349d063c91e8f32b26b730d14c2ce85e187fef8be70d72d
+TRIVY_BINARY_SHA256_MACOS_64BIT=50368fbf0a1bce2b297049e0a0cf879f1f2ba24c302975380c6907910be69b30
+TRIVY_BINARY_SHA256_MACOS_ARM64=bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812
+
+# The uv a verification host installs, read only by `ubuntu-24.04.sh`: the
+# release archive for each Linux architecture that recipe supports, verified
+# against these digests before anything is extracted, never the astral.sh
+# installer script, whose bytes are whatever that URL serves on the day. Each
+# archive holds uv-<target>/uv and uv-<target>/uvx. Advancing the pin: copy
+# the two archive digests from
+# https://github.com/astral-sh/uv/releases/download/<VER>/uv-<target>.tar.gz.sha256
+UV_VERSION=0.13.5
+UV_SHA256_X86_64_LINUX=f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f
+UV_SHA256_AARCH64_LINUX=4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403

@@ -1,0 +1,47 @@
+{
+  "node_id": "1b464391:3",
+  "text": "artifact sha256:a1b4643910000000000000000000000000000000000000000000000000000000\nbase 1b4643911b4643911b4643911b4643911b464391\ntree 193464b1193464b1193464b1193464b1193464b1\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0f1b464391000000000000000000000000000000000000000000000000000000 72 src/ledger/account_balance_query.py\nchanged 100644 sha256:1f1b464391000000000000000000000000000000000000000000000000000000 99 tests/test_account_balance_query.py\n",
+  "run_id": "1b464391",
+  "attempt_number": 2,
+  "base_sha": "1b4643911b4643911b4643911b4643911b464391",
+  "tree_sha": "193464b1193464b1193464b1193464b1193464b1",
+  "package_digest": "sha256:a1b4643910000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:r1b4643910000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/account_balance_query.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0f1b464391000000000000000000000000000000000000000000000000000000",
+      "byte_length": 72,
+      "text": "\"\"\"Answer the balance of an account as of any date from the journal.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_account_balance_query.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1f1b464391000000000000000000000000000000000000000000000000000000",
+      "byte_length": 99,
+      "text": "def test_account_balance_query():\n    \"\"\"the balance matches the sample statement on every day.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

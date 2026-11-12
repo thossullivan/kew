@@ -1,0 +1,14 @@
+Serve explicitly configured libsy algorithms
+
+Usage: switchyard-server [OPTIONS] --config <PATH>
+
+Options:
+      --config <PATH>        TOML file defining LLM clients, targets, and algorithm routes
+      --host <HOST>          Host address to bind [default: 0.0.0.0]
+  -p, --port <PORT>          Port to bind [default: 4000]
+      --backlog <BACKLOG>    TCP listen backlog passed to the socket before Axum accepts traffic [default: 65535]
+      --dry-run              Validate the algorithm and client configuration without binding a socket
+      --tls-cert <TLS_CERT>  TLS certificate path in PEM format
+      --tls-key <TLS_KEY>    TLS private-key path in PEM format
+  -h, --help                 Print help
+  -V, --version              Print version

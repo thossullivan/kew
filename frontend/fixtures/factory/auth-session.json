@@ -1,0 +1,4 @@
+{
+  "authenticated": true,
+  "csrf_token": "fixture-csrf"
+}

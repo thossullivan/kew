@@ -1,0 +1,14 @@
+# HELP switchyard_requests_total Requests handled by the proxy.
+# TYPE switchyard_requests_total counter
+switchyard_requests_total{route="switchyard/passthrough",status="ok"} 1
+# TYPE switchyard_request_duration_seconds histogram
+switchyard_request_duration_seconds_sum{route="switchyard/passthrough"} 0.42
+switchyard_request_duration_seconds_count{route="switchyard/passthrough"} 1
+# TYPE switchyard_model_selections_total counter
+switchyard_model_selections_total{model="gpt-5.6-sol",route="switchyard/passthrough"} 1
+# TYPE switchyard_tier_selections_total counter
+switchyard_tier_selections_total{tier="passthrough"} 1
+# TYPE switchyard_prompt_tokens_total counter
+switchyard_prompt_tokens_total{model="gpt-5.6-sol"} 120
+# TYPE switchyard_completion_tokens_total counter
+switchyard_completion_tokens_total{model="gpt-5.6-sol"} 45

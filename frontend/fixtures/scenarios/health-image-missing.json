@@ -1,0 +1,160 @@
+{
+  "checked_at": "2026-09-24T15:46:58+00:00",
+  "observed_window_days": 7,
+  "runtimes": [
+    { "name": "docker", "configured": true, "backed": true, "present": true },
+    { "name": "podman", "configured": false, "backed": true, "present": false },
+    { "name": "openshell", "configured": false, "backed": false, "present": null }
+  ],
+  "images": [
+    {
+      "runner": "claude-code",
+      "ref": "kew-agent:0.9.0",
+      "source": "images.claude-code",
+      "routed": true,
+      "present": false
+    },
+    {
+      "runner": "codex",
+      "ref": "kew-agent-codex:0.9.0",
+      "source": "images.codex",
+      "routed": true,
+      "present": true
+    },
+    {
+      "runner": "opencode",
+      "ref": "kew-agent-opencode:0.9.0",
+      "source": "images.opencode",
+      "routed": false,
+      "present": false
+    }
+  ],
+  "posture": [
+    {
+      "lane": "default",
+      "runner": "claude-code",
+      "runtime": "docker",
+      "contained": true,
+      "egress": "kew-allowlist",
+      "credential_mode": "real",
+      "dangerously_skip_containment": false,
+      "posture": "sandboxed",
+      "refusal": null
+    },
+    {
+      "lane": "simple",
+      "runner": "codex",
+      "runtime": "docker",
+      "contained": true,
+      "egress": "kew-allowlist",
+      "credential_mode": "real",
+      "dangerously_skip_containment": false,
+      "posture": "sandboxed",
+      "refusal": null
+    },
+    {
+      "lane": "review",
+      "runner": "claude-code",
+      "runtime": "docker",
+      "contained": true,
+      "egress": "kew-allowlist",
+      "credential_mode": "real",
+      "dangerously_skip_containment": false,
+      "posture": "sandboxed",
+      "refusal": null
+    }
+  ],
+  "observed_7d": { "docker": 34, "": 2 },
+  "runners": [
+    {
+      "name": "claude-code",
+      "binary": "claude",
+      "binary_present": true,
+      "version": "2.1.4",
+      "version_supported": true,
+      "credential_names": [
+        { "name": "ANTHROPIC_API_KEY", "set": false },
+        { "name": "CLAUDE_CODE_OAUTH_TOKEN", "set": true }
+      ],
+      "routed_tiers": ["default"],
+      "review_lane": true
+    },
+    {
+      "name": "codex",
+      "binary": "codex",
+      "binary_present": true,
+      "version": "0.52.0",
+      "version_supported": true,
+      "credential_names": [{ "name": "OPENAI_API_KEY", "set": true }],
+      "routed_tiers": ["simple"],
+      "review_lane": false
+    }
+  ],
+  "trackers": {
+    "github": {
+      "reachable": true,
+      "auth_ok": true,
+      "scopes": ["repo", "workflow", "read:org"],
+      "rate": { "limit": 5000, "remaining": 4712, "reset_at": "2026-09-24T16:20:00+00:00" },
+      "observed_at": "2026-09-24T15:46:12+00:00",
+      "observed_age_s": 46.0,
+      "reason": ""
+    },
+    "linear": {
+      "configured": true,
+      "credential_set": true,
+      "reachable": null,
+      "team": "Factory"
+    }
+  },
+  "sweep": {
+    "present": true,
+    "heartbeat_at": "2026-09-24T15:46:12+00:00",
+    "heartbeat_age_s": 46.0,
+    "interval_s": 60.0,
+    "last_attempt_at": "2026-09-24T15:46:12+00:00",
+    "last_ok_at": "2026-09-24T15:46:12+00:00",
+    "last_sweep_at": "2026-09-24T15:46:12+00:00",
+    "last_result": "ok",
+    "query_failures": 0,
+    "last_ok_age_s": 46.0,
+    "last_attempt_age_s": 46.0
+  },
+  "drivers": [
+    {
+      "epic_ref": "launch-fixes",
+      "liveness": "live",
+      "tick_age_s": 38.0,
+      "interval_s": 120.0,
+      "last_tick_at": "2026-09-24T15:46:20+00:00",
+      "lock": { "pid_alive": true, "heartbeat_age_s": 12.0, "observed_age_s": 46.0 }
+    },
+    {
+      "epic_ref": "go-live-2026-09",
+      "liveness": "unknown",
+      "tick_age_s": null,
+      "interval_s": null,
+      "last_tick_at": null,
+      "lock": { "pid_alive": null, "heartbeat_age_s": null, "observed_age_s": null }
+    }
+  ],
+  "watchers": [
+    {
+      "name": "delegation",
+      "enabled": true,
+      "running": null,
+      "detail": "kew delegate watch — assign-to-kew trigger",
+      "last_seen_at": "2026-09-24T15:44:02+00:00",
+      "last_seen_age_s": 176.0
+    },
+    {
+      "name": "epic_stream",
+      "enabled": true,
+      "running": true,
+      "detail": "serve SSE fan-out, one poller per watched epic",
+      "pollers": 1
+    }
+  ],
+  "loops": { "pursuing": 1, "stale": 0 },
+  "fleet": { "stopped": false, "pending": 0, "reason": "" }
+}

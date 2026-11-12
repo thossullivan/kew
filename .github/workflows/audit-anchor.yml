@@ -1,0 +1,166 @@
+# .github/workflows/audit-anchor.yml
+name: audit-anchor
+
+on:
+  schedule:
+    - cron: "17 4 * * *"   # daily 04:17 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: audit-anchor
+  cancel-in-progress: false
+
+jobs:
+  visibility:
+    # A schedule event's payload carries no repository object, so
+    # github.event.repository.visibility is empty on a scheduled run. Read the
+    # repository's visibility from the API instead. Hosted, checks out
+    # nothing, and runs no repository code. A failed read fails this job, and
+    # the host job that needs it does not run.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      visibility: ${{ steps.read.outputs.visibility }}
+    steps:
+      - name: Read repository visibility
+        id: read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "visibility=${visibility}" >> "$GITHUB_OUTPUT"
+
+  anchor:
+    # Self-hosted, like approval.yml and canary.yml: the canonical ledger this
+    # witnesses exists only on that machine, so a hosted runner would anchor
+    # an empty chain and report success. There is no hosted twin to fall back
+    # to — one would be exactly that lie. So the job runs only while this
+    # repository is private and is skipped in any other; its runner
+    # expression resolves to `ubuntu-latest` unless the repository is private.
+    #
+    # This workflow has no `pull_request` trigger (schedule + manual only), so
+    # it never executes PR-authored code. Adding such a trigger means
+    # revisiting this job in the same edit. tests/test_audit_anchor_workflow.py
+    # pins that argument.
+    needs: visibility
+    if: needs.visibility.outputs.visibility == 'private'
+    runs-on: ${{ needs.visibility.outputs.visibility == 'private' && 'self-hosted' || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      # Runner boundary (F1). First step, before any checkout: it runs no
+      # repository code. Refuses a runner that is not GitHub-hosted unless the
+      # repository is private; an empty or unknown value fails closed.
+      - name: Runner boundary — self-hosted requires a private repository
+        if: runner.environment != 'github-hosted' && needs.visibility.outputs.visibility != 'private'
+        env:
+          BOUNDARY_RUNNER: ${{ runner.environment }}
+          BOUNDARY_VISIBILITY: ${{ needs.visibility.outputs.visibility }}
+        run: |
+          echo "::error::This job landed on a '$BOUNDARY_RUNNER' runner in a '$BOUNDARY_VISIBILITY' repository. Only a private repository may use the self-hosted runner. Unregister the runner from this repository."
+          exit 1
+      # NOTE: default persist-credentials (true) is intentional here — this
+      # workflow must `git push` the anchor. Other workflows (approval.yml,
+      # canary.yml) set persist-credentials: false because they don't push;
+      # do NOT "fix" this to false or the push breaks.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: true
+      # Shared-clone heal (see ci.yml). This job has always run self-hosted,
+      # so it has always been exposed to a leftover non-cone sparse checkout
+      # pruning the clone out from under it — it simply had not hit one yet.
+      - name: Preflight — ensure kew/ checkout layout
+        shell: bash
+        run: |
+          git sparse-checkout disable 2>/dev/null || true
+          git config --unset core.sparseCheckout 2>/dev/null || true
+          git checkout -f HEAD 2>/dev/null || true
+          if [ ! -f kew/pyproject.toml ]; then
+            echo "::error::kew/ package directory missing from checkout at $PWD."
+            echo "::error::The self-hosted runner's shared clone is in a bad state (likely a leftover sparse checkout from an earlier workflow)."
+            echo "::error::Runner-host fix: delete _work/kew on the runner to force a fresh clone."
+            exit 1
+          fi
+          echo "Checkout layout OK: kew/ present at $PWD/kew"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      - name: Set up Python
+        run: uv python install 3.13
+      - name: Anchor the audit chain head
+        working-directory: kew
+        shell: bash
+        env:
+          KEW_PROJECT: ${{ vars.KEW_PROJECT }}
+        run: |
+          # KEW_PROJECT is this job's SOLE state binding: the checked-out CLI
+          # resolves the project's configured, already-registered ledger from
+          # it. Do NOT reintroduce a repository-variable database path, nor
+          # derive a log dir from one: that workaround asked the ephemeral
+          # Actions checkout to own the canonical chain. An inherited
+          # KEW_LOG_DIR on this long-lived self-hosted runner would outrank the
+          # project, so clear it first.
+          unset KEW_LOG_DIR
+          if [ -z "${KEW_PROJECT// /}" ]; then
+            echo "::error::KEW_PROJECT repository variable is unset or empty; refusing to anchor."
+            exit 1
+          fi
+          case "$KEW_PROJECT" in
+            /*) ;;
+            *)
+              echo "::error::KEW_PROJECT must be an absolute path, got '$KEW_PROJECT'."
+              exit 1
+              ;;
+          esac
+          if [ ! -e "$KEW_PROJECT" ]; then
+            echo "::error::KEW_PROJECT '$KEW_PROJECT' does not exist on this runner."
+            exit 1
+          fi
+          if [ ! -d "$KEW_PROJECT" ]; then
+            echo "::error::KEW_PROJECT '$KEW_PROJECT' is not a directory."
+            exit 1
+          fi
+          uv run kew --project "$KEW_PROJECT" audit anchor --anchors "$GITHUB_WORKSPACE/audit-anchors.jsonl"
+      - name: Commit and push the anchor (no-op when unchanged)
+        run: |
+          # Stage first, then check the staged diff: `git diff` (unstaged)
+          # ignores untracked files, so the very first anchors.jsonl would
+          # otherwise look "unchanged" and never get committed.
+          git add audit-anchors.jsonl
+          if git diff --cached --quiet -- audit-anchors.jsonl; then
+            echo "No new anchor to commit."
+            exit 0
+          fi
+          git config user.name "kew-audit-anchor[bot]"
+          git config user.email "kew-audit-anchor@users.noreply.github.com"
+          git commit -m "chore(audit): anchor chain head [skip ci]"
+          # The shared runner can hold this job for hours (the 2026-08-26 and
+          # 08-27 scheduled runs waited 8h and 4h20m), so by push time the
+          # checked-out github.sha is behind main and a bare push is rejected
+          # ("fetch first"). Rebase onto the live tip first; the anchor commit
+          # is one appended line, so it replays unless someone else edited the
+          # file tail, which is a real conflict and fails loud below. Bounded
+          # retry covers a transient fetch failure and a push that lands
+          # between the fetch and the push.
+          for attempt in 1 2 3; do
+            if ! git fetch origin main; then
+              echo "fetch failed (attempt $attempt of 3); retrying"
+              sleep 5
+              continue
+            fi
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo "::error::anchor commit did not rebase onto origin/main"
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt of 3); refetching"
+            sleep 5
+          done
+          echo "::error::could not fetch or push the anchor after 3 attempts (see which line repeated above: 'fetch failed' = runner cannot reach GitHub; 'push rejected' = main moved every time)"
+          exit 1

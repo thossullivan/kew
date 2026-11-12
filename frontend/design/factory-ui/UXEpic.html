@@ -1,0 +1,506 @@
+<!doctype html>
+<!--
+UXEpic.html - kew Epic page, UX pass (2026-10-02). Static artboard, 1440x900, holds at 1280.
+
+Implements (brief 2026-10-02-ui-ux-brief.md):
+- 2.3 + section 7 decisions 2/3: the DAG is a pan/zoom canvas in the Svelte Flow look. Node
+  positions are real dagre output (rankdir LR, nodesep 16, ranksep 40, cards 196x92) for the
+  go-live-2026-09 snapshot (39 nodes, 59 edges, the size the brief designs for). Edges follow
+  dagre's points with rounded corners and straight dummy-node runs (metro look).
+- Node cards: title is a clean 2-line clamp with an ellipsis; the card is sized so the id row,
+  both title lines and the status row fit with no clipping (2 + 16 pad + 16 + 34 + 14 + gaps).
+  The collapsed "5 done" group card follows the same rule.
+- Canvas edges fade out (mask: 72px left, 104px right (72px at 1280), 32px top, 40px bottom), so edges and
+  nodes that continue off-screen read as "continues", not as debris. The frame starts just
+  right of SFD-250, so no partial card shows at the left edge.
+- Controls bottom-left (zoom in, zoom out, fit view, show done, zoom readout), laid out in a row
+  so they never sit on a node. MiniMap bottom-right, nodes coloured by status, viewport drawn.
+- Selected node SFD-232 (?node=SFD-232) has an anchored popover (NodeToolbar, flipped to
+  below-left with a leader to the node). It sits in the empty band under SFD-229..SFD-231, inside
+  the canvas and clear of every card, SFD-256 and SFD-258 included. It holds id, full title,
+  state and age, drain, the needs-you reason as a sentence, the served command with Copy, and the
+  only exits from the graph: Open in Work (in-app), Linear issue, PR (none yet). The node itself
+  holds no link (P6).
+- Hover lineage on one path: the pointer is on SFD-232; its upstream edges and nodes brighten
+  (5 done -> SFD-220 -> SFD-229 -> SFD-230 -> SFD-231 -> SFD-232) and the rest dims.
+- Bottom rail (SELECTED / PIPELINE / EVIDENCE + the needs-you column it adds when attention
+  exists) keeps its layout, widths (300 / 1fr / 280 / 260) and type. Only its content is the
+  fixed content: the command is `kew epic continue go-live-2026-09 SFD-232` (P5).
+
+Decisions (Tom, 2026-10-02), applied here:
+- First frame centres on the needs-you node's upstream path (90%; 84% at 1280), with "Fit all" (F)
+  one key away. Fitting all 39 nodes would not read.
+- Only done chains OFF the selected node's path collapse. Here the SC-IMG..SC-2 isolation chain
+  (SFD-251..SFD-255) is the "5 done" group; the path into SFD-232 stays expanded.
+- Focus ring is 2px cyan (--focus, #05d9e8), shown on the selected node, which holds focus.
+- The header "N needs you" counter is a link to /work?filter=needs-you.
+- Nav is Work, Monitor, Epics (no Evals tab).
+
+Other notes:
+- Layer captions are omitted: they pan with the graph and sit above this viewport.
+- The issue link names its destination ("Linear"), since this item lives in Linear.
+- Frame is 1440x900, not the factory-ui 1440x960.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kew Epic (UX pass)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0714;--ink-raised:#0d0a18;--ink-selected:#151025;--ink-track:#1d1730;
+  --hair:#221c33;--hair-quiet:#1a1528;--hair-strong:#342a4a;--hair-box:#2a2240;--guide:#16111f;
+  --text-1:#ebe6f2;--text-2:#b5acc8;--text-3:#8d84a3;--text-4:#6a6082;--text-5:#5a5070;
+  --edge-done:#3a3052;
+  --accent:#ff2a6d;--accent-2:#05d9e8;--success:#2ee6a6;--warn:#ffc94a;--danger:#ff4365;
+  --status-blocked:#b48ade;
+  --halo-cyan:rgba(5,217,232,.16);--halo-magenta:rgba(255,42,109,.16);
+  --focus:#05d9e8;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text-1);font-family:var(--sans)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.frame{width:100%;min-width:1280px;max-width:1440px;height:900px;margin:0 auto;display:flex;flex-direction:column;
+  background:var(--ink);font-variant-numeric:tabular-nums;overflow:hidden;position:relative}
+.mono{font-family:var(--mono)}
+.cap{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.t1{color:var(--text-1)}.t2{color:var(--text-2)}.t3{color:var(--text-3)}.t5{color:var(--text-5)}
+.c-acc{color:var(--accent)}.c-cyan{color:var(--accent-2)}.c-ok{color:var(--success)}.c-warn{color:var(--warn)}
+.sep{width:1px;height:14px;background:var(--hair-strong);display:inline-block}
+.grow{flex-grow:1}
+/* focus: visible ring, one per artboard shows it */
+.focus-ring{outline:2px solid var(--focus);outline-offset:2px}
+.focus-inset{box-shadow:inset 0 0 0 2px var(--focus)}
+/* header */
+.top{height:56px;flex-shrink:0;padding:0 32px;display:flex;align-items:center;gap:40px;border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-weight:600;font-size:26px;letter-spacing:-.03em;line-height:1}
+.brand i{width:12px;height:24px;background:var(--accent);display:inline-block}
+.nav{display:flex;gap:28px;height:56px;font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+.nav a,.nav span{display:flex;align-items:center;height:56px;border-bottom:2px solid transparent;padding-top:2px;color:var(--text-2)}
+.nav [aria-current]{border-bottom-color:var(--text-1);color:var(--text-1)}
+.meta{display:flex;align-items:center;gap:24px;font-family:var(--mono);font-size:13px;color:var(--text-2)}
+.meta .n{color:var(--text-1)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dia{width:7px;height:7px;background:var(--accent);transform:rotate(45deg);display:inline-block;flex-shrink:0}
+.ring{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--warn);display:inline-block;flex-shrink:0}
+.counter{display:flex;align-items:center;gap:8px}
+a.counter:hover .n{color:var(--accent-2)}
+/* buttons */
+.btn{height:36px;padding:0 14px;border-radius:4px;border:1px solid var(--hair-strong);display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:13px;color:var(--text-1);white-space:nowrap}
+.btn:hover{border-color:var(--text-4)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:600}
+.btn.quiet{border-color:transparent;color:var(--text-2);padding:0 10px}
+.btn .ext{font-size:12px}
+.kbd{font-family:var(--mono);font-size:11px;line-height:16px;min-width:18px;height:18px;padding:0 5px;border-radius:3px;
+  border:1px solid var(--hair-strong);border-bottom-width:2px;color:var(--text-2);display:inline-flex;align-items:center;justify-content:center}
+.btn.primary .kbd{border-color:rgba(10,7,20,.35);color:var(--ink)}
+code.cmd{font-family:var(--mono);font-size:13px;color:var(--accent-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdbox{display:flex;align-items:center;gap:12px;height:44px;padding:0 6px 0 14px;border-radius:4px;background:var(--ink-selected);
+  border:1px solid var(--hair-box)}
+.cmdbox .prompt{font-family:var(--mono);font-size:13px;color:var(--text-4);user-select:none}
+.cmdbox code{flex:1;min-width:0}
+.canvas{--fade-r:104px;--vp:translate(-1808.8px,-369.0px) scale(0.9);--pop-x:-632px;--pop-y:171px;--pop-w:300px;--cur-x:-155px;--cur-y:108px;--ld-x:-333px;--ld-y:119px;--ld-w:11px;--ld-h:52px}
+.w2{display:none}
+@media (max-width:1360px){.canvas{--fade-r:72px;--vp:translate(-1636.5px,-344.0px) scale(0.84);--pop-x:-549px;--pop-y:161px;--pop-w:290px;--cur-x:-93px;--cur-y:101px;--ld-x:-260px;--ld-y:111px;--ld-w:11px;--ld-h:49px}.w1{display:none}.w2{display:inline}}
+
+.ehead{flex-shrink:0;padding:16px 40px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:12px}
+.ehead .r{display:flex;align-items:center;gap:16px}
+.ehead h1{margin:0;font-family:var(--mono);font-weight:500;font-size:24px;letter-spacing:-.015em}
+.prog{display:flex;gap:2px}
+.prog i{width:8px;height:10px;display:block}
+.leg{display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:11px;color:var(--text-2);white-space:nowrap}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg b{font-weight:400;color:var(--text-1)}
+
+.canvas{flex-grow:1;min-height:0;position:relative;overflow:hidden;background-color:var(--ink);
+  background-image:radial-gradient(circle,#211a33 1px,transparent 1.2px);background-size:22px 22px;background-position:6px 9px}
+.stage{position:absolute;inset:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right,transparent 0,transparent 12px,#000 72px,#000 calc(100% - var(--fade-r)),rgba(0,0,0,.3) calc(100% - var(--fade-r) * .6),transparent calc(100% - var(--fade-r) * .2)),linear-gradient(to bottom,transparent 0,#000 32px,#000 calc(100% - 40px),transparent 100%);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent 0,transparent 12px,#000 72px,#000 calc(100% - var(--fade-r)),rgba(0,0,0,.3) calc(100% - var(--fade-r) * .6),transparent calc(100% - var(--fade-r) * .2)),linear-gradient(to bottom,transparent 0,#000 32px,#000 calc(100% - 40px),transparent 100%);mask-composite:intersect}
+.vp{position:absolute;left:100%;top:0;transform-origin:0 0;transform:var(--vp)}
+.vp svg.edges{position:absolute;left:0;top:0;overflow:visible}
+.node{position:absolute;border:1px solid var(--hair-box);border-radius:5px;background:var(--ink-raised);padding:8px 10px 8px 10px;overflow:hidden;
+  display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.node .r1{display:flex;align-items:center;gap:7px;height:16px;flex-shrink:0}
+.node .id{font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.node .drain{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.node .tt{font-size:13px;line-height:17px;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;height:34px;flex-shrink:0}
+.node .sl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:14px;height:14px;flex-shrink:0;margin-top:auto}
+.node.st-queued{border-style:dashed;border-color:var(--hair-strong);background:var(--ink)}
+.node.dim{opacity:.38}
+.node:hover{border-color:var(--text-4)}
+.node.needs{border-color:var(--accent);background:var(--ink-selected);box-shadow:inset 3px 0 0 var(--accent),0 0 0 4px var(--halo-magenta)}
+.node.needs .id{color:var(--text-1);font-weight:500}
+.node.needs .tt{color:var(--text-1)}
+.node.needs.focus-ring{outline-offset:5px}
+.node.grp{background:var(--ink-raised);border-color:var(--hair-strong);overflow:visible}
+.node.grp .tt{color:var(--text-2)}
+.node.grp .stack{position:absolute;left:4px;right:-4px;top:4px;bottom:-4px;border:1px solid var(--hair-box);border-radius:5px;z-index:-1;background:var(--ink-raised)}
+.node.grp .stack.s2{left:8px;right:-8px;top:8px;bottom:-8px;opacity:.6}
+.node.grp .gn{font-family:var(--mono);font-size:12px;color:var(--text-1);font-weight:500}
+.node.grp .sl{display:flex;justify-content:space-between}
+.node.grp .exp{color:var(--text-2);letter-spacing:.06em}
+
+.ov-hint{position:absolute;left:16px;top:14px;display:flex;align-items:center;gap:10px;height:30px;padding:0 6px 0 12px;border-radius:4px;
+  background:rgba(13,10,24,.92);border:1px solid var(--hair-box);font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.ov-hint button{height:22px;padding:0 8px;border-radius:3px;border:1px solid var(--hair-strong);font-family:var(--mono);font-size:12px;color:var(--text-1);display:inline-flex;gap:6px;align-items:center}
+.controls{position:absolute;left:16px;bottom:16px;display:flex;flex-direction:row;align-items:stretch;border:1px solid var(--hair-strong);border-radius:4px;background:var(--ink-raised);overflow:hidden}
+.controls button{width:34px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--text-1);border-left:1px solid var(--hair)}
+.controls button:first-child{border-left:0}
+.controls button.on{color:var(--accent-2)}
+.controls .zr{font-family:var(--mono);font-size:11px;color:var(--text-2);width:44px;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--hair)}
+.keys{position:absolute;left:206px;bottom:17px;display:flex;align-items:center;gap:12px;height:30px;padding:0 12px;border-radius:4px;background:rgba(13,10,24,.92);
+  border:1px solid var(--hair-box);font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap}
+.keys span{display:inline-flex;align-items:center;gap:5px}
+.minimap{position:absolute;right:16px;bottom:16px;border:1px solid var(--hair-strong);border-radius:4px;background:rgba(13,10,24,.95);line-height:0}
+
+.pop{position:absolute;left:100%;top:var(--pop-y);margin-left:var(--pop-x);width:var(--pop-w);border:1px solid var(--hair-strong);border-radius:6px;background:#120d20;
+  box-shadow:0 1px 2px rgb(0 0 0 / .5),0 18px 48px -12px rgb(0 0 0 / .85);padding:12px 14px 12px;display:flex;flex-direction:column;gap:8px;z-index:5}
+.pop .ph{display:flex;align-items:center;gap:8px}
+.pop .ph .id{font-family:var(--mono);font-size:13px;color:var(--text-1);font-weight:500}
+.pop .x{width:24px;height:24px;border-radius:3px;color:var(--text-3);display:flex;align-items:center;justify-content:center}
+.pop .ttl{font-size:14px;font-weight:500;line-height:1.35;color:var(--text-1);margin-top:-2px}
+.pop .state{font-family:var(--mono);font-size:12px;color:var(--text-2);display:flex;gap:8px;align-items:center}
+.pop .ny{border-top:1px solid var(--hair);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.pop .ny p{margin:0;font-size:13.5px;line-height:1.4;color:var(--text-1)}
+.pop .ny small{font-size:12px;color:var(--text-3);line-height:1.4}
+.pop .cmdbox{height:auto;min-height:38px;padding:5px 4px 5px 10px;gap:8px}
+.pop .cmdbox code.cmd{white-space:normal;line-height:17px}
+.pop .cmdbox code{font-size:12px}
+.pop .acts{display:flex;align-items:center;gap:6px;border-top:1px solid var(--hair);padding-top:10px}
+.pop .acts .btn{height:30px;padding:0 10px;font-size:12px}
+.pop .acts .none{white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--text-3);padding:0 6px}
+.leader{position:absolute;left:100%;margin-left:var(--ld-x);top:var(--ld-y);width:var(--ld-w);height:var(--ld-h);z-index:5;overflow:visible}
+.cursor{position:absolute;left:100%;top:var(--cur-y);margin-left:var(--cur-x);z-index:6;pointer-events:none}
+
+.rail{flex-shrink:0;background:var(--ink-raised);border-top:1px solid var(--hair);padding:18px 40px 18px;display:grid;grid-template-columns:300px minmax(0,1fr) 280px 260px;height:196px}
+.rail > div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.rail > div + div{border-left:1px solid var(--hair);padding:0 28px}
+.rail > div:first-child{padding-right:28px}
+.rail > div:last-child{padding-right:0}
+.rail .cap{font-size:11px}
+.rail .s1{display:flex;align-items:baseline;gap:10px;min-width:0}
+.rail .s1 .ttl{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail .mono13{font-family:var(--mono);font-size:13px}
+.rail .stg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.rail .stg > div{display:flex;flex-direction:column;gap:8px}
+.rail .tk{position:relative;height:12px}
+.rail ol{margin:0;padding:0;list-style:none}
+.rail ol li{display:grid;grid-template-columns:26px minmax(0,1fr) 70px 14px;align-items:center;height:24px;font-family:var(--mono);font-size:13px}
+@media (max-width:1360px){
+  .rail{grid-template-columns:260px minmax(0,1fr) 250px 250px;padding-left:32px;padding-right:32px}
+  .leg .opt{display:none}
+  .keys .opt{display:none}
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <header class="top">
+    <div class="brand"><span>kew</span><i></i></div>
+    <nav class="nav" aria-label="Factory views">
+      <a href="UXWork.html">Work</a><a href="UXMonitor.html">Monitor</a><a href="UXEpic.html" aria-current="page">Epics</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="meta">
+      <span class="counter"><span class="dot" style="background:var(--accent-2)"></span><span class="n">0</span> working</span>
+      <a class="counter" href="UXWork.html?filter=needs-you" data-app-href="/work?filter=needs-you" title="Open the needs-you list in Work"><span class="dia"></span><span class="n">2</span> needs you</a>
+      <span class="sep" style="height:20px;background:var(--hair)"></span>
+      <span class="t3">thossullivan/kew</span>
+    </div>
+  </header>
+  <section class="ehead" aria-label="Epic go-live-2026-09">
+    <div class="r">
+      <span class="cap">Epic</span>
+      <h1>go-live-2026-09</h1>
+      <span class="mono t3" style="font-size:13px">thossullivan/kew</span>
+      <span class="grow"></span>
+      <span class="mono t3" style="font-size:13px">last tick <span class="t2">Sep 15 11:26</span> &#183; 16d ago</span>
+      <span class="sep"></span>
+      <span class="mono" style="font-size:14px;color:var(--warn);display:flex;align-items:center;gap:8px"><span class="ring"></span>stalled</span>
+    </div>
+    <div class="r">
+      <span class="mono" style="font-size:24px;font-weight:500;line-height:1">33<span class="t3" style="font-weight:400"> / 39</span></span>
+      <span class="mono t2" style="font-size:13px;margin-left:-6px">done &#183; 85%</span>
+      <span class="prog" role="img" aria-label="33 done, 1 held and needs you, 5 queued"><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="background:#2ee6a6"></i><i style="box-shadow:inset 0 0 0 1.5px #ff2a6d;background:rgba(255,42,109,.25)"></i><i style="box-shadow:inset 0 0 0 1px #5a5070"></i><i style="box-shadow:inset 0 0 0 1px #5a5070"></i><i style="box-shadow:inset 0 0 0 1px #5a5070"></i><i style="box-shadow:inset 0 0 0 1px #5a5070"></i><i style="box-shadow:inset 0 0 0 1px #5a5070"></i></span>
+      <span class="grow"></span>
+      <div class="leg">
+        <span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg>done <b>33</b></span>
+        <span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg>queued <b>5</b></span>
+        <span class="opt"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#ffc94a" stroke-width="2"/></svg>held <b>1</b></span>
+        <span class="sep"></span>
+        <span class="c-acc"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="-.2" y="-.2" width="14.4" height="14.4" fill="#ff2a6d" fill-opacity=".18" transform="rotate(45 7 7)"/><rect x="2.4" y="2.4" width="9.2" height="9.2" fill="#ff2a6d" transform="rotate(45 7 7)"/></svg>needs you <b>1</b></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="canvas" aria-label="Dependency graph, go-live-2026-09. Pan by dragging, zoom with ctrl or cmd and the wheel.">
+    <div class="stage">
+    <div class="vp">
+      <svg class="edges" width="2802" height="1440" viewBox="0 0 2802 1440" aria-hidden="true"><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 169.0 Q924.0 160.0 933.0 160.0 L944.0 160.0 L1140.0 160.0 L1180.0 160.0 L1376.0 160.0 L1387.0 160.0 Q1396.0 160.0 1396.0 151.0 L1396.0 85.0 Q1396.0 76.0 1405.0 76.0 L1416.0 76.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 301.0 Q924.0 292.0 933.0 292.0 L944.0 292.0 L1140.0 292.0 L1180.0 292.0 L1376.0 292.0 L1416.0 292.0 L1612.0 292.0 L1652.0 292.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 421.0 Q924.0 412.0 933.0 412.0 L944.0 412.0 L1140.0 412.0 L1180.0 412.0 L1376.0 412.0 L1416.0 412.0 L1612.0 412.0 L1652.0 412.0 L1848.0 412.0 L1888.0 412.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 775.0 Q924.0 766.0 933.0 766.0 L944.0 766.0 L1140.0 766.0 L1180.0 766.0 L1376.0 766.0 L1416.0 766.0 L1612.0 766.0 L1652.0 766.0 L1848.0 766.0 L1888.0 766.0 L2084.0 766.0 L2095.0 766.0 Q2104.0 766.0 2104.0 775.0 L2104.0 823.0 Q2104.0 832.0 2113.0 832.0 L2124.0 832.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 361.0 Q924.0 352.0 933.0 352.0 L944.0 352.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 823.0 Q924.0 832.0 933.0 832.0 L944.0 832.0 L1140.0 832.0 L1180.0 832.0 L1376.0 832.0 L1416.0 832.0 L1612.0 832.0 L1652.0 832.0 L1848.0 832.0 L1888.0 832.0 L2084.0 832.0 L2095.0 832.0 Q2104.0 832.0 2104.0 841.0 L2104.0 931.0 Q2104.0 940.0 2113.0 940.0 L2124.0 940.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 883.0 Q924.0 892.0 933.0 892.0 L944.0 892.0 L1140.0 892.0 L1180.0 892.0 L1376.0 892.0 L1416.0 892.0 L1612.0 892.0 L1652.0 892.0 L1848.0 892.0 L1888.0 892.0 L2084.0 892.0 L2095.0 892.0 Q2104.0 892.0 2104.0 901.0 L2104.0 1039.0 Q2104.0 1048.0 2113.0 1048.0 L2124.0 1048.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 895.0 Q924.0 904.0 933.0 904.0 L944.0 904.0 L1140.0 904.0 L1180.0 904.0 L1376.0 904.0 L1416.0 904.0 L1612.0 904.0 L1652.0 904.0 L1848.0 904.0 L1888.0 904.0 L2084.0 904.0 L2095.0 904.0 Q2104.0 904.0 2104.0 895.0 L2104.0 733.0 Q2104.0 724.0 2113.0 724.0 L2124.0 724.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 1147.0 Q924.0 1156.0 933.0 1156.0 L944.0 1156.0 L1140.0 1156.0 L1180.0 1156.0 L1376.0 1156.0 L1416.0 1156.0 L1612.0 1156.0 L1652.0 1156.0 L1848.0 1156.0 L1888.0 1156.0 L2084.0 1156.0 L2124.0 1156.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 1207.0 Q924.0 1216.0 933.0 1216.0 L944.0 1216.0 L1140.0 1216.0 L1180.0 1216.0 L1376.0 1216.0 L1416.0 1216.0 L1612.0 1216.0 L1652.0 1216.0 L1848.0 1216.0 L1888.0 1216.0 L2084.0 1216.0 L2124.0 1216.0 L2320.0 1216.0 L2331.0 1216.0 Q2340.0 1216.0 2340.0 1225.0 L2340.0 1255.0 Q2340.0 1264.0 2349.0 1264.0 L2360.0 1264.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 1267.0 Q924.0 1276.0 933.0 1276.0 L944.0 1276.0 L1140.0 1276.0 L1180.0 1276.0 L1376.0 1276.0 L1416.0 1276.0 L1612.0 1276.0 L1652.0 1276.0 L1848.0 1276.0 L1888.0 1276.0 L2084.0 1276.0 L2124.0 1276.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 811.0 L924.0 1375.0 Q924.0 1384.0 933.0 1384.0 L944.0 1384.0 L1140.0 1384.0 L1180.0 1384.0 L1376.0 1384.0 L1416.0 1384.0 L1612.0 1384.0 L1652.0 1384.0 L1848.0 1384.0 L1888.0 1384.0 L2084.0 1384.0 L2124.0 1384.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M1376.0 46.0 L1387.0 46.0 Q1396.0 46.0 1396.0 55.0 L1396.0 67.0 Q1396.0 76.0 1405.0 76.0 L1416.0 76.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M1612.0 76.0 L1623.0 76.0 Q1632.0 76.0 1632.0 67.0 L1632.0 55.0 Q1632.0 46.0 1641.0 46.0 L1652.0 46.0 L1848.0 46.0 L1859.0 46.0 Q1868.0 46.0 1868.0 55.0 L1868.0 67.0 Q1868.0 76.0 1877.0 76.0 L1888.0 76.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M1612.0 76.0 L1623.0 76.0 Q1632.0 76.0 1632.0 85.0 L1632.0 121.0 Q1632.0 130.0 1641.0 130.0 L1652.0 130.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M2084.0 76.0 L2095.0 76.0 Q2104.0 76.0 2104.0 85.0 L2104.0 133.0 Q2104.0 142.0 2113.0 142.0 L2124.0 142.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 184.0 L2095.0 184.0 Q2104.0 184.0 2104.0 175.0 L2104.0 151.0 Q2104.0 142.0 2113.0 142.0 L2124.0 142.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M1848.0 292.0 L1888.0 292.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M2084.0 412.0 L2095.0 412.0 Q2104.0 412.0 2104.0 403.0 L2104.0 151.0 Q2104.0 142.0 2113.0 142.0 L2124.0 142.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 412.0 L2095.0 412.0 Q2104.0 412.0 2104.0 421.0 L2104.0 427.0 Q2104.0 436.0 2113.0 436.0 L2124.0 436.0 L2320.0 436.0 L2331.0 436.0 Q2340.0 436.0 2340.0 445.0 L2340.0 835.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 292.0 L2095.0 292.0 Q2104.0 292.0 2104.0 283.0 L2104.0 151.0 Q2104.0 142.0 2113.0 142.0 L2124.0 142.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 292.0 L2095.0 292.0 Q2104.0 292.0 2104.0 301.0 L2104.0 487.0 Q2104.0 496.0 2113.0 496.0 L2124.0 496.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 142.0 L2360.0 142.0 L2556.0 142.0 L2567.0 142.0 Q2576.0 142.0 2576.0 151.0 L2576.0 661.0 Q2576.0 670.0 2585.0 670.0 L2596.0 670.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M1612.0 538.0 L1623.0 538.0 Q1632.0 538.0 1632.0 547.0 L1632.0 631.0 Q1632.0 640.0 1641.0 640.0 L1652.0 640.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M2084.0 640.0 L2095.0 640.0 Q2104.0 640.0 2104.0 631.0 L2104.0 151.0 Q2104.0 142.0 2113.0 142.0 L2124.0 142.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 640.0 L2095.0 640.0 Q2104.0 640.0 2104.0 631.0 L2104.0 613.0 Q2104.0 604.0 2113.0 604.0 L2124.0 604.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M2084.0 640.0 L2095.0 640.0 Q2104.0 640.0 2104.0 649.0 L2104.0 655.0 Q2104.0 664.0 2113.0 664.0 L2124.0 664.0 L2320.0 664.0 L2331.0 664.0 Q2340.0 664.0 2340.0 673.0 L2340.0 835.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2084.0 640.0 L2095.0 640.0 Q2104.0 640.0 2104.0 631.0 L2104.0 505.0 Q2104.0 496.0 2113.0 496.0 L2124.0 496.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 832.0 L2334.0 832.0 Q2340.0 832.0 2340.0 838.0 L2340.0 838.0 Q2340.0 844.0 2346.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M1140.0 352.0 L1180.0 352.0 L1376.0 352.0 L1416.0 352.0 L1612.0 352.0 L1652.0 352.0 L1848.0 352.0 L1888.0 352.0 L2084.0 352.0 L2124.0 352.0 L2320.0 352.0 L2331.0 352.0 Q2340.0 352.0 2340.0 361.0 L2340.0 835.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 604.0 L2331.0 604.0 Q2340.0 604.0 2340.0 613.0 L2340.0 835.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 940.0 L2331.0 940.0 Q2340.0 940.0 2340.0 931.0 L2340.0 853.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 1048.0 L2331.0 1048.0 Q2340.0 1048.0 2340.0 1039.0 L2340.0 853.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 724.0 L2331.0 724.0 Q2340.0 724.0 2340.0 733.0 L2340.0 835.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 1156.0 L2331.0 1156.0 Q2340.0 1156.0 2340.0 1147.0 L2340.0 853.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2556.0 1264.0 L2567.0 1264.0 Q2576.0 1264.0 2576.0 1255.0 L2576.0 679.0 Q2576.0 670.0 2585.0 670.0 L2596.0 670.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 1276.0 L2331.0 1276.0 Q2340.0 1276.0 2340.0 1267.0 L2340.0 853.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 1384.0 L2331.0 1384.0 Q2340.0 1384.0 2340.0 1375.0 L2340.0 853.0 Q2340.0 844.0 2349.0 844.0 L2360.0 844.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2556.0 844.0 L2567.0 844.0 Q2576.0 844.0 2576.0 835.0 L2576.0 679.0 Q2576.0 670.0 2585.0 670.0 L2596.0 670.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M2320.0 496.0 L2360.0 496.0 L2556.0 496.0 L2567.0 496.0 Q2576.0 496.0 2576.0 505.0 L2576.0 661.0 Q2576.0 670.0 2585.0 670.0 L2596.0 670.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M668.0 70.0 L679.0 70.0 Q688.0 70.0 688.0 79.0 L688.0 109.0 Q688.0 118.0 697.0 118.0 L708.0 118.0 L904.0 118.0 L915.0 118.0 Q924.0 118.0 924.0 127.0 L924.0 343.0 Q924.0 352.0 933.0 352.0 L944.0 352.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M2084.0 520.0 L2095.0 520.0 Q2104.0 520.0 2104.0 529.0 L2104.0 715.0 Q2104.0 724.0 2113.0 724.0 L2124.0 724.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M1848.0 130.0 L1859.0 130.0 Q1868.0 130.0 1868.0 121.0 L1868.0 85.0 Q1868.0 76.0 1877.0 76.0 L1888.0 76.0" stroke="#5a5070" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="4 4"/><path d="M1848.0 640.0 L1888.0 640.0" stroke="#3a3052" stroke-width="1.5" fill="none" opacity=".45"/><path d="M904.0 802.0 L915.0 802.0 Q924.0 802.0 924.0 793.0 L924.0 547.0 Q924.0 538.0 933.0 538.0 L944.0 538.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M1140.0 538.0 L1180.0 538.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M1376.0 538.0 L1416.0 538.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M1612.0 538.0 L1623.0 538.0 Q1632.0 538.0 1632.0 529.0 L1632.0 505.0 Q1632.0 496.0 1641.0 496.0 L1652.0 496.0" stroke="#ff2a6d" stroke-width="2.25" fill="none"/><path d="M668.0 70.0 L679.0 70.0 Q688.0 70.0 688.0 79.0 L688.0 793.0 Q688.0 802.0 697.0 802.0 L708.0 802.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M668.0 178.0 L679.0 178.0 Q688.0 178.0 688.0 187.0 L688.0 793.0 Q688.0 802.0 697.0 802.0 L708.0 802.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M196.0 832.0 L207.0 832.0 Q216.0 832.0 216.0 823.0 L216.0 655.0 Q216.0 646.0 225.0 646.0 L236.0 646.0 L432.0 646.0 L472.0 646.0 L668.0 646.0 L679.0 646.0 Q688.0 646.0 688.0 655.0 L688.0 793.0 Q688.0 802.0 697.0 802.0 L708.0 802.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M196.0 832.0 L207.0 832.0 Q216.0 832.0 216.0 841.0 L216.0 853.0 Q216.0 862.0 225.0 862.0 L236.0 862.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M432.0 862.0 L443.0 862.0 Q452.0 862.0 452.0 853.0 L452.0 715.0 Q452.0 706.0 461.0 706.0 L472.0 706.0 L668.0 706.0 L679.0 706.0 Q688.0 706.0 688.0 715.0 L688.0 793.0 Q688.0 802.0 697.0 802.0 L708.0 802.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M432.0 862.0 L443.0 862.0 Q452.0 862.0 452.0 871.0 L452.0 883.0 Q452.0 892.0 461.0 892.0 L472.0 892.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/><path d="M668.0 892.0 L679.0 892.0 Q688.0 892.0 688.0 883.0 L688.0 811.0 Q688.0 802.0 697.0 802.0 L708.0 802.0" stroke="#b5acc8" stroke-width="2.25" fill="none"/></svg>
+      
+      <div class="node st-done" style="left:708.0px;top:756.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-220</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: confirm W1.G live canonical-publication evidence</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1180.0px;top:0.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-221</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">decision: choose the operator-workflow destination</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1416.0px;top:30.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-222</span><span class="grow"></span><span class="drain">$43.65</span></div>
+        <div class="tt">ci: prepare hosted-runner and workflow migration PR</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-queued dim" style="left:1888.0px;top:30.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg><span class="id">SFD-223</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: apply public-repository settings after migration</div>
+        <div class="sl"><span class="t2">queued</span><span class="t5"> &#183; </span><span class="t3">awaits arm</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1888.0px;top:138.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-224</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: register TestPyPI publisher and rehearse #396</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1652.0px;top:246.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-225</span><span class="grow"></span><span class="drain">$20.80</span></div>
+        <div class="tt">docs: complete the trust-page sweep #1815</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1888.0px;top:366.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-226</span><span class="grow"></span><span class="drain">$14.65</span></div>
+        <div class="tt">test: reconcile Linear parity and prove lifecycle #1117</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1888.0px;top:246.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-227</span><span class="grow"></span><span class="drain">$4.03</span></div>
+        <div class="tt">docs: publish design pages while keeping audits held</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-queued dim" style="left:2124.0px;top:96.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg><span class="id">SFD-228</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: owner decision on the minimal public transition</div>
+        <div class="sl"><span class="t2">queued</span><span class="t5"> &#183; </span><span class="t3">awaits arm</span></div>
+      </div>
+      <div class="node st-done" style="left:944.0px;top:492.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-229</span><span class="grow"></span><span class="drain">$49.89</span></div>
+        <div class="tt">security: contain provider credentials #1430</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done" style="left:1180.0px;top:492.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-230</span><span class="grow"></span><span class="drain">$55.28</span></div>
+        <div class="tt">security: close remaining Git metadata risks #1218</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done" style="left:1416.0px;top:492.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-231</span><span class="grow"></span><span class="drain">$34.32</span></div>
+        <div class="tt">security: contain loop verification commands #1444</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node needs sel focus-ring" style="left:1652.0px;top:450.0px;width:196px;height:92px" role="button" tabindex="0" aria-pressed="true" aria-label="SFD-232, held, needs you">
+        <div class="r1"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="-.2" y="-.2" width="14.4" height="14.4" fill="#ff2a6d" fill-opacity=".18" transform="rotate(45 7 7)"/><rect x="2.4" y="2.4" width="9.2" height="9.2" fill="#ff2a6d" transform="rotate(45 7 7)"/></svg><span class="id">SFD-232</span><span class="grow"></span><span class="drain">$33.68</span></div>
+        <div class="tt">security: enforce auditable sandbox posture #1217</div>
+        <div class="sl"><span class="c-warn">held</span><span class="t5"> &#183; </span><span class="c-acc">needs you</span><span class="t5"> &#183; </span><span class="t2">18d</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1888.0px;top:594.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-233</span><span class="grow"></span><span class="drain">$85.27</span></div>
+        <div class="tt">security: support canonical first-class loops #1844</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:786.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-234</span><span class="grow"></span><span class="drain">$10.48</span></div>
+        <div class="tt">dogfood: fix generated stats and prove edits #1841 #1845</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:944.0px;top:306.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-235</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">fix: retain provider error name and HTTP status #1846</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:558.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-236</span><span class="grow"></span><span class="drain">$127.21</span></div>
+        <div class="tt">fix: prevent selection of a live worker issue #1832</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:894.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-237</span><span class="grow"></span><span class="drain">$34.59</span></div>
+        <div class="tt">fix: bound stale sandbox image retention #1839</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:1002.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-238</span><span class="grow"></span><span class="drain">$4.64</span></div>
+        <div class="tt">fix: bound pytest and uv temporary storage #1840</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:678.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-239</span><span class="grow"></span><span class="drain">$14.91</span></div>
+        <div class="tt">plan: coordinate CLI migration, help, and jargon cleanup</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:1110.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-240</span><span class="grow"></span><span class="drain">$13.40</span></div>
+        <div class="tt">test: align create-kew bootstrap with kew setup</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2360.0px;top:1218.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-241</span><span class="grow"></span><span class="drain">$6.76</span></div>
+        <div class="tt">plan: reconcile the remaining launch issue backlog</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:1230.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-242</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">plan: scope and execute approved X1 and X3 cuts</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:2124.0px;top:1338.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-243</span><span class="grow"></span><span class="drain">$6.08</span></div>
+        <div class="tt">docs: surface the verified capability manifest</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-queued dim" style="left:2360.0px;top:798.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg><span class="id">SFD-244</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: run final P0 release UAT and record evidence</div>
+        <div class="sl"><span class="t2">queued</span><span class="t5"> &#183; </span><span class="t3">awaits arm</span></div>
+      </div>
+      <div class="node st-queued dim" style="left:2124.0px;top:450.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg><span class="id">SFD-245</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: review held audit publication after security closure</div>
+        <div class="sl"><span class="t2">queued</span><span class="t5"> &#183; </span><span class="t3">awaits arm</span></div>
+      </div>
+      <div class="node st-queued dim" style="left:2596.0px;top:624.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.9" fill="none" stroke="#8d84a3" stroke-width="1.5"/></svg><span class="id">SFD-246</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">gate: owner approval for the fuller announcement</div>
+        <div class="sl"><span class="t2">queued</span><span class="t5"> &#183; </span><span class="t3">awaits arm</span></div>
+      </div>
+      <div class="node st-done" style="left:472.0px;top:24.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-247</span><span class="grow"></span><span class="drain">$7.66</span></div>
+        <div class="tt">blocker: prevent generated caches in canonical publication (#1851)</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done" style="left:472.0px;top:132.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-248</span><span class="grow"></span><span class="drain"></span></div>
+        <div class="tt">blocker: install and validate contained Claude executable (#1853)</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done" style="left:0.0px;top:786.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-249</span><span class="grow"></span><span class="drain">$106.22</span></div>
+        <div class="tt">blocker: guard credential-exposed publication before W1.G (#1854)</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done" style="left:236.0px;top:816.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-250</span><span class="grow"></span><span class="drain">$58.47</span></div>
+        <div class="tt">fix: bind recovery to immutable checkout identity (#1857)</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1888.0px;top:474.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-256</span><span class="grow"></span><span class="drain">$59.27</span></div>
+        <div class="tt">docs: complete W4.1 command and configuration drift coverage</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1652.0px;top:84.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-257</span><span class="grow"></span><span class="drain">$6.97</span></div>
+        <div class="tt">ci: migrate owner workflows, retire the runner guard, replace #1878 (SFD-222 stage 2)</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node st-done dim" style="left:1652.0px;top:594.0px;width:196px;height:92px" role="button" tabindex="-1">
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="id">SFD-258</span><span class="grow"></span><span class="drain">$163.04</span></div>
+        <div class="tt">security: enforce auditable sandbox posture #1217</div>
+        <div class="sl"><span class="t3">done</span></div>
+      </div>
+      <div class="node grp" style="left:472.0px;top:846.0px;width:196px;height:92px" role="button" tabindex="-1" aria-expanded="false" aria-label="5 done nodes collapsed, SFD-251 to SFD-255. Expand.">
+        <span class="stack" aria-hidden="true"></span><span class="stack s2" aria-hidden="true"></span>
+        <div class="r1"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.3" fill="#2ee6a6"/></svg><span class="gn">5 done</span><span class="grow"></span><span class="drain">$143.72</span></div>
+        <div class="tt">SC-IMG &#8594; SC-2 isolation chain: proxy pin, topology, credentials, evidence</div>
+        <div class="sl"><span>SFD-251 &#8211; 255</span><span class="exp">expand &#9662;</span></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="ov-hint"><span class="dia"></span>Centred on SFD-232, the node that needs you<button type="button">Fit all <span class="kbd" style="height:15px;min-width:15px;font-size:10px">F</span></button></div>
+
+    <svg class="leader" aria-hidden="true" viewBox="0 0 10 10" preserveAspectRatio="none"><line x1="0" y1="10" x2="10" y2="0" stroke="#ff2a6d" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-dasharray="3 3"/></svg>
+    <div class="pop" role="dialog" aria-label="SFD-232">
+      <div class="ph"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="-.2" y="-.2" width="14.4" height="14.4" fill="#ff2a6d" fill-opacity=".18" transform="rotate(45 7 7)"/><rect x="2.4" y="2.4" width="9.2" height="9.2" fill="#ff2a6d" transform="rotate(45 7 7)"/></svg><span class="id">SFD-232</span><span class="grow"></span><span class="kbd" title="Close">esc</span><button class="x" type="button" aria-label="Close (Esc)">&#215;</button></div>
+      <div class="ttl">security: enforce auditable sandbox posture #1217</div>
+      <div class="state"><span class="c-warn">held</span><span class="t5">&#183;</span>18d 10h<span class="t5">&#183;</span><span class="c-warn">$33.68</span> drain</div>
+      <div class="ny">
+        <span class="cap c-acc" style="display:flex;align-items:center;gap:8px"><span class="dia"></span>Needs you</span>
+        <p>The run stopped with a dirty worktree. kew kept it, and it waits for you to continue.</p>
+        <div class="cmdbox"><code class="cmd">kew epic continue go-live-2026-09 SFD-232</code><button class="btn primary" type="button" style="height:28px;padding:0 10px">Copy</button></div>
+      </div>
+      <div class="acts">
+        <a class="btn" href="UXWork.html">Open in Work <span aria-hidden="true">&#8594;</span></a>
+        <a class="btn quiet" href="https://linear.app/example/issue/SFD-232" target="_blank" rel="noreferrer">Linear <span aria-hidden="true">&#8599;</span></a>
+        <span class="none" title="No pull request yet">no PR</span>
+      </div>
+    </div>
+
+    <svg class="cursor" width="18" height="22" viewBox="0 0 18 22" aria-hidden="true"><path d="M1 1 L1 17 L5.2 13.2 L8.2 20 L11 18.8 L8.1 12.2 L13.8 12.2 Z" fill="#ebe6f2" stroke="#0a0714" stroke-width="1.2" stroke-linejoin="round"/></svg>
+
+    <div class="controls" aria-label="Canvas controls">
+      <button type="button" aria-label="Zoom in" title="Zoom in (+)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <button type="button" aria-label="Zoom out" title="Zoom out (&#8722;)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h10" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <button type="button" aria-label="Fit view" title="Fit view (F)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9"/></svg></button>
+      <button type="button" aria-pressed="false" aria-label="Show done nodes" title="Show done (5 collapsed)"><svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="7" r="4.5"/><path d="M5.8 7.1 7.4 8.6 10.3 5.6"/></svg></button>
+      <span class="zr"><span class="w1">90%</span><span class="w2">84%</span></span>
+    </div>
+    <div class="keys" aria-label="Keyboard">
+      <span><span class="kbd">tab</span>nodes</span>
+      <span><span class="kbd">&#8592;</span><span class="kbd">&#8594;</span>lineage</span>
+      <span><span class="kbd">&#8629;</span>popover</span>
+      <span><span class="kbd">esc</span>close</span>
+      <span class="opt"><span class="kbd">0</span>zoom to node</span>
+    </div>
+    
+      <div class="minimap" aria-label="Minimap">
+        <svg width="200" height="96" viewBox="0 0 200 96" aria-hidden="true">
+          <rect x="60.5" y="50.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="87.4" y="7.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="100.9" y="8.7" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="127.7" y="8.7" width="11.2" height="5.2" rx="1" fill="none" stroke="#8d84a3" stroke-width="1"/><rect x="127.7" y="14.9" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="114.3" y="21.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="127.7" y="27.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="127.7" y="21.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="12.5" width="11.2" height="5.2" rx="1" fill="none" stroke="#8d84a3" stroke-width="1"/><rect x="74.0" y="35.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="87.4" y="35.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="100.9" y="35.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="114.3" y="32.6" width="11.2" height="5.2" rx="1" fill="#ff2a6d" fill-opacity="1"/><rect x="127.7" y="40.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="51.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="74.0" y="24.4" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="38.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="57.9" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="64.1" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="45.6" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="70.2" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="154.6" y="76.4" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="77.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="141.2" y="83.2" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="154.6" y="52.4" width="11.2" height="5.2" rx="1" fill="none" stroke="#8d84a3" stroke-width="1"/><rect x="141.2" y="32.6" width="11.2" height="5.2" rx="1" fill="none" stroke="#8d84a3" stroke-width="1"/><rect x="168.0" y="42.5" width="11.2" height="5.2" rx="1" fill="none" stroke="#8d84a3" stroke-width="1"/><rect x="47.1" y="8.4" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="47.1" y="14.5" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="20.2" y="51.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="33.7" y="53.5" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="127.7" y="34.0" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="114.3" y="11.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="114.3" y="40.8" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/><rect x="47.1" y="55.2" width="11.2" height="5.2" rx="1" fill="#2ee6a6" fill-opacity=".55"/>
+          <g class="w1"><path d="M0 0H200V96H0Z M43.6 30.3h91.1v34.9h-91.1Z" fill="#0a0714" fill-opacity=".55" fill-rule="evenodd"/><rect x="43.6" y="30.3" width="91.1" height="34.9" fill="none" stroke="#ebe6f2" stroke-width="1"/></g><g class="w2"><path d="M0 0H200V96H0Z M44.4 30.3h86.8v37.4h-86.8Z" fill="#0a0714" fill-opacity=".55" fill-rule="evenodd"/><rect x="44.4" y="30.3" width="86.8" height="37.4" fill="none" stroke="#ebe6f2" stroke-width="1"/></g>
+        </svg>
+      </div>
+  </section>
+
+  <section class="rail" aria-label="Selected node SFD-232">
+    <div>
+      <span class="cap">Selected</span>
+      <span class="s1"><span class="mono t1" style="font-size:15px;white-space:nowrap;flex-shrink:0">SFD-232</span><span class="ttl">security: enforce auditable sandbox posture #1217</span></span>
+      <span class="mono13 t2" style="display:flex;align-items:center;gap:8px"><span class="ring" style="width:10px;height:10px;border-width:2px"></span><span class="c-warn">held</span><span class="t5">&#183;</span>native<span class="t5">&#183;</span><span class="c-warn">$33.68</span></span>
+      <span class="mono13 t3">depends on SFD-231 &#183; no PR</span>
+      <a class="mono13 t1" href="UXWork.html" style="margin-top:auto;height:32px;display:flex;align-items:center;gap:8px">Open SFD-232 in Work <span aria-hidden="true">&#8594;</span></a>
+    </div>
+    <div>
+      <span class="cap t2">Pipeline &#183; main</span>
+      <div class="stg">
+        <div><span class="cap">Implement</span><span class="tk"><span style="position:absolute;left:6px;right:0;top:5px;height:2px;background:#342a4a"></span><svg style="position:absolute;left:0;top:0" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="6" fill="#0d0a18"/><path d="M3 3l6 6M9 3l-6 6" stroke="#ff4365" stroke-width="2" stroke-linecap="round"/></svg></span><span class="mono13 t2">run 59a3d7e2</span><span class="mono13" style="color:var(--danger);margin-top:-6px">refused</span></div>
+        <div><span class="cap">Publish</span><span class="tk"><span style="position:absolute;left:6px;right:0;top:5px;height:0;border-top:1px dashed #342a4a"></span><span style="position:absolute;left:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#342a4a"></span></span><span class="mono13 t3">not required</span></div>
+        <div><span class="cap">Review</span><span class="tk"><span style="position:absolute;left:6px;right:0;top:5px;height:0;border-top:1px dashed #342a4a"></span><span style="position:absolute;left:0;top:0;width:12px;height:12px;border-radius:50%;border:1.5px solid #6a6082;background:#0d0a18"></span></span><span class="mono13 t3">not started</span></div>
+        <div><span class="cap">Merge</span><span class="tk"><span style="position:absolute;left:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#342a4a"></span></span><span class="mono13 t3">not required</span></div>
+      </div>
+    </div>
+    <div>
+      <span style="display:flex;align-items:baseline"><span class="cap t2">Evidence</span><span class="grow"></span><span class="mono13 t3"><span class="c-ok">2</span> / 4 attested</span></span>
+      <ol>
+        <li><span class="t3">01</span><span class="t2">sandboxed</span><span class="t3" style="text-align:right">23:06:15</span><svg style="justify-self:end" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg></li>
+        <li><span class="t3">02</span><span class="t2">canonical</span><span class="t3" style="text-align:right">23:06:15</span><svg style="justify-self:end" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ee6a6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="attested"><path d="M5 12.5 10 17 19 7"/></svg></li>
+        <li><span class="t3">03</span><span class="t2">scan clean</span><span class="t3" style="text-align:right">&#8212;</span><span aria-label="pending" style="justify-self:end;width:9px;height:9px;border-radius:50%;border:1.5px solid #8d84a3"></span></li>
+        <li><span class="t3">04</span><span class="t2">verdict</span><span class="t3" style="text-align:right">&#8212;</span><span aria-label="pending" style="justify-self:end;width:9px;height:9px;border-radius:50%;border:1.5px solid #8d84a3"></span></li>
+      </ol>
+    </div>
+    <div>
+      <span class="cap c-acc" style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;background:var(--accent);transform:rotate(45deg);box-shadow:0 0 0 4px var(--halo-magenta)"></span>Needs you</span>
+      <span style="font-size:15px;font-weight:500">Continue preserved work</span>
+      <code class="cmd" style="font-size:12px;display:block;white-space:normal;line-height:17px" title="kew epic continue go-live-2026-09 SFD-232">kew epic continue go-live-2026-09 SFD-232</code>
+      <button class="btn primary" type="button" style="margin-top:auto;height:40px;justify-content:center">Copy command <span class="kbd">c</span></button>
+    </div>
+  </section>
+</div>
+</body>
+</html>

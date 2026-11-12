@@ -1,0 +1,47 @@
+{
+  "node_id": "6690a7f4:3",
+  "text": "artifact sha256:a6690a7f40000000000000000000000000000000000000000000000000000000\nbase 6690a7f46690a7f46690a7f46690a7f46690a7f4\ntree 4f7a09664f7a09664f7a09664f7a09664f7a0966\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0f6690a7f4000000000000000000000000000000000000000000000000000000 93 src/ledger/exact_decimal_amounts_in_every_c.py\nchanged 100644 sha256:1f6690a7f4000000000000000000000000000000000000000000000000000000 99 tests/test_exact_decimal_amounts_in_every_c.py\n",
+  "run_id": "6690a7f4",
+  "attempt_number": 1,
+  "base_sha": "6690a7f46690a7f46690a7f46690a7f46690a7f4",
+  "tree_sha": "4f7a09664f7a09664f7a09664f7a09664f7a0966",
+  "package_digest": "sha256:a6690a7f40000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:r6690a7f40000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/exact_decimal_amounts_in_every_c.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0f6690a7f4000000000000000000000000000000000000000000000000000000",
+      "byte_length": 93,
+      "text": "\"\"\"Store amounts as integer minor units with an ISO currency code, so no sum ever rounds.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_exact_decimal_amounts_in_every_c.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1f6690a7f4000000000000000000000000000000000000000000000000000000",
+      "byte_length": 99,
+      "text": "def test_exact_decimal_amounts_in_every_c():\n    \"\"\"adding 0.10 three times gives exactly 0.30.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

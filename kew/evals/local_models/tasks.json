@@ -1,0 +1,24 @@
+[
+  {
+    "id": "implement_add",
+    "prompt": "The file mathutils.py has an add() function that raises NotImplementedError. Implement it so it returns the sum of its two arguments. Then call the finish tool.",
+    "setup": {
+      "mathutils.py": "def add(a, b):\n    raise NotImplementedError\n"
+    },
+    "check": "python3 -c \"import mathutils; assert mathutils.add(2, 3) == 5; assert mathutils.add(-1, 1) == 0\""
+  },
+  {
+    "id": "fix_reverse_bug",
+    "prompt": "stringutils.py has a reverse() function that is supposed to reverse a string but currently returns it unchanged. Fix the bug so reverse('abc') == 'cba'. Then call finish.",
+    "setup": {
+      "stringutils.py": "def reverse(s):\n    # BUG: returns the string unchanged\n    return s\n"
+    },
+    "check": "python3 -c \"import stringutils; assert stringutils.reverse('abc') == 'cba'; assert stringutils.reverse('') == ''\""
+  },
+  {
+    "id": "create_fizzbuzz",
+    "prompt": "Create a new file fizzbuzz.py with a function fizzbuzz(n) that returns 'Fizz' if n is divisible by 3, 'Buzz' if divisible by 5, 'FizzBuzz' if divisible by both, and str(n) otherwise. Then call finish.",
+    "setup": {},
+    "check": "python3 -c \"import fizzbuzz as f; assert f.fizzbuzz(3)=='Fizz'; assert f.fizzbuzz(5)=='Buzz'; assert f.fizzbuzz(15)=='FizzBuzz'; assert f.fizzbuzz(7)=='7'\""
+  }
+]

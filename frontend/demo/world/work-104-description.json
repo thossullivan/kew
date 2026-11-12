@@ -1,0 +1,13 @@
+{
+  "item_id": "104",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Account balance query",
+  "url": "https://github.com/acme/ledger/issues/104",
+  "description": "Answer the balance of an account as of any date from the journal.",
+  "expected": "the balance matches the sample statement on every day.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

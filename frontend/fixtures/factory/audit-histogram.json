@@ -1,0 +1,572 @@
+{
+  "since": "2026-10-02T14:15:00+00:00",
+  "until": "2026-10-03T14:15:00+00:00",
+  "bucket_s": 900,
+  "buckets": [
+    {
+      "start": "2026-10-02T14:15:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 3,
+        "review_outcome": 2
+      }
+    },
+    {
+      "start": "2026-10-02T14:30:00+00:00",
+      "counts": {
+        "dispatch_completed": 3,
+        "review_outcome": 1
+      }
+    },
+    {
+      "start": "2026-10-02T14:45:00+00:00",
+      "counts": {
+        "dispatch_completed": 3,
+        "epic_node_status": 3,
+        "publication_output_scan": 3
+      }
+    },
+    {
+      "start": "2026-10-02T15:00:00+00:00",
+      "counts": {
+        "epic_node_status": 4,
+        "runner_progress": 5,
+        "sandbox_resolved": 1,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-02T15:15:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 6,
+        "epic_node_status": 2,
+        "adversarial_review_verdict": 1
+      }
+    },
+    {
+      "start": "2026-10-02T15:30:00+00:00",
+      "counts": {
+        "runner_progress": 6,
+        "epic_node_status": 6,
+        "publication_output_scan": 3,
+        "runner_usage": 3
+      }
+    },
+    {
+      "start": "2026-10-02T15:45:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 4,
+        "publication_output_scan": 4,
+        "budget_exhausted": 3
+      }
+    },
+    {
+      "start": "2026-10-02T16:00:00+00:00",
+      "counts": {
+        "dispatch_completed": 6,
+        "runner_progress": 5,
+        "sandbox_resolved": 3
+      }
+    },
+    {
+      "start": "2026-10-02T16:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T16:30:00+00:00",
+      "counts": {
+        "dispatch_completed": 1,
+        "runner_progress": 3,
+        "runner_usage": 3
+      }
+    },
+    {
+      "start": "2026-10-02T16:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T17:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T17:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T17:30:00+00:00",
+      "counts": {
+        "dispatch_completed": 1,
+        "dispatch_owner_recorded": 1,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-02T17:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T18:00:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 2,
+        "review_outcome": 1
+      }
+    },
+    {
+      "start": "2026-10-02T18:15:00+00:00",
+      "counts": {
+        "dispatch_completed": 2,
+        "publication_output_scan": 1
+      }
+    },
+    {
+      "start": "2026-10-02T18:30:00+00:00",
+      "counts": {
+        "epic_node_status": 2,
+        "dispatch_completed": 3,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-02T18:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T19:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T19:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T19:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T19:45:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 3,
+        "epic_node_status": 1,
+        "sandbox_resolved": 1
+      }
+    },
+    {
+      "start": "2026-10-02T20:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T20:15:00+00:00",
+      "counts": {
+        "runner_progress": 1,
+        "epic_node_status": 3
+      }
+    },
+    {
+      "start": "2026-10-02T20:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T20:45:00+00:00",
+      "counts": {
+        "epic_node_status": 2,
+        "adversarial_review_verdict": 2
+      }
+    },
+    {
+      "start": "2026-10-02T21:00:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 3,
+        "sandbox_resolved": 1
+      }
+    },
+    {
+      "start": "2026-10-02T21:15:00+00:00",
+      "counts": {
+        "epic_node_status": 3,
+        "dispatch_owner_recorded": 3,
+        "publication_output_scan": 1
+      }
+    },
+    {
+      "start": "2026-10-02T21:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T21:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T22:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T22:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T22:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T22:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T23:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-02T23:15:00+00:00",
+      "counts": {
+        "runner_progress": 3,
+        "adversarial_review_verdict": 2
+      }
+    },
+    {
+      "start": "2026-10-02T23:30:00+00:00",
+      "counts": {
+        "epic_node_status": 3,
+        "dispatch_completed": 3,
+        "sandbox_resolved": 1,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-02T23:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T00:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T00:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T00:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T00:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T01:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T01:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T01:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T01:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T02:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T02:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T02:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T02:45:00+00:00",
+      "counts": {
+        "dispatch_completed": 1
+      }
+    },
+    {
+      "start": "2026-10-03T03:00:00+00:00",
+      "counts": {
+        "dispatch_completed": 2
+      }
+    },
+    {
+      "start": "2026-10-03T03:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T03:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T03:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T04:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T04:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T04:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T04:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T05:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T05:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T05:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T05:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T06:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T06:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T06:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T06:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T07:00:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T07:15:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 2,
+        "publication_output_scan": 2
+      }
+    },
+    {
+      "start": "2026-10-03T07:30:00+00:00",
+      "counts": {
+        "runner_progress": 6,
+        "epic_node_status": 2,
+        "adversarial_review_verdict": 3
+      }
+    },
+    {
+      "start": "2026-10-03T07:45:00+00:00",
+      "counts": {
+        "epic_node_status": 5,
+        "dispatch_completed": 2,
+        "adversarial_review_verdict": 1
+      }
+    },
+    {
+      "start": "2026-10-03T08:00:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 2,
+        "epic_node_status": 1,
+        "adversarial_review_verdict": 4
+      }
+    },
+    {
+      "start": "2026-10-03T08:15:00+00:00",
+      "counts": {
+        "dispatch_completed": 1,
+        "publication_output_scan": 1,
+        "runner_usage": 3
+      }
+    },
+    {
+      "start": "2026-10-03T08:30:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 5,
+        "epic_node_status": 4,
+        "adversarial_review_verdict": 4
+      }
+    },
+    {
+      "start": "2026-10-03T08:45:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 4,
+        "publication_output_scan": 1,
+        "runner_usage": 1,
+        "approval_hold": 2
+      }
+    },
+    {
+      "start": "2026-10-03T09:00:00+00:00",
+      "counts": {
+        "epic_node_status": 1,
+        "dispatch_completed": 4,
+        "sandbox_resolved": 2
+      }
+    },
+    {
+      "start": "2026-10-03T09:15:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 6,
+        "dispatch_completed": 1,
+        "adversarial_review_verdict": 4,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-03T09:30:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 6,
+        "review_outcome": 1,
+        "budget_exhausted": 3
+      }
+    },
+    {
+      "start": "2026-10-03T09:45:00+00:00",
+      "counts": {
+        "dispatch_completed": 4,
+        "dispatch_owner_recorded": 4,
+        "adversarial_review_verdict": 2
+      }
+    },
+    {
+      "start": "2026-10-03T10:00:00+00:00",
+      "counts": {
+        "epic_node_status": 4,
+        "dispatch_owner_recorded": 3,
+        "adversarial_review_verdict": 2,
+        "budget_exhausted": 3
+      }
+    },
+    {
+      "start": "2026-10-03T10:15:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T10:30:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T10:45:00+00:00",
+      "counts": {
+        "epic_node_status": 1,
+        "adversarial_review_verdict": 1
+      }
+    },
+    {
+      "start": "2026-10-03T11:00:00+00:00",
+      "counts": {
+        "runner_progress": 2,
+        "epic_node_status": 2,
+        "sandbox_resolved": 2
+      }
+    },
+    {
+      "start": "2026-10-03T11:15:00+00:00",
+      "counts": {
+        "dispatch_completed": 3
+      }
+    },
+    {
+      "start": "2026-10-03T11:30:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 1
+      }
+    },
+    {
+      "start": "2026-10-03T11:45:00+00:00",
+      "counts": {}
+    },
+    {
+      "start": "2026-10-03T12:00:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 3,
+        "adversarial_review_verdict": 1
+      }
+    },
+    {
+      "start": "2026-10-03T12:15:00+00:00",
+      "counts": {
+        "epic_node_status": 2,
+        "dispatch_completed": 2,
+        "publication_output_scan": 4,
+        "budget_exhausted": 1
+      }
+    },
+    {
+      "start": "2026-10-03T12:30:00+00:00",
+      "counts": {
+        "runner_progress": 6,
+        "sandbox_resolved": 1,
+        "budget_exhausted": 3
+      }
+    },
+    {
+      "start": "2026-10-03T12:45:00+00:00",
+      "counts": {
+        "dispatch_owner_recorded": 5,
+        "dispatch_completed": 5,
+        "publication_output_scan": 4,
+        "runner_usage": 1
+      }
+    },
+    {
+      "start": "2026-10-03T13:00:00+00:00",
+      "counts": {
+        "dispatch_completed": 6,
+        "dispatch_owner_recorded": 4,
+        "review_outcome": 2,
+        "budget_exhausted": 3
+      }
+    },
+    {
+      "start": "2026-10-03T13:15:00+00:00",
+      "counts": {
+        "runner_progress": 3,
+        "dispatch_completed": 5,
+        "publication_output_scan": 2,
+        "runner_usage": 2
+      }
+    },
+    {
+      "start": "2026-10-03T13:30:00+00:00",
+      "counts": {
+        "dispatch_completed": 3,
+        "runner_progress": 4,
+        "sandbox_resolved": 2,
+        "runner_usage": 2,
+        "approval_hold": 1
+      }
+    },
+    {
+      "start": "2026-10-03T13:45:00+00:00",
+      "counts": {
+        "dispatch_completed": 2,
+        "runner_progress": 2,
+        "sandbox_resolved": 3
+      }
+    },
+    {
+      "start": "2026-10-03T14:00:00+00:00",
+      "counts": {
+        "epic_node_status": 5,
+        "adversarial_review_verdict": 1
+      }
+    }
+  ],
+  "total": 352
+}

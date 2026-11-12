@@ -1,0 +1,65 @@
+{
+  "events": [
+    {
+      "id": 5,
+      "timestamp": "2026-09-24T15:46:58+00:00",
+      "event": "dispatch_completed",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "f5dcb6a5",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "run f5dcb6a5 \u00b7 success \u00b7 PR #2059",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-09-24T15:46:54+00:00",
+      "event": "publication_output_scan",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "f5dcb6a5",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "clean \u00b7 3670e43f",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-09-24T15:46:50+00:00",
+      "event": "publication_posture",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "f5dcb6a5",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "canonical",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-09-24T15:24:15+00:00",
+      "event": "sandbox_resolved",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "f5dcb6a5",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "sandboxed",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 1,
+      "timestamp": "2026-09-24T15:23:18+00:00",
+      "event": "approval_hold",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": null,
+      "actor_type": "policy",
+      "actor_id": "budget",
+      "summary": "dispatch refused \u00b7 budget_exceeded (weekly)",
+      "epic_ref": "launch-fixes"
+    }
+  ],
+  "next_after": null
+}

@@ -1,0 +1,1803 @@
+[
+  {
+    "page": "audit.md",
+    "claim": "- `kew audit verify [--anchors PATH] [--json]` \u2014 verify chain integrity. Exit `<code>` intact (and for an empty log), `<code>` tamper detected, `<code>` cannot run (no database, or an unreadable `--anchors` file).",
+    "bindings": [
+      "audit::Intact chain, including empty log",
+      "audit::Tamper, anchor, or policy findings",
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "audit.md",
+    "claim": "Each current v2 anchor line carries `{version, ledger_id, id, entry_hash, count, timestamp, prev}`. The `ledger_id` binds the anchor history to one audit database. Verification refuses a v2 anchor from another ledger with `WRONG-LEDGER`. The database also binds this identity to its canonical project root. A copied database opened under another project root therefore fails as a ledger fork: the managed open refuses with `WRONG-LEDGER: registry/database mismatch`, `WRONG-LEDGER: registry project mismatch`, `WRONG-LEDGER: configured path mismatch` (a second checkout of the same repository pointing at a copy), or `REGISTRY-MISSING-FOR-IDENTITY` (exit <code>) before any audit row is read.",
+    "bindings": [
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "authentication.md",
+    "claim": "Set `OPENROUTER_PROVISIONING_KEY` on the host to enable bounded keys for direct OpenRouter runs. Kew forwards only the issued `OPENROUTER_API_KEY` by name for that launch. Kew never forwards, logs, or stores the provisioning value. The key uses a finite no-reset dollar limit and a UTC expiry. Foreground runs revoke it at run end and record its identity and bounds only. The epic driver mints detached keys in the parent and revokes them on subsequent ticks. Children never receive provisioning authority. Expiry bounds revocation failures when no driver returns. See [sandbox credentials](cli/sandbox.md#bounded-openrouter-credentials) for the exact budget and timeout rules. Raw ambient `env:` credentials publish only a head the host scanned clean immediately before the push. Uncontained/native host runs routed directly through OpenRouter are refused without provisioning, like contained runs; the ambient `OPENROUTER_API_KEY` never enters a child process. Their host boundary is the operator's own machine. Contained direct OpenRouter runs require host `OPENROUTER_PROVISIONING_KEY` before launch. Missing provisioning causes `OpenRouter provisioning key required for direct routes` and exit <code>. See [OpenRouter setup](runners/openrouter.md#setup) to configure the provisioning key. Direct OpenRouter epic and delegation runs require a parent provisioning key. Native Claude, native Codex, and Switchyard routes require no bounded key or issued-key marker. The standalone delegation watcher reconciles keys each pass and on exit. Generic helpers never inherit an issued bounded key or its marker. The sandbox smoke command still requires an existing inference key.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/approve.md",
+    "claim": "Both are **idempotent** (keyed on the label) and **fail loudly** (exit <code>) if the run-store db is absent \u2014 a release that can't be audited must not silently succeed.",
+    "bindings": [
+      "approve::Authorization refusal"
+    ]
+  },
+  {
+    "page": "cli/audit.md",
+    "claim": "- **`HASH`** \u2014 prints the retained snapshot and its `first_seen` timestamp for that policy. Exit <code> if the hash was never retained. Exit <code> applies when the database or its valid registration is unavailable or mismatched.",
+    "bindings": [
+      "audit::Tamper, anchor, or policy findings",
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "cli/audit.md",
+    "claim": "Anchoring is a **read**: the database is opened read-only through the managed ledger boundary, so an anchor run never creates, registers, or migrates a ledger. The database it reads is the one the *selected project* configures \u2014 `--project` / `KEW_PROJECT` first, then the discovered `kew.toml`. An unregistered database, a registration whose database is gone, or a project/ledger mismatch is exit `<code>` and writes no anchor.",
+    "bindings": [
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "cli/audit.md",
+    "claim": "Exit codes: `<code>` chain intact (and for an empty log) \u00b7 `<code>` tamper detected (broken link; an in-range anchor mismatch/absent row; count-shrink or a stale/lagging anchor beyond the staleness window; or re-chained anchor history) \u00b7 `<code>` cannot run (missing or invalid ledger registration, missing database, project/ledger mismatch, or an unreadable `--anchors` file).",
+    "bindings": [
+      "audit::Intact chain, including empty log",
+      "audit::Tamper, anchor, or policy findings",
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "cli/audit.md",
+    "claim": "Verification opens the selected project's registered ledger read-only through the managed ledger boundary. It cannot create, register, or migrate a ledger. An unregistered ledger, a registration whose database is gone, or a mismatch causes exit `<code>`.",
+    "bindings": [
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "cli/backup.md",
+    "claim": "| `<code>` | Archive written successfully. |",
+    "bindings": [
+      "backup::Archive written"
+    ]
+  },
+  {
+    "page": "cli/backup.md",
+    "claim": "| `<code>` | No database found at the configured path. |",
+    "bindings": [
+      "backup::Missing database"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "- **GitHub-hosted**: installs claude via npm and authenticates it with the optional `ANTHROPIC_API_KEY` secret \u2014 claude-code only. opencode needs provider auth that a clean box lacks, so it reports `skip` (exit <code>), not a false alarm.",
+    "bindings": [
+      "canary::Runner unavailable or incomplete check without drift"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "Exit precedence is drift (exit <code>), then incomplete (exit <code>), then success (exit <code>). Both standard and resumed Codex paths check session deletion; resume additionally requires a tree-clean result.",
+    "bindings": [
+      "canary::Runner verification drift",
+      "canary::Runner unavailable or incomplete check without drift",
+      "canary::Every requested runner passed"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "```bash kew canary # human table; exit <code>/<code>/<code> kew canary --runner claude-code --runner opencode # repeatable (default: both) kew canary --json # machine-readable JSON (stdout only) kew canary --record DIR # write each runner's raw stream to DIR/<runner>.jsonl kew canary --runner codex --model gpt-5.6-sol kew canary --runner codex --model gpt-5.6-sol --exercise-resume",
+    "bindings": [
+      "canary::Every requested runner passed",
+      "canary::Runner verification drift",
+      "canary::Runner unavailable or incomplete check without drift"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "| `<code>` | a runner couldn't run (binary missing / unauthenticated / vendor blip) and no drift \u2014 **incomplete**, not an alarm. |",
+    "bindings": [
+      "canary::Runner unavailable or incomplete check without drift"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "| `<code>` | a runner ran and a check failed \u2014 **drift** (the nightly files a `canary` issue and goes red). |",
+    "bindings": [
+      "canary::Runner verification drift"
+    ]
+  },
+  {
+    "page": "cli/canary.md",
+    "claim": "| `<code>` | every requested runner ran and all checks passed (full attestation). |",
+    "bindings": [
+      "canary::Every requested runner passed"
+    ]
+  },
+  {
+    "page": "cli/ci-fix.md",
+    "claim": "| `<code>` | Fix completed; no CI repair needed. |",
+    "bindings": [
+      "ci-fix::Successful dispatch"
+    ]
+  },
+  {
+    "page": "cli/ci-fix.md",
+    "claim": "| `<code>` | PR lookup query failure; unavailable CI logs; preparation failure; configuration failure. |",
+    "bindings": [
+      "ci-fix::Preparation failure"
+    ]
+  },
+  {
+    "page": "cli/ci-fix.md",
+    "claim": "| `<code>` | Runner or publication failure. |",
+    "bindings": [
+      "ci-fix::Reported dispatch failure"
+    ]
+  },
+  {
+    "page": "cli/delegate.md",
+    "claim": "| `<code>` | Clean shutdown (Ctrl-C). |",
+    "bindings": [
+      "delegate::Clean watcher shutdown"
+    ]
+  },
+  {
+    "page": "cli/delegate.md",
+    "claim": "| `<code>` | Misconfiguration (`tracker.type` not `linear`, `delegation.assignee` not set). |",
+    "bindings": [
+      "delegate::Invalid tracker or missing assignee"
+    ]
+  },
+  {
+    "page": "cli/delegate.md",
+    "claim": "| `<code>` | `LINEAR_API_KEY` not set at startup, or Linear authentication failed at runtime (expired/revoked key) \u2014 the watcher terminates loudly rather than retrying forever (#971). |",
+    "bindings": [
+      "delegate::unavailable Linear authentication"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "**`kew dispatch <issue> --loop` applies none of these three checks.** It reads the named issue directly and starts the loop whatever its labels say, so it will dispatch an issue that is not `ready` or one another run has already claimed, and it never reads the remote branch. It also takes no label claim, so it leaves no `in-progress` marker for a later dispatch to refuse on. A loop's only duplicate guard is the host-local checkout claim: a second loop over the same checkout **on this host** refuses with exit class <code>, while a loop started on another host is not guarded at all. Check the labels yourself before running `kew dispatch <issue> --loop`.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "- **Agent containment:** a loop's agent runs on the host; kew has no contained loop launch. A runner that does not contain itself needs `[sandbox] dangerously_skip_containment = true`. Without it the loop refuses before any checkout or agent work and returns exit class <code>. See [`kew loop`](loop.md) for the refusal evidence (#1977).",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "- **Verification admission:** Command verification runs contained when a local runtime and approved runner image are available. New dispatches select the issue, resolve the route, and save the initial loop record first. The driver checks admission before worktree setup or subprocess execution against project files. Missing prerequisites require `[sandbox] dangerously_skip_containment = true` for host fallback. Refusal records `needs_human` under #1444 and returns exit class <code>. Checkout publication still requires dangerous admission for local Git operations. See [`kew loop`](loop.md) for the containment and resume rules.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "Host admission retries identity capture three times. Missing owner tokens refuse admission with `owner-identity-unavailable`. The operator message names the platform and its inability to provide verified kernel process identity. Missing attempt tokens produce `spawn_registration_failed` with `attempt-identity-unavailable`. A missing owner token at registration produces the same event with `owner-identity-unavailable`. The child remains behind the gate and terminates without executing work. The run becomes `refused` with exit code <code> and `not-run` accounting for an initial refusal. Its reservation is released using the run identity. Container execution keeps its durable container identity path.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "Refusing the one issue named on the command line means nothing ran, so `kew dispatch <issue>` exits <code> \u2014 with or without `--dry-run`. An empty ready queue is a different outcome: [`kew run`](run.md) exits <code> when it finds no work, and so does a queue-selected issue lost to a concurrent claim.",
+    "bindings": [
+      "dispatch::admission refusal for a named issue",
+      "run::empty queue"
+    ]
+  },
+  {
+    "page": "cli/dispatch.md",
+    "claim": "`--dry-run`, `--show-prompt`, `--model`, `--approve` and `--force-budget` apply to single-shot dispatch only. Combined with `--loop` they are refused with exit class <code>.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "- **stale / issue** \u2014 a problem was found; `kew doctor` exits `<code>` and prints a safe fix. Kew-owned agent tags get exact rebuild commands. Custom tags do not.",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "Failed or incomplete reads produce an `inventory unknown` warning. That warning never includes a trusted stale-tag list. Every `retained-agent-tags` warning exits `<code>`, including `inventory unknown`. Check the configured runtime availability and permissions. Inspect the inventory error reported by `kew doctor`. Then rerun `kew doctor`. These diagnostic steps do not change container runtime state. The check runs for native routes when the configured runtime exists. It never performs a live readiness probe. It never queries a registry.",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "The three containment checks never skip silently. Each prints `PASS`, `WARN`, or `FAIL` with a reason. A native route prints `PASS` because containers are not needed on that route. An admitted host route prints `WARN` and exits `<code>`. A fail-closed route prints its stable refusal reason and its configuration fix.",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "```bash kew doctor # human-readable checks; exit <code> clean / <code> issue found kew doctor --json # the same checks as one JSON document on stdout kew doctor route-live-confirm --yes # spends up to $0.02 on ONE bounded call",
+    "bindings": [
+      "doctor::Checks passed or skipped",
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `<code>` | Boundary confirmed live. |",
+    "bindings": [
+      "doctor::live boundary confirmed"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `<code>` | Completed probe refuted the boundary. |",
+    "bindings": [
+      "doctor::live probe refuted boundary"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `<code>` | Probe refused; spend confirmation declined. |",
+    "bindings": [
+      "doctor::Live confirmation refused or declined"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `anchor-age` | How old the newest anchor timestamp in `audit-anchors.jsonl` is (the maximum, whatever the line order), against `[audit] anchor_max_age_days` (default 7 days). Chain verification cannot raise this alarm: a chain nobody has anchored for a month still verifies perfectly, so a dead anchor workflow is invisible to `kew audit verify` (#1408). Warns (exit `<code>`) with the timestamp the chain has been unwitnessed since. Skipped \u2014 never passed \u2014 when there is no anchors file, the file cannot be parsed, no anchor carries a readable timestamp, or the threshold is `<code>`. |",
+    "bindings": [
+      "doctor::Diagnostic findings",
+      {
+        "non_public_value": 0,
+        "reason": "Configuration threshold that disables the anchor-age alarm."
+      }
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `container-runtime` | The configured `[sandbox] runtime` binary is on `PATH`. It also verifies that `<runtime> info` responds within five seconds. A failure exits `<code>` and explains how to install a runtime or admit host execution. |",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/doctor.md",
+    "claim": "| `reservations` | No pseudo-epic reservation (delegation or review) is pinned \u2014 a reservation whose run has ended (or whose dispatch never started) still holds a fleet slot. A slot leaks when `kew delegate watch` dies after dispatching but before releasing; the leaked slot counts against the fleet cap forever. This warns (exit `<code>`) only once the reservation has sat unreleased past a grace, so the healthy window between a run finishing and the watcher's next sweep is not flagged. The hint points at `kew epic run <epic>` (any driver tick sweeps them) or restarting the watcher. Skipped when there's no dispatch database yet; the database is opened **read-only** so the check never migrates it, and is skipped (not crashed) when the database is a newer schema, an older schema that predates delegation reservations, or otherwise unreadable. |",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "cli/drive.md",
+    "claim": "A heartbeat whose ledger open is refused (the open names why, for example a ledger schema newer than this kew) is not retried forever: after 3 refusals in a row the heartbeat gives up. When the ledger's schema is newer than this drive's, or the drive's own kew has changed, the drive ends through the restart below; otherwise it reports itself lost and exits <code>. A drive that exits on its own like this records why, and `kew drive status` prints that record under the last heartbeat: the pid, the exit code, how long ago and the reason, for example `kew changed under the drive: restarting; \u2026` (`--json`: `exit`, with `code`, `reason`, `pid` and `at`).",
+    "bindings": [
+      "drive::missing or unusable ledger"
+    ]
+  },
+  {
+    "page": "cli/drive.md",
+    "claim": "When the ledger's schema is newer than this drive's but its own identity has not changed (a pinned drive whose `--kew-binary` children run a newer kew), a re-exec would load the same code and refuse the same ledger. The drive then launches nothing new, raises `ledger schema N is newer than this drive's M and the drive's own kew has not changed: upgrade the kew the drive runs`, lets the running tick finish, records that reason and exits <code>. Upgrade the kew the drive runs, then start it again.",
+    "bindings": [
+      "drive::missing or unusable ledger"
+    ]
+  },
+  {
+    "page": "cli/drive.md",
+    "claim": "If the re-exec fails, the drive records why, `kew drive status` names it, and it exits <code>. The launchd agent `kew drive install` writes restarts only an abnormal exit (`KeepAlive` `{\"SuccessfulExit\": false}`), so it starts the drive again on the new code.",
+    "bindings": [
+      "drive::missing or changed kew binary"
+    ]
+  },
+  {
+    "page": "cli/drive.md",
+    "claim": "A refusal for a newer ledger schema \u2014 this one, or the same refusal at the ledger open of a drive that starts on a too-old kew \u2014 is also written to `drive-refusal.json` beside the ledger, naming the reason, both schema numbers and the drive's code identity: the refused drive cannot write to the ledger it refuses. The first refusal exits <code> as above. A start that finds the same refusal recorded within the last 10 minutes, on the same code identity, prints it and exits <code>, so launchd leaves the drive down instead of restarting it every ten seconds. `kew drive status` prints that refusal and its fix: upgrade the kew the drive runs, then `kew drive install`, or run `kew drive` by hand. A drive whose kew changed (a new code identity) refuses on exit <code> again; a start the ledger does not refuse, and `kew drive install`, clear the record.",
+    "bindings": [
+      "drive::missing or unusable ledger",
+      "drive::a start that repeats a recorded schema refusal stays down",
+      "drive::missing or unusable ledger"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "**Amending a running epic.** `--amend` appends new nodes to an existing epic through the same governed pipeline. New `local_id`s must not collide with the epic's existing node ids, the `<=10 target_files` dispatchability gate still applies, and `depends_on` may reference either other new nodes or the numbers of existing epic issues \u2014 kew writes `<!-- kew:depends -->` markers for both, adds the new nodes as sub-issues of the epic's container issue and records their `blocked_by` relations, then re-validates the merged graph after creation. Amending an epic that has no accepted container creates a marked container. Kew attempts to add every existing node before adding the new nodes. The read-back gate exits with code <code> when a successful read lacks any expected node. An unrelated local parent is not reused. A foreign parent stops the read and must be fixed before amendment.",
+    "bindings": [
+      "epic::graph or node findings"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "**Both keys, for one release.** `epic plan` keeps writing the `epic:<name>` label and the `<!-- kew:depends -->` marker alongside the sub-issue and `blocked_by` relations. The overlap is deliberate and temporary: it is what lets a repository whose API has no relations \u2014 or one planned by an older kew \u2014 keep reading the same epic. The native writes run after issue creation. Each write failure is printed. Edge reads use the union above, so a partial `blocked_by` write retains marker blockers. Membership has no equivalent union. The mandatory read-back gate requires every existing and newly created node. A missing node exits with code <code> and names the required repair. The native writes have shipped; the marker has not been dropped yet. The release that drops it ends the overlap, removes the marker half from edge reads, and stops writing new markers.",
+    "bindings": [
+      "epic::graph or node findings"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **<code>**: the continuation was abandoned.",
+    "bindings": [
+      "epic::successful graph operation"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **<code>**: the verb could not run, including a missing ledger, unknown target, or missing authority. Missing or blank reasons also exit **<code>**.",
+    "bindings": [
+      "epic::missing driver prerequisite",
+      "epic::missing driver prerequisite"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **<code>**: the verb ran and refused; the output states the refusal.",
+    "bindings": [
+      "epic::graph or node findings"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **Fail fast, no retry:** a TLS failure, an authentication failure (401/403), any other 4xx and a Linear GraphQL error **error (exit <code>)** as `linear-auth` (fix the key) or `linear-error` (fix the cause). Retrying a client-side error only wastes time.",
+    "bindings": [
+      "epic::configuration failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **Not retried, `linear-outcome-unknown`:** a 5xx or edge-429 reply to a Linear write. The write may have applied behind the error, and sending it again could duplicate it. A claim made by the dispatch child records the unknown outcome, then kew verifies the claim against Linear and retains it instead of launching an agent. A write made by the tick itself, such as a close, **errors (exit <code>)** saying the outcome is unknown: check the item's state, assignee and comments in Linear, then re-run; the next tick re-reads the item first.",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **Pinned identity.** The tracker type, project repo, dispatch DB, and lock path are fixed at launch \u2014 a live driver retargeting any of them would abandon its reservations and its lock. A reload that changes one **exits <code>** and names the field with both values:",
+    "bindings": [
+      "epic::configuration failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **Retried, then `linear-error`:** Linear's own JSON rate-limit error that does not clear within the same budget **errors (exit <code>)**.",
+    "bindings": [
+      "epic::configuration failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **Retried, then `linear-unavailable`:** for a read, a DNS or connect failure, a timeout, a reset connection, any HTTP 5xx (including a gateway or Cloudflare 52x page) and a 429 that is not Linear's JSON rate-limit error; for a write, a DNS or connect failure before anything is sent, or a response lost in transit after sending. The client retries with bounded exponential backoff (~3 attempts); an outage that outlasts that budget **errors (exit <code>)** as `linear-unavailable`, a transient infrastructure blip to re-run once Linear recovers, not a stuck epic.",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **`complete`** \u2014 every node is DONE. Exits **<code>**.",
+    "bindings": [
+      "epic::Complete"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- **`stalled`** \u2014 the frontier is empty, nothing is in-flight, no hold is live, and work remains that needs an operator. Exits **<code>**, with the stuck-node blast radius printed, so it never loops forever on a dead DAG.",
+    "bindings": [
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- At least one event was emitted \u2014 there is something for you. Exits **<code>**.",
+    "bindings": [
+      "epic::Watch emitted an operator-attention event"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- Nobody was waited on. Exits **<code>**.",
+    "bindings": [
+      "epic::Watch found nobody waiting"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "- The epic could not be read. Exits **<code>**.",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "A `--follow` watch that reaches its `--timeout` with no event says so and exits **<code>** \u2014 it ran and found nothing, which is not the same as not running. Ctrl-C ends it the same way, reporting what it found rather than a traceback.",
+    "bindings": [
+      "epic::Watch found nobody waiting"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "A node the driver is actually **holding** is refused: retry exits **<code>** with `held (<reason>): retry cannot clear a hold \u2014 run kew epic unhold <epic> <item>` and records nothing \u2014 no marker, no label edit, no audit event. Admission state is not what a hold gates, so a retry that reported success used to leave the node HELD exactly as it found it (#2154). Release the hold first \u2014 see [Hold semantics](#hold-semantics-who-sets-and-who-clears-a-hold). Where the recovery needed retry's fresh round allowance rather than its admission reset \u2014 a `review_rounds_exhausted` hold \u2014 the release grants it: [`kew epic unhold`](#kew-epic-unhold-release-a-driver-hold) restarts the review cycle for that reason, so you never have to race the driver's next review pass with a retry. A node whose dirty work is preserved is refused the same way, pointing at `kew epic continue`.",
+    "bindings": [
+      "epic::Retry refused on a held node"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Retry authorizes new agent spend, so it binds the same approver gate as the console's retry and the TUI's: an actor outside `[approval].approvers` is refused with exit **<code>** and nothing is recorded \u2014 no marker, no reservation release, no label edit, no audit event. An approved retry's `epic_node_retry` event carries the bound policy hash.",
+    "bindings": [
+      "epic::Retry refused for a non-approver"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Every refusal exits **<code>** and merges nothing, naming which gate refused. The next `kew epic advance` reconciles the merged PR and closes the item, exactly as it does for a PR merged out of band.",
+    "bindings": [
+      "epic::Operator merge refused by a gate"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Exits **<code>** with a clear message when `<item>` is not a valid item id for the configured tracker, or when no hold exists for that epic/item.",
+    "bindings": [
+      "epic::missing driver prerequisite"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Exits **<code>** with nothing recorded when the reason is empty or longer than 16,000 characters, when the node is held (run `kew epic unhold` first), when its latest round is not READY, when it has no linked pull request, when its pull request is merged, closed or cannot be read, when its pull request's head moved since the READY review (wait for the drive to review the new head, then send it back), when a reviewer, remediation or dispatch holds its reservation, or when you are not in `[approval].approvers`. A send-back authorizes a remediation run, the same as a retry.",
+    "bindings": [
+      "epic::Send-back refused"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "If another live driver holds the epic's lock, `kew epic run` prints the holder and exits **<code>**. That driver keeps the epic moving.",
+    "bindings": [
+      "epic::Epic driven elsewhere"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "If the epic's tracker query resolves to **zero nodes** \u2014 a typo'd epic name, or running from a cwd wired to the wrong tracker \u2014 `advance` **errors (exit <code>)** naming the empty query (the GitHub label or the Linear project) instead of reporting `COMPLETE done=0 remaining=0`. A driver never declares success for work that does not exist; a legitimately-finished epic still reports `complete` via its non-empty DONE set.",
+    "bindings": [
+      "epic::missing driver prerequisite"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Like `kew epic advance`, if Linear is the tracker, any Linear API failure makes `kew epic run` **error (exit <code>)** with the same classified one-line diagnostic (`linear-unavailable` past the client's bounded retry, `linear-outcome-unknown`, or `linear-auth` / `linear-error`), never a traceback, and it never enters the poll loop.",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "On Linear, any API failure ends `status` **(exit <code>)** with the same classified one-line diagnostic as `kew epic advance` (`linear-unavailable`, `linear-auth` or `linear-error`), never a traceback.",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Planning retains launch evidence across re-split retries. A retry refusal after earlier execution returns `<code>`.",
+    "bindings": [
+      "epic::Planning execution or validation failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "Retry never starts an unsafe background process. If the epic lock is not held, it exits **<code>** with `no live driver \u2014 relaunch required: kew epic run <name>`; an active or indeterminate lock is treated as live. The retry is already recorded; relaunch the driver to act on it.",
+    "bindings": [
+      "epic::Retry recorded with no live driver"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "The aggregate exit code is the worst per-epic code. Any epic that needs repair makes `--all` exit **<code>**. Otherwise `--all` exits **<code>**: every epic is `complete` or driven elsewhere. See [Exit codes](#exit-codes).",
+    "bindings": [
+      "epic::Stalled with operator repair required",
+      "epic::Complete"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "The next driver tick can dispatch the node with a fresh checkout under normal admission rules. Abandon does not remove preserved files itself. The fresh dispatch can replace that checkout, so copy any wanted edits before abandoning. Fresh dispatch refuses active continuations across epics; use `kew epic continue` or `kew epic abandon` first. Filesystem identity prevents alias or relocation bypasses. Missing-path ownership applies only to the same item and branch, across epics. A completed continuation never blocks another item. Completion requires a terminal timestamp and a successful owner run. Other terminal continuations require `kew epic continue` or `kew epic abandon` before fresh dispatch. A pre-launch refused replacement requires matching checkout withdrawal evidence and cleared holds before another dispatch, even before run retention. An existing recorded checkout requires the same filesystem identity for replacement. When the recorded checkout is missing, abandonment can rebind only to the same item and branch. The candidate can use the same path or a different path. Setup creates an absent candidate and validates the generation of an existing candidate. A failed generation capture refuses replacement. The sibling `<checkout>.generation` sidecar stores JSON with `token`, `device`, and `inode` fields. The token remains 32 lowercase hexadecimal characters. Birth binding has two modes. With `st_birthtime`, reads validate device, inode, birth identity, and the in-checkout nonce. This mode records `birth_field` as `\"st_birthtime\"` and stores `birth_time`. Without an immutable birth identity, the sidecar records `birth_field` as `\"none\"` and omits `birth_time`. This mode validates device, inode, and the in-checkout nonce. The nonce inside the checkout provides a consistency check, never identity evidence. Reads ignore a recorded birth field when the current platform cannot read it. Those reads still validate device, inode, and the in-checkout nonce. Mutable directory timestamps never bind a generation. Immutable audit evidence stores device, inode, available birth identity, nonce, and token in `checkout_id` as canonical JSON. Resume, launch, publication, and base recording compare live kernel identity with that persisted evidence. The checkout lease holds a directory descriptor until the run ends, including failure paths. Each boundary validates `os.fstat(fd)` and `os.stat(path)` against the recorded binding. Restoration cannot bind a new checkout generation to an earlier run. A changed binding refuses before launch and requires fresh-dispatch recovery. No agent-writable file authorizes identity. See the [checkout binding boundary](../threat-model.md#checkout-binding-boundary). Creating, deleting, or renaming checkout root files preserves the generation. The `.git/kew-generation` file contains the same random token as the sibling sidecar. Immutable audit evidence holds the complete binding. The sidecar is a convenience copy. Missing, unreadable, or mismatched factors refuse recovery and replacement. Git metadata must remain a contained directory, and the nonce must remain a regular file. A recreated directory cannot authenticate through reused device and inode values alone. Token-only legacy sidecars refuse without validated abandonment authority. After `kew epic abandon`, fresh admission retires a token-only sidecar through the revocation helper before capture. Admission validates the continuation, item, branch, checkout scope, holds, and unconsumed authority before retirement. Replacement evidence records `legacy_sidecar_retired=true` when admission retires that sidecar. Remove the stale sidecar through kew's `revoke_checkout_generation` helper or run `kew epic abandon`. The revocation helper removes both the sibling sidecar and the in-checkout nonce without reading their contents. The next legitimate checkout creation mints a new bound token. An absent candidate has no generation until setup creates its directory. Missing-path authority refuses any directory that appears before setup validates that authority. The `checkout_replaced` event records `rebound_from` with the original recorded path. It also records `rebound_reason` as `\"recorded checkout missing\"`. Withdrawal evidence preserves these fields and the original continuation family. Validated replacement expiry consumes abandonment exactly once. Loop dispatch consumes abandonment authority like fresh dispatch, before its first step launches. Loops record replacement evidence and validated expiry under the loop run's identity. Loops retain the checkout generation captured during setup. Every paid attempt, including retries, validates that generation and its directory binding before launch. Host publication validates the same binding again after the worker returns. An identity mismatch refuses with exit code <code>. Refusal before the first worker launch still permits replacement withdrawal. Loop setup requires a run store and run identity for this transaction. An existing recorded checkout also prevents loop replacement at a different path. Pre-launch loop withdrawal records checkout removal without reopening consumed abandonment. An attempt that fails before expiry leaves abandonment available for another attempt. Replacement expiry still requires the recorded generation and abandonment authority. Abandon refuses continuing, successfully completed, or already abandoned continuations. Resume also accepts terminal continuations without proven success, subject to its existing checkout and owner checks. Already abandoned continuations need fresh dispatch; resume does not reopen them.",
+    "bindings": [
+      "loop::Loop operation refusal"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "This is where a hold fits the operator loop: a sticky hold makes `kew epic run` exit **<code>** (`stalled`, needs repair \u2014 see [Exit codes](#exit-codes)). `unhold` is the manual escape hatch when no automatic path clears the row \u2014 see [Hold semantics](#hold-semantics-who-sets-and-who-clears-a-hold) for the full set/clear map.",
+    "bindings": [
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "`--all` also skips any epic an operator has [archived](#kew-epic-archive-and-kew-epic-unarchive-retire-an-epic), with a one-line `(skipped: archived)` note naming `kew epic unarchive` as the way back. Like a foreign-tracker skip, an archived epic contributes to neither the STALLED classification nor the aggregate exit code. If every in-scope epic is archived, `--all` says so \u2014 naming the count and the reversing verb, so an empty run is never a silent one \u2014 and exits **<code>**.",
+    "bindings": [
+      "epic::no epic in scope"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "`--all` scopes itself to the **active project's tracker**. An epic whose recorded tracker differs from the configured `[tracker] type` \u2014 inferred from the shape of its recorded work-item ids (a numeric GitHub issue number vs. an opaque Linear key like `SFD-12`) \u2014 belongs to a different project and cannot be driven by the active tracker's sources. `--all` skips it with a one-line `(skipped: tracker=linear)` note. A skipped epic contributes to **neither** the STALLED classification **nor** the aggregate exit code \u2014 so a store that also holds seven complete Linear epics no longer makes a healthy GitHub run exit non-zero and demand an operator. An epic with no recorded items yet (freshly planned, never driven) has no inferable tracker and is driven under the active tracker rather than guessed away. If **no** discovered epic belongs to the active tracker, `--all` reports that nothing is in scope and exits **<code>**.",
+    "bindings": [
+      "epic::no epic in scope"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "`kew epic run --all` advances **every known epic** round-robin in a single poll loop: each tick advances each not-yet-terminal epic once, acquiring and releasing that epic's **own per-epic lock** \u2014 so two epics never lock each other out and can tick concurrently. A \"known\" epic is any epic recorded in the local run store \u2014 that includes freshly-planned epics (`kew epic plan` registers them at creation time) as well as epics with driver history. At startup `--all` logs the discovered roster and its discovery source (the local `dispatch.db`), so a missing epic is diagnosable from the output. Per-epic signals are reported per line, and the loop exits only when **all** epics are terminal. This replaces stacking one `kew epic run <name>` per epic. If an epic's lock is already held by another live driver, `--all` surfaces the holder and skips that epic (it's being driven elsewhere) while continuing to round-robin the rest. An epic whose query resolves **empty** is surfaced with its diagnostic and counted as needing an operator (contributing exit **<code>** to the aggregate) \u2014 it is never silently dropped or read as `complete`. A Linear failure hits every epic on the roster: each is surfaced with its classified one-line diagnostic (`linear-unavailable`, `linear-outcome-unknown`, `linear-auth` or `linear-error`) and marked as needing an operator (exit **<code>**), and the round-robin keeps processing the rest rather than aborting on a traceback.",
+    "bindings": [
+      "epic::Stalled with operator repair required",
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "`kew epic run` uses this signal to decide whether to keep polling (`complete` \u2192 exit <code>, `stalled` \u2192 exit non-zero, `awaiting_merges`/`progressing` \u2192 keep going). `awaiting_merges` prints a non-alarming line listing the pending PRs; a `stalled` tick exits **<code>** when a node needs operator repair \u2014 see [Exit codes](#exit-codes).",
+    "bindings": [
+      "epic::Complete",
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "`kew epic unhold` is the manual escape hatch for **either** row when a hold is stuck and no automatic path will clear it \u2014 see [`kew epic unhold`](#kew-epic-unhold-release-a-driver-hold). It is also the *only* operator command that clears one: [`kew epic retry`](#kew-epic-retry-re-admit-a-failed-node) refuses a held node (exit **<code>**, naming the reason) instead of re-admitting a node whose hold would still wedge it.",
+    "bindings": [
+      "epic::Retry refused on a held node"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | `complete` \u2014 every node is DONE. | Nothing remains. |",
+    "bindings": [
+      "epic::Complete"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | `linear-auth` / `linear-error` \u2014 Linear rejected the call (authentication, TLS, another 4xx, a GraphQL error or a rate limit that did not clear). Not transient. | Fix the key or the cause, then re-run. |",
+    "bindings": [
+      "epic::configuration failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | `linear-outcome-unknown` \u2014 a Linear write got a 5xx or edge-429 reply and may have applied. Not retried. | Check the item in Linear, then **re-run**. |",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | `linear-unavailable` \u2014 Linear's API stayed unreachable past the client's bounded retry. A transient blip, not operator repair. | **Re-run** once Linear recovers. |",
+    "bindings": [
+      "epic::Unavailable tracker"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | `stalled` with a **failed-terminal**, cancelled, held, or otherwise operator-repair node. | Repair the node(s) \u2014 e.g. `kew epic retry <name> <node>`, or [`kew epic unhold <name> <item>`](#kew-epic-unhold-release-a-driver-hold) to release a wedged hold \u2014 then re-run. |",
+    "bindings": [
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | nothing to decide: `archive` on an already-archived epic, or `unarchive` on one that is not archived. A second archive is not a second decision, and attesting it would put a change on the chain that changed nothing. |",
+    "bindings": [
+      "epic::Archive decision already in effect"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | the decision was recorded. |",
+    "bindings": [
+      "epic::Archive decision recorded"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| **<code>** | the epic is unknown to this ledger (a typo'd name would otherwise retire nothing), or there is no ledger at all. |",
+    "bindings": [
+      "epic::Archive target unknown to the ledger"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| `<code>` | Executed agent failure; manifest validation failure; export failure after execution; round-tripped graph validation failure |",
+    "bindings": [
+      "epic::Planning execution or validation failure"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| `<code>` | Missing prerequisite; checkout failure; containment refusal; runner preflight refusal; other pre-launch failure; post-creation GitHub query failure |",
+    "bindings": [
+      "epic::Planning pre-launch refusal"
+    ]
+  },
+  {
+    "page": "cli/epic.md",
+    "claim": "| `<code>` | Successful creation or dry-run validation |",
+    "bindings": [
+      "epic::Complete"
+    ]
+  },
+  {
+    "page": "cli/finalize.md",
+    "claim": "| `<code>` | Run finalized, or a reconciled run's head claimed. |",
+    "bindings": [
+      "finalize::Run finalized"
+    ]
+  },
+  {
+    "page": "cli/finalize.md",
+    "claim": "| `<code>` | The run state changed underneath the command before the finalization could commit. |",
+    "bindings": [
+      "finalize::Run state changed before the repair committed"
+    ]
+  },
+  {
+    "page": "cli/finalize.md",
+    "claim": "| `<code>` | Unknown run; a run in any state other than `awaiting_publication` that is not a reconciled run with no head claim; a reconciled run whose head could not be claimed; missing run id; configuration failure. |",
+    "bindings": [
+      "finalize::Unknown run or state other than awaiting_publication"
+    ]
+  },
+  {
+    "page": "cli/health.md",
+    "claim": "```bash kew health # human table; exit <code> healthy / <code> degraded / <code> can't read db kew health --json # machine-readable result for monitors/CI kew health --window 14 # retrospective window in days (default 7)",
+    "bindings": [
+      "health::Healthy checks, with advisory warnings allowed",
+      "health::Failed health checks",
+      "health::Missing or unreadable run store"
+    ]
+  },
+  {
+    "page": "cli/index.md",
+    "claim": "The [exit-code scheme](exit-codes.md) uses two axes: did it run, and what did it find? Code `<code>` means success without findings. Code `<code>` means findings or a performed repair. Code `<code>` means the command could not run.",
+    "bindings": [
+      "run::Successful dispatch",
+      "run::Reported dispatch findings or failure",
+      "run::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/ingest.md",
+    "claim": "| `<code>` | File ingested / receiver exited cleanly (Ctrl-C). |",
+    "bindings": [
+      "ingest::Metrics ingested"
+    ]
+  },
+  {
+    "page": "cli/ingest.md",
+    "claim": "| `<code>` | File missing, unreadable, or not valid JSON; ingestion failed; or `kew ingest serve` is disabled in config (`[ingest].enabled = false`). |",
+    "bindings": [
+      "ingest::Missing, unreadable, or invalid input"
+    ]
+  },
+  {
+    "page": "cli/kill.md",
+    "claim": "The result reports authenticated signalling, an exited attempt, or unverifiable identity. Unverifiable identity leaves stop intent recorded and returns exit code <code>. A missing run also returns exit code <code>.",
+    "bindings": [
+      "kill::Unverifiable process identity",
+      "kill::missing run"
+    ]
+  },
+  {
+    "page": "cli/loop.md",
+    "claim": "!!! note \"Command verification containment\" Command verification runs contained when prerequisites are present. Prerequisites are a local runtime and an approved image for the loop's runner. Kew resolves `[sandbox] images.<runner>`, or `[sandbox] image` for `claude-code`, to an immutable local image ID. The host path requires `[sandbox] dangerously_skip_containment = true` and missing prerequisites. `[sandbox] enabled = true` refuses missing prerequisites with exit code <code>. Verification prefers containment even when agent containment is disabled.",
+    "bindings": [
+      "loop::Loop operation refusal"
+    ]
+  },
+  {
+    "page": "cli/loop.md",
+    "claim": "!!! warning \"Agent containment\" Kew has no contained loop launch, so a loop's agent runs on the host. A runner that contains itself, such as official `codex`, runs under its own boundary. Any other runner needs `[sandbox] dangerously_skip_containment = true`. Without it, `kew dispatch --loop` and `kew loop resume` refuse with exit code <code>. The refusal names the flag and comes before any checkout, agent work, or spend. It records a `refused` run, a `sandbox_resolved` event with `posture = \"refused\"`, and a `dispatch_completed` event. An admitted host loop prints the uncontained banner before checkout. Its `sandbox_resolved` event records `posture = \"uncontained\"` and `admission = \"dangerously_skip_containment\"`. The finding is #1977.",
+    "bindings": [
+      "loop::Loop operation refusal"
+    ]
+  },
+  {
+    "page": "cli/loop.md",
+    "claim": "Canonical loops materialize the published commit in a host-owned checkout. Its independent clone keeps trusted Git metadata inside the mount without shared object hardlinks. Every preparation Git command disables global and system configuration. Preparation uses an empty scratch `HOME` and an empty `core.hooksPath` directory. Template-free repositories prevent external filter definitions from entering the checkout. Published hooks and attributes cannot execute host programs during preparation. `kew.loops.verification.CommandCondition.check` runs `/bin/sh -c` inside the approved image. It shares `build_checkout_program_argv` with extraction. It uses `--network none`, host UID/GID, resource caps, and no credential forwarding. HTTP, HTTPS, ALL, FTP, and NO proxy variables are blanked in both cases. The root and checkout are read-only by default. `[commands] verify_loop_needs_writes = true` permits writes to the disposable checkout. Only operator configuration can declare this requirement. Writable verification uses the dispatch checkout quotas: 4 GiB total and 500,000 entries. The host must retain at least 1 GiB of free space. The shared guard polls every two seconds, including quiet execution and closed output pipes. Large directory walks can delay the next aggregate check by up to 20 seconds. The free-space check continues every two seconds. A breach removes the container, fails verification, and records a `checkout-quota refusal` reason. The root stays read-only; `/tmp` provides bounded writable space. Contained verification has a 600-second maximum timeout, including any CPU-cap retry. Exit <code> passes; any non-zero exit fails. Verification records redacted stdout and stderr tails. Publication evidence sanitization removes host path ancestry before truncation and persistence. This applies to normal output, overflow evidence, and preparation errors. Both `status_reason` and `verification_checked` retain sanitized evidence. Each output stream has a 262,144-byte budget. Capture keeps the head and tail, with an omission marker between them. Overflow stops and removes the container and records an `output-budget refusal`. Both `dispatch --loop` and `loop resume` return <code> for executed verification failures. They print the `gate_failed` reason. Success returns <code>; a containment prerequisite refusal returns <code>. Records name `contained_verification` or `host_verification` and the image identity. Refusal records `refused_verification` and its reason.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Operator verification shell command status."
+      },
+      "loop::Resume needs human or failed verification",
+      "loop::Resume completed",
+      "loop::Resume prerequisite or query failure"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "- `lifecycle unverified` \u2014 a row exists with status `untracked`: the model is known and covered, but no first-party lifecycle documentation has been reviewed for it yet. This exits `<code>`.",
+    "bindings": [
+      "model-eol::Every model has a row"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "- `registry gap` \u2014 there is no curated row for that id (or the row carries an unknown status). kew has nothing reviewed to say about the model. Only this state produces exit `<code>`.",
+    "bindings": [
+      "model-eol::Missing lifecycle rows"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "Actionable statuses \u2014 `watch`, `scheduled`, `retiring`, `retired` \u2014 warn with the shutdown date and replacement when the registry records them, and also exit `<code>`. Lifecycle data is advisory: it never refuses a dispatch.",
+    "bindings": [
+      "model-eol::Every model has a row"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "Validation is strict on purpose: the `schema` string must match exactly, unknown keys are rejected at both the top level and inside each row, ids must be unique and sorted, `status` must be one of `ok`, `untracked`, `watch`, `scheduled`, `retiring`, or `retired`, `shutdown` and `replacement` are nullable strings, dates are ISO `YYYY-MM-DD` calendar dates, and every row carries a nonempty `evidence` list whose URLs are HTTPS. Any violation is a registry error (exit `<code>`), distinct from a coverage finding (exit `<code>`).",
+    "bindings": [
+      "model-eol::Configuration failure",
+      "model-eol::Missing lifecycle rows"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "| `<code>` | At least one configured or `--model` id has **no curated row at all**. Add the row in a reviewed PR. |",
+    "bindings": [
+      "model-eol::Missing lifecycle rows"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "| `<code>` | Every checked id has a curated row. Advisories may still have been printed. |",
+    "bindings": [
+      "model-eol::Every model has a row"
+    ]
+  },
+  {
+    "page": "cli/model-eol.md",
+    "claim": "| `<code>` | The registry document itself is invalid \u2014 a configuration error, not drift. Printed as the three-line config envelope (see [configuration errors](../configuration.md)) with the registry's reason on the fix line. |",
+    "bindings": [
+      "model-eol::Configuration failure"
+    ]
+  },
+  {
+    "page": "cli/plan.md",
+    "claim": "| `<code>` | Missing ledger; unreadable ledger; no plan recorded for the item; unreadable stored plan; configuration failure. |",
+    "bindings": [
+      "plan::Missing ledger"
+    ]
+  },
+  {
+    "page": "cli/plan.md",
+    "claim": "| `<code>` | Plan printed. |",
+    "bindings": [
+      "plan::Plan printed"
+    ]
+  },
+  {
+    "page": "cli/models.md",
+    "claim": "| `<code>` | A source fetch failed or a fetched value was refused; nothing written. |",
+    "bindings": [
+      "models::Source fetch failure"
+    ]
+  },
+  {
+    "page": "cli/models.md",
+    "claim": "| `<code>` | Refresh written, dry run, or nothing to change. |",
+    "bindings": [
+      "models::Refresh written"
+    ]
+  },
+  {
+    "page": "cli/publication.md",
+    "claim": "| `<code>` | The head is attested and bound to its producer. |",
+    "bindings": [
+      "publication::Head attested and bound to its producer"
+    ]
+  },
+  {
+    "page": "cli/publication.md",
+    "claim": "| `<code>` | The sha is not the remote head; no commit on the first-parent path binds to a producer, or the path runs past ten commits; a commit's parent shape is not bindable, or a merge's second parent is not on the base; a commit on the path is claimed by a claim that does not bind; the head is already claimed by another run; the branch's claims could not be read back under one tracker item; the remote, the commit or the base branch could not be read; malformed arguments; configuration failure. |",
+    "bindings": [
+      "publication::Sha is not the remote head"
+    ]
+  },
+  {
+    "page": "cli/report.md",
+    "claim": "- **Exit status**: any required GitHub query or orphan warning write failure returns `<code>`. Authentication errors, network errors, and invalid responses count as query failures. Otherwise, sync returns `<code>`, including zero work and confirmed missing PRs.",
+    "bindings": [
+      "report::GitHub query failure",
+      "report::Outcome synchronization completed"
+    ]
+  },
+  {
+    "page": "cli/report.md",
+    "claim": "- **Repo resolution**: uses `[project] repo` when set, otherwise auto-detects it via `gh repo view` (the same detection `kew report` and dispatch use). If no repo can be determined, `kew report sync` reports repository unavailability and exits `<code>`.",
+    "bindings": [
+      "report::Repository unavailable"
+    ]
+  },
+  {
+    "page": "cli/report.md",
+    "claim": "Degraded HTML exports begin with the same warning. JSON exports and HTML data islands include `{\"outcome_sync\": {\"query_failures\": N, \"stale\": true}}`. Healthy content has no warning and records `stale: false` in exports. Evidence exports also return exit code <code> after synchronization failures. This rule also applies to `--models`, `--output`, and `--notify`. Confirmed PR absence does not count as a query failure. An empty store returns exit code <code>. Run [`kew report sync`](#outcome-sync-report-sync) to refresh outcomes without generating a report.",
+    "bindings": [
+      "report::GitHub query failure after partial report output",
+      "report::Report or evidence pack generated"
+    ]
+  },
+  {
+    "page": "cli/report.md",
+    "claim": "PR outcomes (merge state, review cycles, diff stats) are persisted to the local SQLite store. `kew report` attempts to sync the latest state from GitHub before reading. Reports, scorecards, and evidence exports require a resolved repository before generation. An unresolved repository prints `Report repository unavailable. Set project.repo in kew.toml.` and returns exit code <code>. This refusal writes no file and sends no webhook. After any query failure, the report renders using persisted outcomes, which may be stale. It then prints `Report outcome sync incomplete: query failures N.` to stderr and returns exit code <code>. Degraded Markdown and scorecards begin with a heading before any file write or webhook delivery:",
+    "bindings": [
+      "report::Repository unavailable",
+      "report::GitHub query failure after partial report output"
+    ]
+  },
+  {
+    "page": "cli/resolve.md",
+    "claim": "| `<code>` | PR metadata or head branch unavailable; budget refusal; connectivity failure; checkout failure; pre-launch refusal (not_run); configuration failure. |",
+    "bindings": [
+      "resolve::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "cli/resolve.md",
+    "claim": "| `<code>` | Resolution completed; no conflicts; dry-run preview. |",
+    "bindings": [
+      "resolve::Conflict dispatch succeeded"
+    ]
+  },
+  {
+    "page": "cli/resolve.md",
+    "claim": "| `<code>` | Runner or publication failure. |",
+    "bindings": [
+      "resolve::Runner or publication failure"
+    ]
+  },
+  {
+    "page": "cli/restore.md",
+    "claim": "| `<code>` | Chain mismatch or invalid backup archive. |",
+    "bindings": [
+      "restore::Archive verification findings"
+    ]
+  },
+  {
+    "page": "cli/restore.md",
+    "claim": "| `<code>` | Restore completed successfully. |",
+    "bindings": [
+      "restore::Restore completed"
+    ]
+  },
+  {
+    "page": "cli/restore.md",
+    "claim": "| `<code>` | Schema too new; database locked by another process; existing database without --force; missing archive; configuration failure. |",
+    "bindings": [
+      "restore::database locked"
+    ]
+  },
+  {
+    "page": "cli/review.md",
+    "claim": "**Review checkouts never collide with implementation work.** The review checkout is its own directory, never the `agent/issue-*` clone an implementation agent may still be writing to. Before materializing, kew looks for an existing checkout that already has the exact PR branch checked out. When it finds one, the review runs **detached** at the PR head instead of creating a second local branch (which used to abort the review with a git exit <code>). A dirty implementation checkout is never reset, cleaned, overwritten, or shared, and two concurrent reviews of the same PR do not share a tree \u2014 the second one refuses.",
+    "bindings": [
+      {
+        "non_public_value": 255,
+        "reason": "Raw git process status from the former checkout implementation."
+      }
+    ]
+  },
+  {
+    "page": "cli/review.md",
+    "claim": "| `<code>` | PR metadata or head branch unavailable; `--governed` refusal before any reviewer runs; budget refusal; connectivity failure; checkout failure; pre-launch refusal (not_run); configuration failure. |",
+    "bindings": [
+      "review::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "cli/review.md",
+    "claim": "| `<code>` | Review completed; no review work; dry-run preview; `--governed` READY, accepted residuals, dispatched remediation or a standing verdict. |",
+    "bindings": [
+      "review::Review dispatch succeeded"
+    ]
+  },
+  {
+    "page": "cli/review.md",
+    "claim": "| `<code>` | Runner or publication failure; `--governed` NEEDS_CHANGES (the message names the finding count), a hold or no verdict this run. |",
+    "bindings": [
+      "review::Runner or publication failure"
+    ]
+  },
+  {
+    "page": "cli/review.md",
+    "claim": "**A PR the drive already holds is refused before checkout.** When a live review holder (an epic's `kew epic _review-node` child, or another review run) holds the PR's item, or a container a run on this PR would take already exists (`kew-<pr>`, or `kew-<item>` for the drive's own runs), `kew review <PR>` names that holder and exits <code> without creating a review checkout or starting a container. Run it again once the named run finishes; a stopped container is named with the `rm` command that removes it.",
+    "bindings": [
+      "review::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "cli/run.md",
+    "claim": "The fleet reports each potentially stranded claim after the drain, with its issue number and claim result. `fetch_failed` and `race_detected` claims cause exit `<code>`, even when later checks find an empty queue. The scheduler does not repair their labels. `not_ready` and `already_claimed` remain warnings and allow exit `<code>`. Raw runner codes remain in messages and run records.",
+    "bindings": [
+      "run::potentially stranded fleet claim",
+      "run::empty queue"
+    ]
+  },
+  {
+    "page": "cli/run.md",
+    "claim": "| `<code>` | GitHub query failure; configuration failure; pre-launch failure; potentially stranded fleet claim. |",
+    "bindings": [
+      "run::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/run.md",
+    "claim": "| `<code>` | Runner or post-launch failure. |",
+    "bindings": [
+      "run::Reported dispatch findings or failure"
+    ]
+  },
+  {
+    "page": "cli/run.md",
+    "claim": "| `<code>` | Successful dispatch; empty queue; clean fleet drain; approval hold or declined estimate. |",
+    "bindings": [
+      "run::Successful dispatch"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "Exit code `<code>` means success. Exit code `<code>` means the runtime prerequisite is missing. Exit code `<code>` means the smoke ran and a later layer failed. Failures name the failing layer.",
+    "bindings": [
+      "sandbox::smoke checks passed",
+      "sandbox::Missing smoke prerequisites",
+      "sandbox::Smoke verification findings"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "Success output includes the tag and the full immutable image ID. The command checks daemon availability before starting the build. Exit code `<code>` means a prerequisite prevented the build. Exit code `<code>` means the build ran and failed, including image verification failures.",
+    "bindings": [
+      "sandbox::Docker missing",
+      "sandbox::Build ran and failed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "The route profile records the key hash and bounds, never the key value. The `sandbox_resolved` issuance and revocation events record the same identity. Revocation records `credential_issuer.revoked` and a safe failure reason when needed. The profile uses `issued:openrouter:<hash>` and requires matching attempt issuance evidence at launch. Publication requires recorded successful revocation; missing or failed revocation holds publication with `issued_key_unrevoked`. A later retry releases publication after successful revocation evidence arrives. Raw ambient `env:` credentials publish only a head the host scanned clean immediately before the push. See [Publication output scan](../security.md#publication-output-scan). Direct OpenRouter runs require host `OPENROUTER_PROVISIONING_KEY` before launch, contained or not. Missing provisioning causes `OpenRouter provisioning key required for direct routes` and exit <code>. The refusal records a `refused` run row and releases its reservation. See [OpenRouter setup](../runners/openrouter.md#setup) to configure the provisioning key. Every container environment removes ambient `OPENROUTER_API_KEY` before explicit bounded-key injection. Uncontained/native host launches also remove ambient OpenRouter credentials. The audit records `credential_issuer: null` with reason `no provisioning key`. Switchyard, Claude OAuth, and native Codex retain their existing credential handling.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Build ran and failed. |",
+    "bindings": [
+      "sandbox::Build ran and failed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Built image verification failed. |",
+    "bindings": [
+      "sandbox::Built image verification failed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Docker daemon unreachable. |",
+    "bindings": [
+      "sandbox::Docker daemon unreachable"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Docker missing. |",
+    "bindings": [
+      "sandbox::Docker missing"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Image built and verified. |",
+    "bindings": [
+      "sandbox::Image built"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Missing runtime prerequisite (`runtime` layer). |",
+    "bindings": [
+      "sandbox::Missing smoke prerequisites"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Smoke completed with success. |",
+    "bindings": [
+      "sandbox::smoke checks passed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Smoke ran; the `image`, `launch`, `execution`, or `auth` layer failed. |",
+    "bindings": [
+      "sandbox::Smoke verification findings"
+    ]
+  },
+  {
+    "page": "cli/settle.md",
+    "claim": "Anything else changes nothing, and kew prints the reason. Either way the command returns exit code <code>. A missing run, or one no longer pending, also returns exit code <code>.",
+    "bindings": [
+      "settle::Run outside the never-started rule (including an owner of unknown liveness), left unchanged",
+      "settle::missing run"
+    ]
+  },
+  {
+    "page": "cli/skills.md",
+    "claim": "Installs the named artifacts, or every artifact with `--all`. Refuses to overwrite a `locally-modified` copy unless `--force` is passed. Exits `<code>` for locally modified artifacts. Exits `<code>` for unknown names or an empty selection without `--all`.",
+    "bindings": [
+      "skills::Local modifications refused",
+      "skills::Unknown artifact or missing selection"
+    ]
+  },
+  {
+    "page": "cli/skills.md",
+    "claim": "| `<code>` | A diff was found, or a locally modified artifact was refused without `--force`. |",
+    "bindings": [
+      "skills::Local modifications refused"
+    ]
+  },
+  {
+    "page": "cli/skills.md",
+    "claim": "| `<code>` | All selected artifacts applied (or already current) / no diff found. |",
+    "bindings": [
+      "skills::Artifacts applied or current"
+    ]
+  },
+  {
+    "page": "cli/skills.md",
+    "claim": "| `<code>` | Unknown artifact, missing selection, or configuration failure. |",
+    "bindings": [
+      "skills::Unknown artifact or missing selection"
+    ]
+  },
+  {
+    "page": "cli/status.md",
+    "claim": "A `gh` exit of <code> with an empty or non-JSON body counts as a failed read, not as an empty queue. On a transient GitHub error (rate limit, connection reset) the read retries with backoff for up to about three minutes before exiting <code>.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Raw gh status; an invalid response still fails the kew query."
+      },
+      "status::GitHub query failure"
+    ]
+  },
+  {
+    "page": "cli/status.md",
+    "claim": "An unknown run id keeps its scriptable contract in both modes: a message on stderr and exit code <code>, never an empty-but-successful document.",
+    "bindings": [
+      "status::Unknown run"
+    ]
+  },
+  {
+    "page": "cli/status.md",
+    "claim": "Both human output and `--json` exit with code <code> after a required GitHub tracker read fails. The JSON path writes the failure to stderr and writes no JSON to stdout.",
+    "bindings": [
+      "status::Unknown run"
+    ]
+  },
+  {
+    "page": "cli/status.md",
+    "claim": "| `<code>` | Status read successfully; empty queue. |",
+    "bindings": [
+      "status::Status read successfully"
+    ]
+  },
+  {
+    "page": "cli/status.md",
+    "claim": "| `<code>` | Unknown run; GitHub query failure; configuration failure; invalid request. |",
+    "bindings": [
+      "status::invalid request"
+    ]
+  },
+  {
+    "page": "cli/switchyard.md",
+    "claim": "| `<code>` | A run/check failed or the proxy observation window was invalid. |",
+    "bindings": [
+      "switchyard::Execution, quality, or proxy evidence findings"
+    ]
+  },
+  {
+    "page": "cli/switchyard.md",
+    "claim": "| `<code>` | Every runner execution and quality check passed, and proxy evidence is valid. |",
+    "bindings": [
+      "switchyard::Execution, quality, and proxy checks passed"
+    ]
+  },
+  {
+    "page": "cli/switchyard.md",
+    "claim": "| `<code>` | The request was refused before a report (invalid corpus/config, unsupported runner, unavailable binary/auth, proxy lifecycle failure, or lock contention). |",
+    "bindings": [
+      "switchyard::Benchmark could not start"
+    ]
+  },
+  {
+    "page": "cli/triage.md",
+    "claim": "| `<code>` | Proposal recorded; decision recorded; item skipped as an epic node; nothing waiting in the queue. |",
+    "bindings": [
+      "triage::Proposal recorded"
+    ]
+  },
+  {
+    "page": "cli/triage.md",
+    "claim": "| `<code>` | Station disabled; non-numeric item; GitHub read failure; missing or unreadable ledger; no unresolved proposal for the item; ambiguous decision flags; unrecordable proposal; configuration failure. |",
+    "bindings": [
+      "triage::Station disabled"
+    ]
+  },
+  {
+    "page": "cli/triage.md",
+    "claim": "| `<code>` | Triage unavailable \u2014 recorded as a proposal for a person. |",
+    "bindings": [
+      "triage::Triage unavailable"
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "**`commands.verify_loop`** \u2014 the command kew's **loop verification gate** runs to decide whether a `kew dispatch <issue> --loop` loop has genuinely met its goal. Unlike `commands.verify` (which is *prompt text the agent reads* before committing), `verify_loop` is **executed by kew itself**: exit <code> means the goal is met and the loop may close as `achieved`; any non-zero exit keeps the loop open or sends it for review. A loop never closes on the agent's word alone \u2014 the gate's verdict is the sole authority (the anti-proxy invariant). For safety, if the loop's diff edits any test file, any `conftest.py`, the verify command's script, or `.github/workflows/**`, the gate returns a **sabotage** verdict and refuses success (self-sabotage defense). The gate only *returns* this verdict; kew's loop driver is what acts on it (closing the loop as `achieved`, or routing a failed/sabotage verdict to `needs_human`). This command must be set by the **operator** in `kew.toml` only \u2014 it is executed as a shell command, so it must never come from an issue or agent. Empty (the default) falls back to `commands.ci`. Canonical command verification runs contained when a local runtime and approved runner image are available. The host fallback requires missing prerequisites and `[sandbox] dangerously_skip_containment = true`. See [loop containment](cli/loop.md) for admission and timeout rules.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Operator verification shell command status, not the kew CLI status."
+      }
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "Kew reports each configuration error in three lines. The first line names the file or environment variable. The second line names the key and expected value. The third line gives a specific fix. Commands exit with status `<code>` because configuration failures prevent execution. See the shared [exit-code scheme](cli/exit-codes.md).",
+    "bindings": [
+      "config::Configuration failure"
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "With `enabled = true`, review remediation and conflict resolution fail closed when containment prerequisites are missing. Missing prerequisites include the runtime, runner image mapping, and declared credential in the environment. `allow_uncontained_flows = true` explicitly permits their host fallback with `admission = \"policy\"`. The setting defaults to unset (`None`); unset and `false` permit no exception. With auto or disabled containment, `true` is accepted as a no-op. `kew config effective --sources` reports the no-op; `--json --sources` also retains its configured value. Auto fallback records `admission = \"prerequisite_gap\"`; explicit `enabled = false` retains `admission = \"policy\"`. CI-fix retains its stricter dispatch gate and exit code <code> (could not run), including when this setting is `true`. Review and resolve containment refusals return exit code <code> (could not run).",
+    "bindings": [
+      "ci-fix::Preparation failure",
+      "review::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "[commands] ci = \"make test\" # CI gate (required to pass) format = \"\" # Format command (run before CI); e.g. \"black .\" \u2014 empty = no format step verify = \"\" # Raw default; empty uses commands.ci effectively test_targeted = \"\" # Scoped test run the governed remediation brief names; must contain {paths} test_policy_mark = \"\" # Pytest mark on the repo-wide policy gates unsandboxed prompts always run verify_loop = \"\" # Command the loop gate runs (kew executes; exit <code> = met) verify_loop_mode = \"command\" # Gate mode: \"command\" or \"ci_green\" (#289) ci_poll_timeout_seconds = 1800 # Max seconds to wait for CI before needs_human (#289) commit_prefix = \"feat(#{issue}): \" # Prefixes the commit kew writes; the subject after it is the change itself co_author = \"\" # Co-authored-by trailer added to commits (empty = omit)",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Operator verification shell command status, not the kew CLI status."
+      }
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "kew does not read `dispatch.toml`. If the walk (or the `--project` directory) reaches a `dispatch.toml` before any `kew.toml`, kew refuses to run and exits `<code>` without parsing it, rather than start on default settings. A `dispatch.toml` next to a `kew.toml` is ignored.",
+    "bindings": [
+      "config::Configuration failure"
+    ]
+  },
+  {
+    "page": "configuration.md",
+    "claim": "| `anchor_max_age_days` | `7` | How old the newest anchor may be before `kew doctor` warns that the chain is **unwitnessed**. `staleness_window` measures the chain against the anchors that exist; this measures whether anchors are still being *taken* \u2014 a silently dead anchor workflow leaves a chain that verifies perfectly and is witnessed by nobody (#1408). Raise it if your anchor cadence is slower than daily; `<code>` turns the alarm off. Advisory: it never changes a `kew audit verify` exit code. Env override: `KEW_AUDIT_ANCHOR_MAX_AGE_DAYS`. |",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Configuration value disabling the advisory anchor-age alarm."
+      }
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- **<code>** \u2014 cannot run (no `dispatch.db`; unreadable/malformed anchors file).",
+    "bindings": [
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- **<code>** \u2014 chain intact (and all in-range anchors matched; benign lag is still 0).",
+    "bindings": [
+      "audit::Intact chain, including empty log"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- **<code>** \u2014 tamper detected (broken chain link; or an in-range anchor mismatch/absent-row).",
+    "bindings": [
+      "audit::Tamper, anchor, or policy findings"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- **CLI:** `verify` exit <code>/<code>/<code> paths; **empty-table verify \u2192 exit <code>** (M2); **benign-lag anchor (id > local head) \u2192 exit <code>**; **in-range mismatch/absent \u2192 exit <code>**; `anchor` appends + prints the right head; empty-chain anchor no-op; mocked/temp store.",
+    "bindings": [
+      "audit::Intact chain, including empty log",
+      "audit::Tamper, anchor, or policy findings",
+      "audit::Missing or unreadable ledger or anchors",
+      "audit::Intact chain, including empty log",
+      "audit::Intact chain, including empty log",
+      "audit::Tamper, anchor, or policy findings"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- An **empty** `audit_events` table is exit **<code>** (vacuously intact), distinct from exit <code> (M2).",
+    "bindings": [
+      "audit::Intact chain, including empty log",
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "- anchor `id > local_head_id` \u2192 **benign lag** (the chain simply hasn't reached there yet): report as advisory, does **not** trigger exit <code>.",
+    "bindings": [
+      "audit::Tamper, anchor, or policy findings"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "6. **Exit codes** for `kew audit verify`: `<code>` ok / `<code>` tamper detected / `<code>` cannot-run \u2014 matching `kew health` and `kew canary`.",
+    "bindings": [
+      "audit::Intact chain, including empty log",
+      "audit::Tamper, anchor, or policy findings",
+      "audit::Missing or unreadable ledger or anchors"
+    ]
+  },
+  {
+    "page": "design/2026-06-25-audit-chain-design.md",
+    "claim": "`kew audit anchor [--anchors PATH]` \u2014 pure local: read the tail row, compute head `entry_hash`, count total rows, append one JSON line `{id, entry_hash, count, timestamp}` to the anchors file, print it. No git, no network. When the chain is empty, it is a clean no-op (prints nothing to append, exit <code>).",
+    "bindings": [
+      "audit::Intact chain, including empty log"
+    ]
+  },
+  {
+    "page": "design/2026-06-28-cache-aware-routing-design.md",
+    "claim": "| <code> | Observability | v16 schema (`prefix_key`,`provider`), record-at-dispatch, `warm_prefixes()` oracle, per-provider cost model + param table, `kew report` cache section + leverage-banner line, baseline capture. No behavior change. | \u2014 |",
+    "bindings": [
+      {
+        "non_public_value": 1,
+        "reason": "Numbered implementation wave, not an exit claim."
+      }
+    ]
+  },
+  {
+    "page": "design/2026-07-23-adversarial-review-stage.md",
+    "claim": "| Reviewer crash / exit <code> | 1 retry \u2192 HELD: needs-human + attested reason | 1 retry \u2192 DEGRADED attested, proceed |",
+    "bindings": [
+      {
+        "non_public_value": 143,
+        "reason": "Raw reviewer subprocess signal status."
+      }
+    ]
+  },
+  {
+    "page": "how-it-works.md",
+    "claim": "- **Empty graph is an error, not success** \u2014 an epic whose tracker query resolves to **zero nodes** (a typo'd `epic:<name>`, or an `advance`/`run` fired from a cwd wired to the wrong tracker) raises before any tick is journaled and exits **<code>** with a diagnostic naming the empty query (the GitHub label or the Linear project) \u2014 it no longer prints `COMPLETE done=0 remaining=0`. A driver never declares success for work that does not exist; `complete` stays reachable only for a non-empty graph whose nodes are all DONE. `kew epic run --all` surfaces the empty epic as needing an operator (contributing exit **<code>** to the aggregate) instead of silently dropping it or reading it as complete.",
+    "bindings": [
+      "epic::Unavailable tracker",
+      "epic::Stalled with operator repair required"
+    ]
+  },
+  {
+    "page": "how-it-works.md",
+    "claim": "- **Provider-aware node dispatch** \u2014 each node is dispatched by a detached child (`kew _dispatch-node`) that adapts to the configured tracker. For GitHub the node id is the issue number and the classic issue \u2192 checkout \u2192 PR flow runs unchanged. For a non-GitHub tracker (Linear), the child instead *fetches* the item's title/description/labels from the tracker and *claims* it (assigns the viewer, moves it to the started state) **before** the agent spawns; the opaque item id (e.g. `SFD-133`) threads through the branch (`agent/issue-sfd-133`), checkout, run-store row, and PR body while the GitHub-only issue number stays a `<code>` sentinel. GitHub-issue label edits are skipped for non-GitHub trackers (their state is owned by the claim and the merge pass, not labels). A missing key, a fetch failure, or a claim failure is a loud exit that writes a terminal run record against the node's reservation rather than a silent skip, and a refusal *before* the agent spawns (fleet-stop, worker-cap, budget) rolls the Linear claim back so the item is never stranded In Progress with nothing running.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "GitHub issue-number sentinel for non-GitHub work."
+      }
+    ]
+  },
+  {
+    "page": "how-it-works.md",
+    "claim": "On `[sandbox] runtime = \"docker\"` and `\"podman\"`, official Codex follows a separate host path: Codex-native `workspace-write` governs the agent process, command network is off, and kew records external container posture as disabled. On `runtime = \"openshell\"` kew contains the dispatch like any other and attests it `sandboxed`, with `workspace-write` nested inside that sandbox (see [the Codex reference](runners/codex.md#posture-per-runtime)). Either way, on exit <code> kew's host broker owns commit, push, PR creation, and the dispatch report. Failure of that ceremony remains a failed dispatch. Usage is reported as API-equivalent included-plan value, not a native bill.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Raw Codex process success before host publication."
+      }
+    ]
+  },
+  {
+    "page": "operations.md",
+    "claim": "**Stop kew before restoring.** `kew restore` refuses to overwrite a database that another kew process is holding open. The check is a short `BEGIN IMMEDIATE` attempt; if it fails, the restore aborts with exit code <code> and a clear message. The automatic lock check is best-effort \u2014 under WAL a read-only connection (e.g. an idle TUI) does not hold a write lock, so it may pass the check; stopping kew is the real guarantee.",
+    "bindings": [
+      "restore::database locked"
+    ]
+  },
+  {
+    "page": "operations.md",
+    "claim": "Create the record directory and retention deadline before the window. Run one approved model sequentially, exclude all other traffic from the managed endpoint, and stop on any identity/digest mismatch. Benchmark exit `<code>` means failed evidence; exit `<code>` means the request was refused or unavailable. Neither is partial rollout approval. Preserve only sanitized results and digests in the UAT report, then delete the raw canary directory by its deadline.",
+    "bindings": [
+      "switchyard::Execution, quality, or proxy evidence findings",
+      "switchyard::Benchmark could not start"
+    ]
+  },
+  {
+    "page": "operations.md",
+    "claim": "Run `kew audit verify` as the routine health check. A healthy result exits `<code>` and reports `Chain intact: <N> event(s).`; when anchors exist, it also reports their match and anchor-chain status. Identity checks happen before the database is opened. kew fails closed with `WRONG-LEDGER` if the configured database, registry, UUID, project, or anchors disagree, and with `REGISTERED-LEDGER-MISSING` if recorded ledger history exists but the canonical registry or its registered database is missing. Do not copy, rename, or edit registry files to bypass either refusal.",
+    "bindings": [
+      "audit::Intact chain, including empty log"
+    ]
+  },
+  {
+    "page": "operations.md",
+    "claim": "```bash kew audit verify --anchors audit-anchors.jsonl # prints \"Newest anchor: \u2026 (N day(s) old)\" kew doctor # warns + exits <code> past [audit] anchor_max_age_days (default 7)",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "runners/hermes.md",
+    "claim": "- **Success/failure.** hermes exits `<code>` even on a credential/config failure. kew trusts the usage file: `completed: true` \u2192 success, `failed: true` \u2192 a permanent failure (or transient on a rate-limit/network marker). A SIGTERM/timeout kill leaves no usage file and is classified transient.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Raw Hermes process status; the usage file determines the kew outcome."
+      }
+    ]
+  },
+  {
+    "page": "runners/openrouter.md",
+    "claim": "3. Create an OpenRouter management key at [Management Keys](https://openrouter.ai/settings/management-keys). Set it as `OPENROUTER_PROVISIONING_KEY` in the host environment. Every direct OpenRouter run requires it before launch, on the host or in a container. Kew uses it to issue [bounded per-run keys](../cli/sandbox.md#bounded-openrouter-credentials). A plain `OPENROUTER_API_KEY` or `opencode auth login` does not satisfy this requirement. Kew removes an ambient `OPENROUTER_API_KEY` from host and contained child environments. Their host boundary is the operator's own machine. Missing provisioning causes `OpenRouter provisioning key required for direct routes`, exit <code>, and reservation release. The run row records `refused`. Every container environment removes the ambient `OPENROUTER_API_KEY` by name before explicit bounded-key injection. Direct OpenRouter epic and delegation runs also require provisioning in their parent process. Switchyard routes, including OpenRouter behind a sidecar, retain their separate upstream credential owner. Children receive bounded inference keys without provisioning authority.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "runners/openrouter.md",
+    "claim": "Native Codex keeps no inference credentials and uses its own login. Switchyard keeps its resolved upstream `credential_env_names`, which its supervisor validates against the route configuration. These names can include `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`. Credential values are never part of the digest. A detached direct OpenRouter child requires a verified issued key. Missing or invalid issued credentials cause `issued credential mismatch` and exit <code>. There is no fallback to the operator's `OPENROUTER_API_KEY`. The child identifies detached execution from `--credential-route` or `--run-id`.",
+    "bindings": [
+      "epic::Child preflight, identity, or admission refusal"
+    ]
+  },
+  {
+    "page": "runners/openrouter.md",
+    "claim": "The parent passes `--credential-route <digest>` with `--run-id` to each detached child. The SHA-256 digest covers the resolved runner, model, transport, sidecar flag, and bounded-key decision. Transport distinguishes direct inference, native authentication, and sidecar inference. External Switchyard transport retains its separate transport name. The parent records `credential_route_digest` in the issuance or exclusion event. The child records the same digest in its admission evidence. The child checks the digest before runner preflight and at the actual launch resolution. Changed labels or routing overrides cause `credential route changed`, exit <code>, and reservation release before launch. An excluded handoff keeps only the resolved route's required credential names; the names are part of the route digest. Excluded handoffs remove all other inference names, the issued-key marker, and management credentials. Native Claude selects one authentication mode from the parent's environment. The route evidence records `claude_auth_mode`; its value and credential names enter the digest. A parent/child mode mismatch causes `credential route changed` before launch. Only `<code>` or `true` enables a cloud selector, ignoring case. Kew refuses conflicting Bedrock and Vertex selectors.",
+    "bindings": [
+      "epic::Child preflight, identity, or admission refusal",
+      {
+        "non_public_value": 1,
+        "reason": "Cloud selector environment value, not a kew exit status."
+      }
+    ]
+  },
+  {
+    "page": "sandbox-entrypoint-contract.md",
+    "claim": "2. Resolve `PROMPT_FILE=\"${KEW_PROMPT_FILE:-/work/.kew-prompt.txt}\"`; exit `<code>` with a stderr message if it is missing or empty.",
+    "bindings": [
+      {
+        "non_public_value": 64,
+        "reason": "Internal container entrypoint prompt refusal status."
+      }
+    ]
+  },
+  {
+    "page": "sandbox-entrypoint-contract.md",
+    "claim": "A **cgroup OOM** is separated from those 137s before that classification. The kernel's kill exits <code> like every other hard stop, and `--rm` removes the container before `docker inspect` could read `State.OOMKilled`, so kew asks the daemon's event stream, which outlives the container. The query filters by this launch's container ID from `--cidfile`. A missing, empty, unreadable, or invalid cidfile makes attribution unavailable. The probe never uses the reusable container name as OOM evidence. The event window applies clock slack before launch and after probe time. The future `--until` bound makes an absent-OOM probe wait about five seconds. A 12-second command timeout bounds that wait. Three default attempts can therefore add about fifteen seconds. Hard-stop classification starts when timeout enforcement begins. Managed transport startup and workspace preflight occur before this boundary. The OOM probe wait occurs after this boundary ends. Neither setup nor probe time affects hard-stop classification.",
+    "bindings": [
+      {
+        "non_public_value": 137,
+        "reason": "Raw kernel OOM kill status."
+      }
+    ]
+  },
+  {
+    "page": "sandbox-entrypoint-contract.md",
+    "claim": "A completed wrapper without the current attempt's acknowledgement is `sandbox_startup_refused`. This includes a wrapper exiting `<code>`; publication is forbidden and public exit is `<code>`. Refusal diagnostics remain in the failure record. Entrypoint exit `<code>` means the prompt is missing; entrypoint exit `<code>` means a prerequisite is unavailable. Before acknowledging startup, each entrypoint resolves its agent with `command -v`. The resolved path must be an executable regular file (`test -f` and `test -x`). Failure prints a static diagnostic and exits `<code>` without an acknowledgement. A stream failure before acknowledgement makes execution `UNKNOWN`, unless an explicit entrypoint refusal confirms no launch. `UNKNOWN` retains the failure record and work, forbids refusal rollback, and returns public exit `<code>`. Its reason names the missing acknowledgement and stream error. Confirmed startup followed by failure returns public exit `<code>`, including agent exits `<code>` and `78`. After the stream completes, acknowledgement without an agent event and exit `<code>` or `127` means exec failure. The host classifies this attempt as `sandbox_startup_refused`, with `launched=False`. Without earlier execution, public exit is `<code>` and refusal rollback is permitted. An agent event after acknowledgement preserves execution, including exits `<code>` and `127`. All other post-acknowledgement exits preserve execution.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Raw wrapper result without workload acknowledgement."
+      },
+      "run::pre-launch failure",
+      {
+        "non_public_value": 64,
+        "reason": "Internal entrypoint prompt refusal."
+      },
+      {
+        "non_public_value": 78,
+        "reason": "Internal entrypoint prerequisite refusal."
+      },
+      {
+        "non_public_value": 78,
+        "reason": "Internal entrypoint prerequisite refusal."
+      },
+      "run::Reported dispatch findings or failure",
+      "run::Reported dispatch findings or failure",
+      {
+        "non_public_value": 64,
+        "reason": "Raw agent result after confirmed startup."
+      },
+      {
+        "non_public_value": 126,
+        "reason": "Raw shell exec failure status."
+      },
+      "run::pre-launch failure",
+      {
+        "non_public_value": 126,
+        "reason": "Raw agent result after confirmed startup."
+      }
+    ]
+  },
+  {
+    "page": "sandbox-entrypoint-contract.md",
+    "claim": "Contained direct OpenRouter runs require host `OPENROUTER_PROVISIONING_KEY` for bounded issuance. Missing provisioning refuses launch with `OpenRouter provisioning key required for direct routes` and exit <code>. Every container environment removes the ambient `OPENROUTER_API_KEY` before explicit bounded-key injection. The container still receives only `-e OPENROUTER_API_KEY` by name. Its launch environment supplies the issued value without changing the host environment. The provisioning key never enters the container environment or argv. The route profile records the key hash, dollar limit, and UTC expiry. Foreground runs revoke the key at run end. The epic driver mints detached keys only for direct OpenRouter routes before spawn. Driver ticks and delegation watcher passes revoke terminal or expired keys. Both parents reconcile again on exit while preserving running children. Generic runtime helpers receive neither an issued key nor its marker. Children never receive provisioning authority; expiry bounds revocation failures. See [bounded credentials](cli/sandbox.md#bounded-openrouter-credentials) for budget and expiry rules.",
+    "bindings": [
+      "dispatch::pre-launch failure"
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "Direct OpenRouter runs require a bounded key, contained or on the host. Create an OpenRouter management key at [Management Keys](https://openrouter.ai/settings/management-keys). Set it as `OPENROUTER_PROVISIONING_KEY` in the host environment before running Kew. Missing provisioning causes `OpenRouter provisioning key required for direct routes`. The pre-launch refusal returns exit <code>, records a `refused` run row, and releases the reservation. Every container environment removes the ambient `OPENROUTER_API_KEY` by name before explicit bounded-key injection. This removal also covers native and sidecar routes without an issued key. Uncontained/native host launches also remove ambient OpenRouter credentials. Detached issuance applies only to direct OpenRouter routes. The parent resolves the item's runner and inference transport before issuance. Native Claude, native Codex, and Switchyard routes require no bounded key or provisioning credential. Switchyard sidecars remain excluded when their upstream route uses OpenRouter. These routes receive no issued-key marker and use their own authentication sources. Issuance and refusal events record the route decision in `credential_route`. The driver mints each detached run key before spawning `kew epic _dispatch-node`. This includes delegation runs. Children never hold management authority. Every launcher removes `OPENROUTER_PROVISIONING_KEY`, including launchers for Kew itself. The parent supplies the bounded secret and `KEW_ISSUED_RUN_KEY_HASH` only for direct OpenRouter. The parent passes `--credential-route <digest>` with `--run-id` to each detached child. The SHA-256 digest covers the resolved runner, model, transport, sidecar flag, and bounded-key decision. Transport distinguishes direct inference, native authentication, and sidecar inference. External Switchyard transport retains its separate transport name. The parent records `credential_route_digest` in the issuance or exclusion event. The child records the same digest in its admission evidence. The child checks the digest before runner preflight and at the actual launch resolution. Changed labels or routing overrides cause `credential route changed`, exit <code>, and reservation release before launch. An excluded handoff keeps only the resolved route's required credential names; the names are part of the route digest. Excluded handoffs remove all other inference names, the issued-key marker, and management credentials. Native Claude selects one authentication mode from the parent's environment. The route evidence records `claude_auth_mode`; its value and credential names enter the digest. A parent/child mode mismatch causes `credential route changed` before launch. Only `<code>` or `true` enables a cloud selector, ignoring case. Kew refuses conflicting Bedrock and Vertex selectors.",
+    "bindings": [
+      "dispatch::pre-launch failure",
+      "epic::Child preflight, identity, or admission refusal",
+      {
+        "non_public_value": 1,
+        "reason": "Cloud selector environment value, not a kew exit status."
+      }
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "First-class loops have no contained agent launch (#1977). A loop's agent runs on the host under the same admission as ordinary host dispatch. A runner that contains itself records `posture = \"native\"`. Any other runner requires `[sandbox] dangerously_skip_containment = true` and records `posture = \"uncontained\"`. Without the flag, `kew dispatch --loop` and `kew loop resume` refuse with exit code <code>. The refusal names the flag and comes before any checkout, agent work, or spend. It writes the pre-launch refusal evidence of a refused remediation run. That evidence is a `refused` run row, a `sandbox_resolved` refusal, and a `dispatch_completed` event. `[sandbox] enabled = true` rejects the flag, so it refuses loops on runners that do not contain themselves.",
+    "bindings": [
+      "loop::Loop operation refusal"
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "Native Codex keeps no inference credentials and uses its own login. Switchyard keeps its resolved upstream `credential_env_names`, which its supervisor validates against the route configuration. These names can include `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`. Credential values are never part of the digest. A detached direct OpenRouter child requires a verified issued key. Missing or invalid issued credentials cause `issued credential mismatch` and exit <code>. There is no fallback to the operator's `OPENROUTER_API_KEY`. The child identifies detached execution from `--credential-route` or `--run-id`. The child verifies the issuer hash and secret fingerprint against that run's durable issuance event. The child records phase `inherited` and neither mints nor revokes the inherited key. A marker on any excluded route also refuses inheritance. A mismatch refuses launch with `issued credential mismatch` and publishes nothing. Missing provisioning or failed issuance refuses direct OpenRouter detached dispatch and releases its reservation. The parent never substitutes the host inference key after an issuance failure. Generic helpers strip the bounded key and marker when the dispatch process holds an issued-key marker. Only explicit dispatch handoff, agent launch, and container launch receive the issued key. Container arguments forward the key by environment name; helpers such as `docker inspect` receive no bounded key. Agent, container, and discovery probe children never receive the provisioning credential. The value never enters argv, logs, or audit records. The issuer sends `limit`, `expires_at`, `limit_reset: null`, and `include_byok_in_limit: true`. The spend limit uses the effective per-run cap from budget preflight. Remediation uses its budget override. Adversarial review uses `review.max_review_usd`. Without a per-run cap, Kew uses the configured daily remaining budget. Expiry uses UTC and covers the complete bounded retry schedule. Lifetime is `attempts * timeout + 1.25 * sum(backoff intervals) + 300 seconds`. A driver-issued key for a child that may run contained covers the longer of that schedule and the four-hour container wall clock plus one attempt's timeout. Tracked runs use `retry.max_attempts` and the effective per-attempt timeout, including overrides. Backoff intervals are `retry.backoff_base_seconds * retry.backoff_multiplier**i`, for `i` from zero through `attempts - 2`. The factor 1.25 covers maximum retry jitter. The final 300 seconds provide cleanup grace. The shared container streamer has one four-hour attempt and no retry backoff. Kew refuses launch when the remaining retry schedule exceeds the remaining key lifetime. Kew also checks each attempt's timeout immediately before process execution. Nonfinite or unrepresentable lifetimes are refused before issuance. Retries share one key and one total spend ceiling.",
+    "bindings": [
+      "epic::Child preflight, identity, or admission refusal"
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "The command gate (`kew.loops.verification.CommandCondition.check`) runs the operator-configured command (`[commands] verify_loop`, else `[commands] ci`) as `/bin/sh -c` inside that image. Extraction and verification share `build_checkout_program_argv`. Both use `--network none`, host UID/GID, resource caps, and no runner credential forwarding. Both explicitly control ten proxy variables in uppercase and lowercase. Both blank all ten under either policy: they carry `--network none`, so a forwarded proxy value can never be reached from them and would only place its embedded credentials inside the container. The configured `proxy_environment` still governs the agent container, and still scopes redaction of what these launches return. Explicit `-e NAME=` assignments override Docker client proxy defaults, including `allProxy`. The container root and checkout are read-only by default. `[commands] verify_loop_needs_writes = true` permits writes to the disposable checkout. Only operator configuration can declare this requirement. Writable verification shares the dispatch checkout guard. It limits aggregate checkout size to 4 GiB and entry count to 500,000. It requires at least 1 GiB of host free space. The guard polls every two seconds, including silent commands and commands that close both output pipes. Directory walks use the shared adaptive backoff, capped at 20 seconds. The free-space probe runs independently of that backoff. A breach removes the container using its recorded ID and fails verification with a `checkout-quota refusal` reason. These periodic checks can overshoot between probes; they are not filesystem quotas. The root remains read-only; `/tmp` remains a bounded writable tmpfs. Contained verification has a 600-second maximum timeout, including any CPU-cap retry. Exit <code> passes; any non-zero exit fails. The gate captures redacted stdout and stderr tails. The publication evidence sanitizer removes host path ancestry from normal output, overflow evidence, and preparation errors. Credential redaction and path sanitization run before evidence truncation. Both `status_reason` and `verification_checked` store the sanitized evidence, including successful verification. The host reads both pipes concurrently in chunks of at most 65,536 bytes. Each stream has a 262,144-byte budget, with 131,072 bytes reserved for each end. Overflow inserts an omission marker and drops the middle. The host stops reading after the first excess byte and removes the recorded container ID with `rm -f`. The gate records an `output-budget refusal` and fails verification. Runtime inspection and removal target only the validated ID from that launch's container identity file. Completion requires the configured container name, exited state, and matching exit code from inspection by ID. Name conflicts fail with `container name already in use` and never trigger a retry. A launch without a recorded ID removes nothing, even when another container holds the configured name. After client exit, Kew deletes an identity file without a valid ID. An interruption before the client records an ID preserves that file. Unconfirmed removal preserves the container identity file and emits a warning.",
+    "bindings": [
+      {
+        "non_public_value": 0,
+        "reason": "Operator verification shell command status, not the kew CLI status."
+      }
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "The host path requires `[sandbox] dangerously_skip_containment = true` and missing prerequisites. `[sandbox] enabled` controls agent containment; verification prefers containment even when it is false. `[sandbox] enabled = true` permits contained command verification and refuses missing prerequisites. It rejects configurations that also set the dangerous flag. Checkout publication still requires dangerous admission for its local Git operations. New dispatches select the issue, resolve the route, and save the initial loop record first. The driver then checks admission before worktree setup or subprocess execution against project files. Admission may inspect the local image. A resume validates its route first, then applies the same admission. Refusal records `needs_human` and `refused_verification` with the missing prerequisite. The CLI returns exit code <code> for canonical command containment refusal. Both `dispatch --loop` and `loop resume` return <code> for executed verification failures, including output overflow. Both print the `gate_failed` reason; successful verification returns <code>. The finding remains #1444.",
+    "bindings": [
+      "loop::Resume prerequisite or query failure",
+      "loop::Resume needs human or failed verification",
+      "loop::Resume completed"
+    ]
+  },
+  {
+    "page": "security.md",
+    "claim": "With `enabled = true`, review remediation and conflict resolution fail closed when containment prerequisites are missing. Missing prerequisites include the runtime, runner image mapping, and declared credential in the environment. `allow_uncontained_flows = true` explicitly permits their host fallback with `admission = \"policy\"`. The setting defaults to unset; unset and `false` permit no exception. Auto fallback records `admission = \"prerequisite_gap\"`; explicit `enabled = false` retains `admission = \"policy\"`. CI-fix retains its stricter dispatch gate and exit code <code> (could not run), including when this setting is `true`. Review and resolve containment refusals return exit code <code> (could not run).",
+    "bindings": [
+      "ci-fix::Preparation failure",
+      "review::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "skills.md",
+    "claim": "- **`locally-modified`** means the installed copy doesn't match the shipped content or any prior shipped version \u2014 you (or an agent) edited it by hand. `install`/`update` refuse to touch it (exit <code>) unless you pass `--force`, which overwrites it with the shipped version.",
+    "bindings": [
+      "skills::Local modifications refused"
+    ]
+  },
+  {
+    "page": "threat-model.md",
+    "claim": "With `enabled = true`, review remediation and conflict resolution fail closed when containment prerequisites are missing. Missing prerequisites include the runtime, runner image mapping, and declared credential in the environment. `allow_uncontained_flows = true` explicitly permits their host fallback with `admission = \"policy\"`. The setting defaults to unset; unset and `false` permit no exception. Auto fallback records `admission = \"prerequisite_gap\"`; explicit `enabled = false` retains `admission = \"policy\"`. CI-fix retains its stricter dispatch gate and exit code <code> (could not run), including when this setting is `true`. Review and resolve containment refusals return exit code <code> (could not run).",
+    "bindings": [
+      "ci-fix::Preparation failure",
+      "review::Pre-launch refusal (not_run)"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Every probe passed; the certification is on the audit chain. |",
+    "bindings": [
+      "sandbox::Egress certified"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | The probe ran and the boundary did not hold; nothing was recorded. |",
+    "bindings": [
+      "sandbox::Egress certification failed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | The probe could not be run, or it passed and the proof could not be recorded (no gateway, no image, no packaged policy for the runner, unknown runtime, unwritable ledger). |",
+    "bindings": [
+      "sandbox::Egress certification could not run"
+    ]
+  },
+  {
+    "page": "cli/verify.md",
+    "claim": "| `<code>` | The verification passed on the host. `kew verify main-health`: main is not red. |",
+    "bindings": [
+      "verify::The verification passed on the host"
+    ]
+  },
+  {
+    "page": "cli/verify.md",
+    "claim": "| `<code>` | The verification failed: the host's own exit code, verbatim. Any other non-zero number is the gate's too, passed through unchanged. `kew verify nightly`: main's full verification failed a gate, with or without failing test ids. `kew verify main-health`: main is red. |",
+    "bindings": [
+      "verify::The verification failed: the host's own exit code, verbatim"
+    ]
+  },
+  {
+    "page": "cli/verify.md",
+    "claim": "| `<code>` | No exit code from the job; unknown ref; unresolvable base branch; gcp selected without an instance; another local verify holds the lease; configuration failure; an unusable `GATE_RE` for `--explain-selection` or `--selection-report`; an option `--explain-selection` or `--selection-report` would ignore. `kew verify nightly`: main's verification was incomplete (no exit code, a broken host environment, or a refused preflight), the verify lease stayed held for the whole wait, `git` or `gh` is missing, or an issue could not be filed. `kew verify main-health clear`: a commit no full verification read red. |",
+    "bindings": [
+      "verify::No exit code from the job"
+    ]
+  },
+  {
+    "page": "cli/verify.md",
+    "claim": "A job a **signal** killed \u2014 the host's OOM killer reaching the gate, say \u2014 never reported a status at all, so it is recorded as `incomplete` with a `null` exit code naming the signal, and exits `<code>`. It is not passed off as a gate that answered \"failed\".",
+    "bindings": [
+      "verify::No exit code from the job"
+    ]
+  },
+  {
+    "page": "cli/hosts.md",
+    "claim": "**Exit codes** ([scheme](exit-codes.md)): `<code>` the host is provisioned and its versions recorded; `<code>` it was not (unknown host, a recipe kew does not ship, an unreachable instance, or a recipe that failed its own self-check). There is no finding exit: a host kew could not reach and a recipe that failed its own self-check are both \"this host is not provisioned\".",
+    "bindings": [
+      "hosts::Host provisioned and its versions recorded",
+      "hosts::recipe self-check failure"
+    ]
+  },
+  {
+    "page": "cli/hosts.md",
+    "claim": "**Exit codes** ([scheme](exit-codes.md)): `<code>` the lease is dropped (or the instance is stopped, which clears it); `<code>` it was not (a live holder, a job not proved stopped without `--force`, an unknown host, an unreachable instance, or an instance that is neither running nor stopped \u2014 a suspended instance keeps its memory, and the lease with it, so resume or stop it first).",
+    "bindings": [
+      "hosts::Named lease dropped",
+      "hosts::Live lease holder on this machine"
+    ]
+  },
+  {
+    "page": "cli/no-change.md",
+    "claim": "| `<code>` | The decision was recorded. |",
+    "bindings": [
+      "no-change::Decision recorded: outcome confirmed, rejected, or its sync retried"
+    ]
+  },
+  {
+    "page": "cli/no-change.md",
+    "claim": "| `<code>` | Nothing was decided: the actor may not decide this outcome, the item names no live outcome, the outcome's state does not admit the command (a `confirm` of an outcome already authorized, a `retry-sync` before any decision, a `rejudge` of an outcome already decided), the item id is not canonical, the base moved under a `confirm`, a `rejudge` found the commits since touched a judged path, found a base that does not descend from the judged one, or could not compare them (without `--accept-changes`), `--accept-changes` came without a `--reason`, the current base could not be read, or no ledger was found. The one exception: a `rejudge` that recorded the new base but could not write its audit row exits with this code too, and says so, naming the old and new base. |",
+    "bindings": [
+      "no-change::Authority refusal for the resolved forge login"
+    ]
+  },
+  {
+    "page": "cli/prompts.md",
+    "claim": "| `<code>` | The listing or preview was printed, or the decision was recorded. |",
+    "bindings": [
+      "prompts::Listing or preview printed"
+    ]
+  },
+  {
+    "page": "cli/prompts.md",
+    "claim": "Addenda live only in the operator's `dispatch.db`. Every proposal and decision needs an actor in `[approval].approvers` (the acting name is `KEW_ACTOR`, else the OS user), and each one writes a chained audit event before the row it attests. The list is empty by default, and while it is empty every proposal and decision is refused with \"Set [approval].approvers in kew.toml before deciding prompt profiles.\" A refused command writes nothing: the actor and the input are checked before the ledger is opened, so a refusal on a project with no ledger creates neither `dispatch.db` nor the ledger registry. Only `propose` may create the ledger; `approve`, `decline` and `retire` with no ledger are refused. A lost ledger (its database gone while its registry or audit anchors survive) is never read as a new project: `list` and `propose` exit <code> on it, as `show`, `approve`, `decline` and `retire` do, with a `REGISTERED-LEDGER-MISSING` reason.",
+    "bindings": [
+      "prompts::lost ledger (database gone, registry or anchors kept)"
+    ]
+  },
+  {
+    "page": "cli/prompts.md",
+    "claim": "| `<code>` | Nothing was decided: the actor is not an approver or `[approval].approvers` is empty, the generation is stale, the version is not proposed, the role takes no profile, the role has no active profile to retire, the addendum is empty or too long, the file could not be read, there is no ledger to decide against, the ledger is lost (its database gone while its registry or anchors survive; `list` and `propose` exit <code> on it too), or the ledger could not be written (a lock held past the retry budget, a read-only file, or another SQLite error). For `show`, the role's launch would refuse before it builds a prompt. |",
+    "bindings": [
+      "prompts::Approver refusal",
+      "prompts::lost ledger (database gone, registry or anchors kept)"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | The network was created, already exists, or the runtime is OpenShell. |",
+    "bindings": [
+      "sandbox::Allowlist network present or not needed"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | `--check` found the network absent. |",
+    "bindings": [
+      "sandbox::Allowlist network absent"
+    ]
+  },
+  {
+    "page": "cli/sandbox.md",
+    "claim": "| `<code>` | Runtime missing or unresponsive, the create failed, or `[sandbox] network` is not `\"allowlist\"`. |",
+    "bindings": [
+      "sandbox::Allowlist network could not be created"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "1. Run `kew doctor --json`. Stop when `ok` is `true` (exit `<code>`).",
+    "bindings": [
+      "doctor::Checks passed or skipped"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "After writing, init runs `kew setup` (labels and security hooks) and the `kew doctor` checks. With `--yes` it runs no fix itself: it prints each failing check with its `fix:` command and exits `<code>`.",
+    "bindings": [
+      "init::setup or a readiness check needs fixing"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "Init refuses an existing `kew.toml` with exit `<code>` and leaves it untouched. Pass `--force` to overwrite it: that is how an agent changes a value, rather than editing the file.",
+    "bindings": [
+      "init::Existing kew.toml without --force"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "Without a terminal and without `--yes`, init refuses with exit `<code>`, writes nothing, and names the flags it would have asked for. It never waits on a prompt.",
+    "bindings": [
+      "init::no terminal and no --yes"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | No | An operational failure or a missing prerequisite stopped it. |",
+    "bindings": [
+      "run::pre-launch failure"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | Nothing written: an existing `kew.toml` without `--force`, an unknown runner, a file that would not load, or no terminal and no `--yes`. |",
+    "bindings": [
+      "init::Existing kew.toml without --force"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | Yes | Findings: something needs attention or a repair was performed. |",
+    "bindings": [
+      "run::Reported dispatch findings or failure"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | Yes | Nothing to act on. |",
+    "bindings": [
+      "run::Successful dispatch"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | `kew.toml` written; setup and every check passed. |",
+    "bindings": [
+      "init::setup and every check passed"
+    ]
+  },
+  {
+    "page": "agents.md",
+    "claim": "| `<code>` | `kew.toml` written; setup or a readiness check needs fixing. Go to step 3. |",
+    "bindings": [
+      "init::setup or a readiness check needs fixing"
+    ]
+  },
+  {
+    "page": "getting-started.md",
+    "claim": "Dispatch is contained by default and kew **refuses** to dispatch when no container runtime is found. The default `claude-code` route also needs its agent image and the allowlist network; `kew doctor` exits `<code>` and names the `fix:` command for each until both exist.",
+    "bindings": [
+      "doctor::Diagnostic findings"
+    ]
+  },
+  {
+    "page": "getting-started.md",
+    "claim": "[`kew doctor`](cli/doctor.md) checks the runtime, the runner image, the allowlist network, the runner credential and the `gh` login. Every failing check prints a `fix:` command. Run it, then run `kew doctor` again until it exits `<code>`.",
+    "bindings": [
+      "doctor::Checks passed or skipped"
+    ]
+  },
+  {
+    "page": "cli/merge.md",
+    "claim": "Exit codes follow the [exit-code scheme](exit-codes.md). Removing a missing entry returns `<code>`. A held queue pass returns `<code>`.",
+    "bindings": [
+      "merge::PR to remove is not queued",
+      "merge::queue pass held (lock taken, forge or git unreadable, verify host gone)"
+    ]
+  },
+  {
+    "page": "cli/merge.md",
+    "claim": "Exit codes follow the [exit-code scheme](exit-codes.md). The check returns `<code>` and names the verdict while that newest verdict is NEEDS_CHANGES or NEEDS_FULL, or when it is not one of kew's verdicts. It returns `<code>` when `HEAD` is not a full 40-character sha, the ledger is missing or cannot be read, a review verdict row in it does not decode (the message names its audit event), or the override reason is blank. A row that does not decode refuses every head, because it could be the newest verdict on any of them.",
+    "bindings": [
+      "merge::merge check refused the head's review verdict",
+      "merge::merge check ledger missing or unreadable, or a review verdict row in it undecodable"
+    ]
+  },
+  {
+    "page": "cli/report.md",
+    "claim": "A features file that cannot be read or has the wrong shape, a `--corpus` that is not a directory, no repo to scope to, a missing run store, or an `--out` that cannot be written exits `<code>` and writes neither file. Otherwise the command exits `<code>`, notes on stderr included.",
+    "bindings": [
+      "report::Unusable features file, corpus, repo, run store or output directory",
+      "report::Feature provenance written"
+    ]
+  },
+  {
+    "page": "cli/gc.md",
+    "claim": "- an item whose state cannot be read, which is reported: a Linear work item, or any other that is not a GitHub issue, and the `kew-sandbox-smoke-*` clone that `kew sandbox smoke` leaves, are always kept, so a work root holding one makes the command exit <code>;",
+    "bindings": [
+      "gc::Issue or PR state unreadable"
+    ]
+  },
+  {
+    "page": "cli/gc.md",
+    "claim": "`--apply` needs the project's git checkout, found from the project directory (the one holding `kew.toml`, or `--project`), never from the current directory. When git cannot name one, `--apply` removes nothing and exits `<code>`: without it, a registered worktree would be deleted and its registration orphaned.",
+    "bindings": [
+      "gc::no git checkout with `--apply`"
+    ]
+  },
+  {
+    "page": "cli/gc.md",
+    "claim": "Exit `<code>` when the listing printed and, with `--apply`, everything it listed was removed, `<code>` when a listed path or tag could not be removed, and `<code>` when an issue or PR state, the run ledger or the agent image inventory could not be read, or the work root was refused, or `--apply` found no git checkout. When both apply, `<code>` takes precedence over `<code>`. The command removes what it could before it exits. See [exit codes](exit-codes.md) for the scheme.",
+    "bindings": [
+      "gc::everything listed removed",
+      "gc::A listed path or tag could not be removed",
+      "gc::Issue or PR state unreadable",
+      "gc::Issue or PR state unreadable",
+      "gc::A listed path or tag could not be removed"
+    ]
+  },
+  {
+    "page": "cli/rename-repo.md",
+    "claim": "`--apply` writes nothing and exits `<code>` while any of these holds, each read again inside the transaction:",
+    "bindings": [
+      "rename-repo::Rename refused by live work or a key collision"
+    ]
+  },
+  {
+    "page": "cli/rename-repo.md",
+    "claim": "Each move writes the target first and removes the source after, so a stopped move leaves both. The next `--apply` removes a source whose target already holds its moved form, and finishes a move an older kew left as two links to one file. A source whose target differs, a symlink, or a file with no frontmatter stays where it is, is named, and makes the command exit `<code>`. With `--from-name-reused`, GitHub no longer proves that the old name is this repository, and the repository that took the name may have written reports to the same directory. So only the reports of runs this ledger records under the new slug move; every other report stays and is named, as above. Remove the cause and run `--apply` again: with the rename recorded and no old-slug rows, it only moves the reports that are left.",
+    "bindings": [
+      "rename-repo::A run report could not be moved"
+    ]
+  },
+  {
+    "page": "cli/rename-repo.md",
+    "claim": "When no row or run report holds the old slug and the rename is recorded, `--apply` prints `Nothing to do` and exits `<code>`.",
+    "bindings": [
+      "rename-repo::nothing to do"
+    ]
+  },
+  {
+    "page": "cli/rename-repo.md",
+    "claim": "Exit `<code>` when the dry run printed or `--apply` renamed everything, `<code>` when a run report could not be moved or the ledger rolled back, and `<code>` when the rename was refused or could not run. See [exit codes](exit-codes.md) for the scheme. The full procedure is in [Renaming the repository](../operations.md#renaming-the-repository).",
+    "bindings": [
+      "rename-repo::rename applied and every run report moved",
+      "rename-repo::A run report could not be moved",
+      "rename-repo::Rename refused by live work or a key collision"
+    ]
+  }
+]

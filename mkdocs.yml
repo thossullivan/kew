@@ -1,0 +1,217 @@
+site_name: kew
+# Docs are served under /docs/ on the launch host: `npm run dist` in www/ puts
+# the built site at build/docs/, and www/Caddyfile serves that tree as it is,
+# with no prefix stripping. Canonical URLs and the generated sitemap both
+# derive from this, so it has to match where the docs actually are.
+site_url: https://kew.dev/docs/
+site_description: The open-source control plane for autonomous coding agents
+# No `repo_url`/`repo_name`: Material turns them into a source widget that
+# calls the GitHub API from every page, which the site CSP (www/Caddyfile)
+# blocks, and the public repository name is not settled yet.
+
+theme:
+  name: material
+  # One dark scheme, no toggle. `custom` primary and accent stop Material's
+  # stock indigo rules from overriding the palette in stylesheets/extra.css,
+  # which follows DESIGN.md's tokens.
+  palette:
+    scheme: slate
+    primary: custom
+    accent: custom
+  # The kew mark (a byte copy of www/static/favicon.svg). It is the favicon;
+  # extra.css hides it in the header and drawer, which show the wordmark, so
+  # `logo` only replaces Material's book icon should that CSS not load.
+  favicon: assets/favicon.svg
+  logo: assets/favicon.svg
+  # `font: false` stops Material requesting Google Fonts. The site serves
+  # IBM Plex itself: docs/assets/fonts holds a byte copy of the fonts kew already
+  # vendors (kew/src/kew/assets/fonts), and the @font-face rules live in
+  # stylesheets/extra.css. scripts/check-docs.sh fails on any built page that
+  # loads an off-origin resource.
+  font: false
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+
+extra_css:
+  - stylesheets/extra.css
+
+# The stock footer becomes one hairline row: no "Made with Material".
+copyright: 'kew · <a href="https://github.com/thossullivan/kew">GitHub</a> · <a href="https://kew.dev/">kew.dev</a>'
+extra:
+  generator: false
+
+# Each docs file appears once. kew/tests/test_docs_nav_lists_every_page_once.py
+# fails on a duplicate, and on a page under docs/ that is neither here nor
+# matched by `exclude_docs`.
+nav:
+  - Start:
+    - Intro: index.md
+    - Getting Started: getting-started.md
+    - How It Works: how-it-works.md
+    - How a Change Is Proven: proof.md
+    - Glossary: glossary.md
+  - Security:
+    - Security: security.md
+    - Threat Model: threat-model.md
+    - Audit log: audit.md
+    - Authentication: authentication.md
+    - OpenShell runtime: openshell.md
+    - Container entrypoint contract: sandbox-entrypoint-contract.md
+  - Operate:
+    - Operations: operations.md
+    - Tuning the Governance Dials: tuning.md
+    - Run reports: run-reports.md
+    - Hosts: hosts.md
+    - Recipes: recipes.md
+    - Troubleshooting: troubleshooting.md
+  - Configure:
+    - Configuration: configuration.md
+    - Prompt profiles: prompts.md
+    - Skills: skills.md
+    - Linear webhooks: linear-webhooks.md
+  - Runners:
+    - Overview: runners/index.md
+    - Official Codex: runners/codex.md
+    - OpenCode: runners/opencode.md
+    - OpenRouter: runners/openrouter.md
+    - Hermes: runners/hermes.md
+    - Lemonade: runners/lemonade.md
+    - Choosing a Local Model: local-models.md
+    - Runner troubleshooting: runners/troubleshooting.md
+  # Agents comes first: www/scripts/llms-txt.mjs titles a page by the nearest
+  # section line above it, so it reads "Interfaces: Agents".
+  - Interfaces:
+    - Agents: agents.md
+    - Web UI:
+      - Overview: web/index.md
+      - Epic DAG live view: web/epics.md
+      - Keys and the palette: web/keys-and-palette.md
+      - The demo console: web/demo.md
+    - TUI:
+      - Dashboard: tui/index.md
+      - Panels: tui/panels.md
+      - Analytics: tui/analytics.md
+      - Overlays: tui/overlays.md
+  - CLI reference:
+    - Overview: cli/index.md
+    - Exit codes: cli/exit-codes.md
+    - Runs:
+      - run: cli/run.md
+      - dispatch: cli/dispatch.md
+      - finalize: cli/finalize.md
+      - publication: cli/publication.md
+      - no-change: cli/no-change.md
+      - stop: cli/stop.md
+      - kill: cli/kill.md
+      - settle: cli/settle.md
+      - resume: cli/resume.md
+      - loop: cli/loop.md
+      - attach: cli/attach.md
+    - Review and merge:
+      - review: cli/review.md
+      - resolve: cli/resolve.md
+      - ci-fix: cli/ci-fix.md
+      - merge queue: cli/merge.md
+      - approve: cli/approve.md
+      - verify: cli/verify.md
+    - Epics:
+      - epic: cli/epic.md
+      - drive: cli/drive.md
+      - run-request: cli/run-request.md
+      - plan: cli/plan.md
+      - triage: cli/triage.md
+      - delegate: cli/delegate.md
+    - Setup:
+      - init: cli/init.md
+      - setup: cli/setup.md
+      - config: cli/config.md
+      - doctor: cli/doctor.md
+      - health: cli/health.md
+      - skills: cli/skills.md
+      - schema: cli/schema.md
+      - sandbox: cli/sandbox.md
+      - hosts: cli/hosts.md
+      - canary: cli/canary.md
+      - switchyard: cli/switchyard.md
+      - serve: cli/serve.md
+    - Data:
+      - report: cli/report.md
+      - export: cli/export.md
+      - audit: cli/audit.md
+      - backup: cli/backup.md
+      - restore: cli/restore.md
+      - ingest: cli/ingest.md
+      - gc: cli/gc.md
+      - cleanup: cli/cleanup.md
+      - rename-repo: cli/rename-repo.md
+      - models: cli/models.md
+      - model-eol: cli/model-eol.md
+      - quota: cli/quota.md
+      - prompts: cli/prompts.md
+      - status: cli/status.md
+  - Project:
+    - Philosophy: philosophy.md
+    - Roadmap: roadmap.md
+    - Design records:
+      - Audit chain: design/2026-06-25-audit-chain-design.md
+      - Cache-aware routing: design/2026-06-28-cache-aware-routing-design.md
+      - Epic DAG: design/2026-07-01-epic-dag-design.md
+      - Launch hardening: design/2026-07-10-launch-hardening-design.md
+      - Sandboxed dispatch: design/2026-07-10-sandboxed-dispatch-design.md
+      - Adversarial review stage: design/2026-07-23-adversarial-review-stage.md
+      - Publication broker: design/2026-08-06-host-owned-publication-broker.md
+      - Product charter: design/2026-08-17-kew-product-charter.md
+      - Customer journeys: design/2026-08-17-production-certified-customer-journeys.md
+      - Run-report sink: design/2026-08-21-run-report-sink-design.md
+
+# Internal working material must not reach the published site. `not_in_nav`
+# only suppressed the "not in nav" build warnings — the pages were still built,
+# deployed, and sitemap-indexed on kew.dev/docs and gh-pages (found 2026-08-06:
+# ~214 internal pages live, including vulnerability-naming audit packs).
+# `exclude_docs` removes them from the build entirely; nothing listed here may
+# move back to `not_in_nav`.
+#
+# This list is short because internal material no longer lives under `docs/`.
+# The E01 curation (2026-08-26, PR #1701) deleted six internal trees —
+# superpowers, launch-surface, plans, spikes, handoff, receipts. The launch cut
+# (2026-09-22) moved the held audit packs and every design page off the
+# owner-approved allowlist of ten to the private docs archive. `docs/design/`
+# now holds only those ten public design records, and they build as public
+# pages. The guarantee the removed entries provided is not lost:
+# `scripts/check-docs.sh` refuses the deleted prefixes under `docs/` and any
+# design page off its allowlist, which is stronger than excluding them from a
+# build they can no longer enter. `/audit/**` stays excluded as well: the
+# documented deploy runs a plain `mkdocs build`, which never runs that
+# script, so an untracked audit pack in an operator's tree must still not
+# build.
+exclude_docs: |
+  /audit/**
+  /vhs/**
+  /brand-guidelines.md
+
+# mkdocs 1.6 reports a link to a missing `#anchor` at INFO by default, so a
+# broken fragment built clean. At `warn`, `mkdocs build --strict` (the docs
+# gate in scripts/check-docs.sh) fails on one (#1909).
+validation:
+  anchors: warn
+
+markdown_extensions:
+  - tables
+  # Explicit heading ids (`## [sandbox] {#sandbox}`) in configuration.md and
+  # how-it-works.md need attr_list; without it the `{#id}` text became part
+  # of the heading and its slug (`sandbox-sandbox`), so inbound links broke.
+  - attr_list
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true

@@ -1,0 +1,22 @@
+# Vendored semgrep ruleset snapshot (see kew/.semgrep/README.md): a recorded
+# registry download, not hand-written. Collapse it in diffs and exclude it from
+# language stats.
+kew/.semgrep/pinned.yml linguist-vendored linguist-generated -diff
+
+# Left out of the public snapshot: `git archive` skips an export-ignore path
+# (scripts/make-public-snapshot.sh, docs/operations.md "Making the public
+# snapshot"). One path per line, each with its reason. Every path must exist,
+# and no test or workflow may read one (kew/tests/test_public_snapshot.py), so
+# the snapshot's own CI never misses a file.
+#
+# Notes from building the launch site in one session; nothing builds from it.
+www/PLAYBOOK.md export-ignore
+# The maintainers' console design-review loop: an owner veto on a private gallery.
+.claude/skills/design-review export-ignore
+# The maintainers' own PR review-and-merge procedure for this repository.
+.claude/skills/ship-pr export-ignore
+# The pre-release feature-freeze test; the freeze ends with the first release.
+.claude/skills/freeze-boundary export-ignore
+# Maintainer-only scan data; scripts/make-public-snapshot.sh runs this
+# checkout's copy against the snapshot.
+kew/tests/test_private_names.py export-ignore

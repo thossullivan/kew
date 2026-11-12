@@ -1,0 +1,215 @@
+@import 'tailwindcss';
+
+/* Self-hosted — no CDN, no silent fallback. Mono carries display and all
+   data; Sans is confined to running prose. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+/* Palette, derived from frontend/src/app.css. See scripts/sync-tokens.mjs. */
+@import './lib/styles/tokens.css';
+
+/* ──────────────────────────────────────────────────────────────
+   kew.dev — the marketing surface.
+
+   Deliberately dark-only. The app ships a light theme; this page is a
+   product screen, not a document, and committing to one world is the
+   stronger statement.
+
+   Colour is rationed. The four signals below each mean exactly one thing
+   and are never decorative:
+     --accent    judgment  — a human must decide
+     --accent-2  machine   — an agent is working
+     --warn      money     — spend, burn, caps
+     --success   attested  — verified by the chain
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* www-only additions; everything else comes from tokens.css */
+  --canvas-lift: #150733;
+  --line-soft: #24123f;
+
+  /* --faint is the muted colour on this page. The console's --faint is
+     3.26:1 on --bg, under WCAG AA for the small print www draws in it, and
+     the console already rules the same for its own ramp
+     (frontend/src/app.css, "--text-4 is non-text": small print uses the next
+     step up, owner default 2026-09-24). So every small label here reads
+     --muted (5.44:1). A mark that must stay quieter than text (an SVG tick, a
+     rule) takes --text-4 or --line-soft, never --faint. */
+  --faint: var(--muted);
+
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --measure: 46ch;
+  --gutter: clamp(20px, 5vw, 64px);
+  --shell: 1320px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* Applies to anchor links and programmatic scrolls only — not to the
+     wheel/trackpad, so it costs nothing in scroll feel. */
+  scroll-behavior: smooth;
+}
+
+/* Deliberately NOT scroll-snap: even `proximity` fights macOS trackpad
+   momentum, and the whole page feels like molasses. */
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+}
+
+/* Two button styles for the whole page (design review c9, L16): one quiet,
+   one primary, the same height, the same type and the same case. Magenta is
+   spent on the primary action only (Install kew, Copy) and on a person's
+   decision; everything else is quiet. A disabled control is dimmed by colour,
+   never by opacity (C5). */
+.btn-quiet,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.btn-quiet:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--fg-dim);
+}
+.btn-quiet:disabled {
+  color: var(--text-4);
+  border-color: var(--line-soft);
+  cursor: default;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
+}
+
+/* A date or a date window is never broken across lines, so "2026" never
+   sits alone (design review c9, A2 item 7). Done in CSS rather than with
+   no-break spaces, so the claims check reads the same string the pack
+   module renders. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Read by assistive tech, not drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A control for the keyboard only: hidden as .sr-only until it has
+   keyboard focus, then drawn in place. */
+.sr-only-focusable:not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The skip link is drawn only while it has focus. */
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -64px;
+  z-index: 10;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.skip:focus {
+  top: 8px;
+}
+
+/* A section heading holds about 24 characters a line (L17). Set on the
+   heading itself, so the intro's prose measure does not cap it. */
+.intro h2 {
+  max-width: 24ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -1,0 +1,50 @@
+# OpenShell containment policy for the kew OpenCode runner image
+# (docker/agent-opencode.Dockerfile, pinned as
+# kew-agent-opencode:docker-<digest>).
+#
+# The Claude Code policy (docker/openshell/policy-claude-code.yaml) carries the
+# full rationale; this file is its OpenCode sibling and holds the same two
+# rules: inference endpoints only, and `enforcement: enforce` on every one.
+#
+# OpenCode routes every model call through OpenRouter — OPENROUTER_API_KEY is
+# forwarded by name by the host per OpenCodeRunner.required_credentials — so
+# openrouter.ai is the whole inference surface. `opencode models openrouter
+# --pure` reads the image's local catalog asset, not the network, so the
+# pre-dispatch catalog probe needs no endpoint of its own.
+version: "0.1"
+runner: opencode
+image: kew-agent-opencode
+
+# Image paths, not names resolved through PATH:
+#
+#   /usr/bin/opencode   npm global bin (prefix /usr) — what
+#                       kew-openshell-launch resolves and execs. npm installs
+#                       it as a SYMLINK to the next path, not a process of its
+#                       own
+#   /usr/lib/node_modules/opencode-ai/bin/opencode.exe
+#                       the native binary `node postinstall.mjs` materializes
+#                       in docker/agent-opencode.Dockerfile; without it every
+#                       invocation exits 1, so it is the process that actually
+#                       talks to OpenRouter. `.exe` is not a typo and not a
+#                       platform suffix: it is the literal name the package
+#                       declares (`bin: opencode -> bin/opencode.exe`), the
+#                       name that Dockerfile's postinstall comment states, and
+#                       the path that Dockerfile asserts before sealing the
+#                       layer
+#   /usr/bin/node       the nodesource interpreter
+binaries:
+  - path: /usr/bin/opencode
+    endpoints:
+      - host: openrouter.ai
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/lib/node_modules/opencode-ai/bin/opencode.exe
+    endpoints:
+      - host: openrouter.ai
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/bin/node
+    endpoints:
+      - host: openrouter.ai
+        ports: [443]
+        enforcement: enforce

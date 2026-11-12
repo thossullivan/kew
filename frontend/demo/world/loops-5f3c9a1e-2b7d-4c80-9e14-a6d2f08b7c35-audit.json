@@ -1,0 +1,65 @@
+[
+  {
+    "id": 7,
+    "timestamp": "2026-08-12T15:30:00+00:00",
+    "event": "loop_finished",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": "the gate passed: the rounding tests pass on the loop branch"
+  },
+  {
+    "id": 6,
+    "timestamp": "2026-08-12T15:28:00+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  },
+  {
+    "id": 5,
+    "timestamp": "2026-08-12T15:23:00+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  },
+  {
+    "id": 4,
+    "timestamp": "2026-08-12T15:16:00+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  },
+  {
+    "id": 3,
+    "timestamp": "2026-08-12T15:07:00+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  },
+  {
+    "id": 2,
+    "timestamp": "2026-08-12T15:01:00+00:00",
+    "event": "loop_checkout_bound",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  },
+  {
+    "id": 1,
+    "timestamp": "2026-08-12T15:00:00+00:00",
+    "event": "loop_started",
+    "actor_type": "host",
+    "actor_id": "kew",
+    "loop_id": "5f3c9a1e-2b7d-4c80-9e14-a6d2f08b7c35",
+    "summary": ""
+  }
+]

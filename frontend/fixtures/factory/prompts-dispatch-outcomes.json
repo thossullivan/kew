@@ -1,0 +1,21 @@
+{
+  "role": "dispatch",
+  "kind": "implementer",
+  "min_items": 10,
+  "versions": [
+    {
+      "version": null,
+      "label": "built-in",
+      "state": null,
+      "n": 14,
+      "comparable": true,
+      "round_one_items": 14,
+      "first_pass_rate": 0.6428571428571429,
+      "ready_items": 12,
+      "mean_rounds_to_ready": 1.3333333333333333,
+      "merged_items": 8,
+      "median_cost_usd": 2.6550000000000002
+    }
+  ],
+  "generation": 0
+}

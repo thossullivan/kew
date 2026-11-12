@@ -1,0 +1,13 @@
+{
+  "item_id": "2055",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-09-24T18:11:58+00:00",
+  "title": "Review gate lows: comment and hold-back",
+  "url": "https://github.com/thossullivan/kew/issues/2055",
+  "description": "The system-notice comment says a glued line fails on the split-lines count; the glue attack is caught by unparsed lines. The CPU-cap hold-back keeps every refusal-shaped line of an attempt; only the latest can drive the retry.",
+  "expected": "the comment names the counter that fires; the hold-back keeps one line.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-09-24T18:12:04+00:00"
+}

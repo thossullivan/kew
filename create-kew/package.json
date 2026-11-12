@@ -1,0 +1,34 @@
+{
+  "name": "create-kew",
+  "version": "1.0.0",
+  "description": "Installs kew, the open-source control plane for autonomous coding agents, and runs kew init",
+  "bin": "index.js",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "license": "Apache-2.0",
+  "author": "Tom Sullivan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thossullivan/kew",
+    "directory": "create-kew"
+  },
+  "homepage": "https://github.com/thossullivan/kew",
+  "bugs": "https://github.com/thossullivan/kew/issues",
+  "keywords": [
+    "kew",
+    "claude",
+    "claude-code",
+    "dispatch",
+    "github",
+    "automation",
+    "setup",
+    "create"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,155 @@
+[
+  {
+    "role": "dispatch",
+    "run_kinds": [
+      "dispatch",
+      "loop",
+      "delegation"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "dispatch.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": true,
+    "profile_applies": true
+  },
+  {
+    "role": "adversarial_review",
+    "run_kinds": [
+      "adversarial_review"
+    ],
+    "source": {
+      "kind": "pinned-artifact",
+      "name": "adversarial-reviewer",
+      "version": 9,
+      "sha256": "b178fcd3e52892aee71b08fb3207ec55ca37c3273eda8fde9210fc9533164527",
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": true
+  },
+  {
+    "role": "review_remediation",
+    "run_kinds": [
+      "review_remediation",
+      "review"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "review.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": true
+  },
+  {
+    "role": "resolve",
+    "run_kinds": [
+      "resolve"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "resolve.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": true
+  },
+  {
+    "role": "ci_fix",
+    "run_kinds": [
+      "ci_fix"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "ci-fix.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": true
+  },
+  {
+    "role": "triage",
+    "run_kinds": [
+      "triage"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "triage.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": false
+  },
+  {
+    "role": "planning",
+    "run_kinds": [
+      "planning"
+    ],
+    "source": {
+      "kind": "packaged-template",
+      "name": "epic-plan.md.j2",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": false
+  },
+  {
+    "role": "acceptance_author",
+    "run_kinds": [
+      "acceptance_author"
+    ],
+    "source": {
+      "kind": "code",
+      "name": "acceptance_author.author_prompt",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": false
+  },
+  {
+    "role": "loop_continuation",
+    "run_kinds": [
+      "loop"
+    ],
+    "source": {
+      "kind": "code",
+      "name": "loops.delegate._build_continuation_prompt",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": false
+  },
+  {
+    "role": "readiness_probe",
+    "run_kinds": [
+      "readiness_probe"
+    ],
+    "source": {
+      "kind": "code",
+      "name": "probe_route.PROBE_PROMPT",
+      "version": null,
+      "sha256": null,
+      "pin_mismatch": false
+    },
+    "prompt_config_applies": false,
+    "profile_applies": false
+  }
+]

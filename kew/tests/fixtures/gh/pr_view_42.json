@@ -1,0 +1,56 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjEyMzQ1",
+    "is_bot": false,
+    "login": "carol",
+    "name": "Carol Danvers"
+  },
+  "commits": [
+    {
+      "authoredDate": "2026-06-30T00:00:00Z",
+      "authors": [
+        {
+          "email": "carol@example.com",
+          "id": "MDQ6VXNlcjEyMzQ1",
+          "login": "carol",
+          "name": "Carol Danvers"
+        }
+      ],
+      "committedDate": "2026-06-30T00:00:00Z",
+      "messageBody": "",
+      "messageHeadline": "feat: first commit",
+      "oid": "aaaa1111bbbb2222cccc3333dddd4444eeee5555"
+    },
+    {
+      "authoredDate": "2026-07-01T00:00:00Z",
+      "authors": [
+        {
+          "email": "carol@example.com",
+          "id": "MDQ6VXNlcjEyMzQ1",
+          "login": "carol",
+          "name": "Carol Danvers"
+        }
+      ],
+      "committedDate": "2026-07-01T00:00:00Z",
+      "messageBody": "",
+      "messageHeadline": "fix: address review",
+      "oid": "deadbeef1234deadbeef1234deadbeef12345678"
+    }
+  ],
+  "headRefOid": "deadbeef1234deadbeef1234deadbeef12345678",
+  "latestReviews": [
+    {
+      "author": {
+        "login": "alice"
+      },
+      "authorAssociation": "MEMBER",
+      "body": "",
+      "state": "APPROVED",
+      "submittedAt": "2026-07-01T12:00:00Z"
+    }
+  ],
+  "mergeStateStatus": "CLEAN",
+  "number": 42,
+  "reviewDecision": "APPROVED",
+  "state": "OPEN"
+}

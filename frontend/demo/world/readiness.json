@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "checks": [
+    {
+      "id": "project-config",
+      "status": "ok",
+      "summary": "kew.toml found",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "required-tools",
+      "status": "ok",
+      "summary": "git, gh and docker are on PATH",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "runner-credential",
+      "status": "ok",
+      "summary": "claude-code has a credential",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "gh-auth",
+      "status": "ok",
+      "summary": "gh is signed in",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "containment",
+      "status": "ok",
+      "summary": "agent runs are contained",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "container-runtime",
+      "status": "ok",
+      "summary": "docker is running",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "route-image",
+      "status": "ok",
+      "summary": "kew-agent:0.9.0 is present",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "model-eol",
+      "status": "ok",
+      "summary": "no routed model is retiring",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    }
+  ],
+  "ok": true,
+  "checked_at": "2026-10-21T15:00:00+00:00"
+}

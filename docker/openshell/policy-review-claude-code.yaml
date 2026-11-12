@@ -1,0 +1,66 @@
+# OpenShell containment policy for the kew ADVERSARIAL REVIEWER, Claude Code
+# image (docker/agent.Dockerfile, pinned as kew-agent:docker-<digest>).
+#
+# A second policy for one image, and the separation is the point. The reviewer
+# is the most exposed launch kew makes: its prompt requires it to execute the
+# reviewed PR's tests, next to a credential that authenticates every other run.
+# A dispatch and a review are therefore two boundaries, not one — they are
+# certified separately (`kew sandbox certify --flow review`), so the proof that
+# a dispatch boundary holds says nothing about a review one, and widening the
+# dispatch policy can never widen this one by accident.
+#
+# Three rules this file holds, on top of the two every kew policy holds
+# (inference endpoints only; `enforcement: enforce` on every endpoint):
+#
+#  1. THE INFERENCE HOST, AND NOTHING ELSE. No package index: the reviewer's
+#     environment is installed before it starts, in its own sandbox under
+#     docker/openshell/policy-review-provision-claude-code.yaml, and a reviewer
+#     that can still reach an index can install whatever the PR asks it to.
+#     No github.com, for the reason every kew policy omits it — the container
+#     holds no forge token and the host broker owns every push.
+#  2. NO NEW GOVERNED BINARY. The reviewer runs the PR's own test command, so
+#     every interpreter and build tool in this image executes code written by
+#     the agent under review. None of them is governed here, which under
+#     `enforce` means none of them has any egress at all.
+#  3. THE SAME GOVERNED SET AS THE DISPATCH POLICY, NEVER A WIDER ONE.
+#     kew/tests/test_openshell_policy.py fails if this file's endpoint hosts
+#     are not a subset of the dispatch policy's, so this boundary cannot
+#     become the loose one.
+#
+# For claude-code the endpoint set is IDENTICAL to the dispatch policy's today,
+# because that policy is already one host. That is a property of this runner,
+# not a reason to share the file: the dispatch policies of the other runners
+# name two and three hosts apiece, and a reviewer certified against a dispatch
+# digest would inherit whichever of those its runner happened to carry.
+version: "0.1"
+runner: claude-code
+image: kew-agent
+
+# The same three paths the dispatch policy governs, and for the same reasons
+# (docker/openshell/policy-claude-code.yaml documents each one). The native
+# binary is the process that owns the API socket; the npm shim is the name
+# kew-openshell-launch resolves; node is governed so a run that reaches the
+# package's own node wrapper fails on a model call rather than on egress — and
+# because `kew sandbox certify` proves this boundary with a Node program, which
+# an ungoverned interpreter could not run.
+#
+# Nothing the reviewer executes to CHECK the PR appears here: not uv, not
+# python, not the project's own test runner. Under `enforce` they are denied
+# every destination, which is what makes "the reviewer needs nothing else once
+# its environment is provisioned" a rule rather than a hope.
+binaries:
+  - path: /usr/bin/claude
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce
+  - path: /usr/bin/node
+    endpoints:
+      - host: api.anthropic.com
+        ports: [443]
+        enforcement: enforce

@@ -1,0 +1,23 @@
+{
+  "type": "merge_queue_suspect",
+  "consequence": "epic",
+  "age": "2026-10-15T09:00:00+00:00",
+  "reason": "merge queue stopped for 3h 0m — acme/widgets — main cdcdcdcdcdcd landed a tree nobody verified (PR #9 landed with an unverified tree) after #9 landed unverified; inspect with `kew merge queue list`, repair main, then resume",
+  "primary_action": "resume",
+  "issue_num": null,
+  "item_id": null,
+  "estimate_usd": null,
+  "epic_ref": null,
+  "url": null,
+  "pr_number": null,
+  "work_unread": false,
+  "attention_kind": "merge_queue_suspect",
+  "label": "",
+  "command": "kew merge queue run",
+  "sentence": "merge queue stopped for 3h 0m — acme/widgets — main cdcdcdcdcdcd landed a tree nobody verified (PR #9 landed with an unverified tree) after #9 landed unverified; inspect with `kew merge queue list`, repair main, then resume",
+  "title": "merge queue stopped — acme/widgets",
+  "link": null,
+  "verify_link": null,
+  "node_ids": [],
+  "repo": "acme/widgets"
+}

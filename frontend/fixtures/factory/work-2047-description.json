@@ -1,0 +1,13 @@
+{
+  "item_id": "2047",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-03T14:33:02+00:00",
+  "title": "review gate trailing notices",
+  "url": "https://github.com/thossullivan/kew/issues/2047",
+  "description": "The review gate prints its notices after the verdict, so a reader who stops at the verdict never sees them. Print each notice before the verdict it qualifies.",
+  "expected": "every notice sits above the verdict it qualifies.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-03T14:33:02+00:00"
+}
