@@ -6,7 +6,7 @@
 # The manifest resolves to these reviewed children:
 # linux/arm64: sha256:e42d574c21b0e1348205dc0e8994086cf73088596e999f67fce215f8406881a4
 # linux/amd64: sha256:39decc9f9f4a87e03db5069b2424c0ee13c3d7e4116010980d4f96849e823bc4
-FROM rust:1.96.1-slim-bookworm@sha256:e18a79fc84dfcfc3ab5ba72290398a644c135c97eaa881447fddc354ee4701a3 AS builder
+FROM rust:1.99.1-slim-bookworm@sha256:f2c004e3d2d8b547e8cf7ffbc29205385f4e71d23e53e4e383065db5e9f822cd AS builder
 
 ARG TARGETARCH
 
