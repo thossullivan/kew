@@ -171,7 +171,7 @@ dev = [
     # test_audit_anchor_workflow, test_scheduled_audits_workflow). It used to
     # arrive only as a uvicorn[standard] transitive — declaring it here is what
     # makes dropping that extra safe.
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.3",
     # shellcheck-py is a DIRECT dev dependency so the recipe lint is a real
     # gate: `kew/src/kew/hosts/provision/*.sh` builds every verification host,
     # and tests/test_hosts_provision.py lints it. As an optional external tool
