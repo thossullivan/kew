@@ -177,7 +177,7 @@ dev = [
     # and tests/test_hosts_provision.py lints it. As an optional external tool
     # that check skipped on every machine that happened not to have shellcheck
     # installed — CI included — which is a criterion nobody was checking.
-    "shellcheck-py>=0.10.0",
+    "shellcheck-py>=0.11.0.1",
     "uvicorn>=0.34",
     "xenon>=0.9.3",
 ]
