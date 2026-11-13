@@ -1,0 +1,1001 @@
+{
+  "views": [
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "2055",
+        "item_ref": "#2055",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "2055",
+        "run_id": "f5dcb6a5",
+        "attempt_number": 1
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "contained",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "completed",
+        "run_status": "success",
+        "attempts": 1,
+        "started_at": "2026-09-24T15:23:52+00:00",
+        "finished_at": "2026-09-24T15:46:58+00:00",
+        "error_category": ""
+      },
+      "artifact": {
+        "state": "published",
+        "publication": "published",
+        "branch": "agent/issue-2055",
+        "pr_url": "https://github.com/thossullivan/kew/pull/2059",
+        "orphan": false
+      },
+      "judgment": {
+        "state": "awaiting_human_decision",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        "decided_at": null
+      },
+      "outcome": {
+        "state": "in_progress",
+        "detail": "artifact published, decision pending"
+      },
+      "integration": {
+        "checks": "passing",
+        "mergeability": "clean",
+        "review_decision": "review_required",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "awaiting_human_decision",
+        "detail": "kew opens the pull request; you decide whether it lands.",
+        "blocking": true,
+        "dimension": "judgment"
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "kew opens the pull request; you decide whether it lands.",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:2055a1c4f0be47d9b6c2e5a70f1d8843",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    },
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "2053",
+        "item_ref": "#2053",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "2053",
+        "run_id": "c40b19de",
+        "attempt_number": 2
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "contained",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "terminal",
+        "run_status": "failure",
+        "attempts": 2,
+        "started_at": "2026-09-23T11:04:31+00:00",
+        "finished_at": "2026-09-23T11:39:12+00:00",
+        "error_category": "review_refused"
+      },
+      "artifact": {
+        "state": "absent",
+        "publication": "not_required",
+        "branch": "agent/issue-2053",
+        "pr_url": null,
+        "orphan": false
+      },
+      "judgment": {
+        "state": "not_applicable",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        },
+        "decided_at": null
+      },
+      "outcome": {
+        "state": "abandoned",
+        "detail": "handed to a human: needs a design decision"
+      },
+      "integration": {
+        "checks": "unknown",
+        "mergeability": "not_applicable",
+        "review_decision": "unknown",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "terminal_failure",
+        "detail": "a stray stderr line failed a genuine round",
+        "blocking": true,
+        "dimension": "execution"
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "a design decision is outstanding",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:2053f7b20c9a41e685d3c0a2b7e94f16",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    },
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "2047",
+        "item_ref": "#2047",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "2047",
+        "run_id": "b81c7f04",
+        "attempt_number": 1
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "contained",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "completed",
+        "run_status": "success",
+        "attempts": 1,
+        "started_at": "2026-09-24T14:02:10+00:00",
+        "finished_at": "2026-09-24T14:41:07+00:00",
+        "error_category": ""
+      },
+      "artifact": {
+        "state": "published",
+        "publication": "published",
+        "branch": "agent/issue-2047",
+        "pr_url": "https://github.com/thossullivan/kew/pull/2048",
+        "orphan": false
+      },
+      "judgment": {
+        "state": "accepted",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        "decided_at": "2026-09-24T15:01:44+00:00"
+      },
+      "outcome": {
+        "state": "delivered",
+        "detail": "pull request merged"
+      },
+      "integration": {
+        "checks": "passing",
+        "mergeability": "clean",
+        "review_decision": "approved",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "none",
+        "detail": "",
+        "blocking": false,
+        "dimension": ""
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "nothing is outstanding",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:2047d8e1a60b94c37f52ba0d1e6c8397",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    },
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "2033",
+        "item_ref": "#2033",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "2033",
+        "run_id": "7d3f0a16",
+        "attempt_number": 1
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "host",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "in_flight",
+        "run_status": "pending",
+        "attempts": 1,
+        "started_at": "2026-10-03T14:17:40+00:00",
+        "finished_at": null,
+        "error_category": ""
+      },
+      "artifact": {
+        "state": "absent",
+        "publication": "not_required",
+        "branch": "agent/issue-2033",
+        "pr_url": null,
+        "orphan": false
+      },
+      "judgment": {
+        "state": "not_applicable",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        },
+        "decided_at": null
+      },
+      "outcome": {
+        "state": "in_progress",
+        "detail": "implement is running"
+      },
+      "integration": {
+        "checks": "unknown",
+        "mergeability": "not_applicable",
+        "review_decision": "unknown",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "in_flight",
+        "detail": "run pending",
+        "blocking": false,
+        "dimension": "execution"
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "run pending \u2014 a second dispatch would duplicate it",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:2033b5c9e2f7a41d80c6538ea9b71204",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "unavailable",
+          "provenance": "unobserved",
+          "observed_at": null,
+          "detail": "no artifact"
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    },
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "1969",
+        "item_ref": "#1969",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "1969",
+        "run_id": "e72a4b58",
+        "attempt_number": 1
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "contained",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "completed",
+        "run_status": "success",
+        "attempts": 1,
+        "started_at": "2026-09-23T09:12:00+00:00",
+        "finished_at": "2026-09-23T10:04:38+00:00",
+        "error_category": ""
+      },
+      "artifact": {
+        "state": "published",
+        "publication": "published",
+        "branch": "agent/issue-1969",
+        "pr_url": "https://github.com/thossullivan/kew/pull/1999",
+        "orphan": false
+      },
+      "judgment": {
+        "state": "accepted",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        "decided_at": "2026-09-23T12:40:09+00:00"
+      },
+      "outcome": {
+        "state": "delivered",
+        "detail": "pull request merged"
+      },
+      "integration": {
+        "checks": "passing",
+        "mergeability": "clean",
+        "review_decision": "approved",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "none",
+        "detail": "",
+        "blocking": false,
+        "dimension": ""
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "nothing is outstanding",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:1969c0d4a83be215f679b4e02c8d7315",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    },
+    {
+      "identity": {
+        "source_tracker": "github",
+        "item_id": "1803",
+        "item_ref": "#1803",
+        "delivery_repo": "thossullivan/kew",
+        "epic_ref": "launch-fixes",
+        "node_id": "1803",
+        "run_id": "a95d3e17",
+        "attempt_number": 1
+      },
+      "source": {
+        "tracker": "github",
+        "item_state": "open",
+        "synchronization": "synchronized",
+        "observation": {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "route": {
+        "runner": "claude-code",
+        "model": "claude-opus-5",
+        "reported_model": "claude-opus-5",
+        "containment": "contained",
+        "provenance": "declared",
+        "claim": "honored"
+      },
+      "execution": {
+        "state": "completed",
+        "run_status": "success",
+        "attempts": 1,
+        "started_at": "2026-09-21T16:20:11+00:00",
+        "finished_at": "2026-09-21T17:02:55+00:00",
+        "error_category": ""
+      },
+      "artifact": {
+        "state": "published",
+        "publication": "published",
+        "branch": "agent/issue-1803",
+        "pr_url": "https://github.com/thossullivan/kew/pull/1812",
+        "orphan": false
+      },
+      "judgment": {
+        "state": "accepted",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        "decided_at": "2026-09-21T18:11:30+00:00"
+      },
+      "outcome": {
+        "state": "delivered",
+        "detail": "pull request merged"
+      },
+      "integration": {
+        "checks": "passing",
+        "mergeability": "clean",
+        "review_decision": "approved",
+        "observation": {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "readiness": {
+        "state": "unproven",
+        "fingerprint": null,
+        "evidence_ref": null,
+        "detail": "nothing has probed this boundary",
+        "observation": {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        }
+      },
+      "no_change": {
+        "state": "not_applicable",
+        "judgment_state": "",
+        "policy": "",
+        "reasons": [],
+        "sync_outstanding": 0,
+        "sync_failed": 0,
+        "effects_outstanding": 0
+      },
+      "review_pressure": {
+        "delivery_repo": "thossullivan/kew",
+        "engaged": true,
+        "countable": true,
+        "used": 1,
+        "total": 4,
+        "held": 1,
+        "oldest_hold_age_seconds": null,
+        "diff_burden_lines": 252,
+        "saturated": false,
+        "reasons": [],
+        "enforcement": "inactive",
+        "enforcement_detail": "the human-review policy is configured and reported, but not active",
+        "policy_generation": 3,
+        "observation": {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      },
+      "exception": {
+        "state": "none",
+        "detail": "",
+        "blocking": false,
+        "dimension": ""
+      },
+      "safest_action": {
+        "action": "wait",
+        "reason": "nothing is outstanding",
+        "blocked_by": null
+      },
+      "actions": [],
+      "view_revision": "wv1:1803e6f28b1d097a4c35de70b2a91864",
+      "composed_at": "2026-10-03T14:33:02+00:00",
+      "observations": [
+        {
+          "dimension": "pull_request",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "review_capacity",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        },
+        {
+          "dimension": "route_boundary",
+          "availability": "unavailable",
+          "provenance": "observed",
+          "observed_at": null,
+          "detail": "nothing has probed this boundary"
+        },
+        {
+          "dimension": "tracker_item",
+          "availability": "available",
+          "provenance": "observed",
+          "observed_at": "2026-10-03T14:33:02+00:00",
+          "detail": null
+        }
+      ]
+    }
+  ],
+  "pressure": {
+    "delivery_repo": "thossullivan/kew",
+    "engaged": true,
+    "countable": true,
+    "used": 1,
+    "total": 4,
+    "held": 1,
+    "oldest_hold_age_seconds": null,
+    "diff_burden_lines": 252,
+    "saturated": false,
+    "reasons": [],
+    "enforcement": "inactive",
+    "enforcement_detail": "the human-review policy is configured and reported, but not active",
+    "policy_generation": 3,
+    "observation": {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  },
+  "projection_revision": "wp1:9f31c7a0be24d85e106b3f7c2ad94e51",
+  "composed_at": "2026-10-03T14:33:02+00:00",
+  "unreadable": []
+}

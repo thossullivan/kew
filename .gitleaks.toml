@@ -1,0 +1,151 @@
+# gitleaks configuration.
+#
+# Extends the default ruleset; this file only adds allowlists for patterns that
+# are structurally incapable of being credentials.
+#
+# Picked up automatically by `gitleaks detect --source .` (CI's `secrets` job)
+# and by `scripts/verify.sh`, both of which scan from the repo root.
+
+[extend]
+useDefault = true
+
+# SQL upsert clauses are not credentials.
+#
+# `generic-api-key` is an entropy rule, and `col=excluded.col` in an
+# ON CONFLICT ... DO UPDATE SET body reads as high-entropy because the column
+# name repeats. run_store.py's loops upsert tripped it on
+# `lesson_corpus_tokens=excluded.lesson_corpus_tokens`.
+#
+# A per-commit fingerprint in .gitleaksignore was tried first and is the wrong
+# shape: fingerprints bind to a SHA, so the same line re-flagged the moment it
+# merged to main under a new one (agent/issue-1092 -> #1127). CI scans full
+# history, so one such line fails the `secrets` gate on every PR in the repo
+# until it is allowlisted by pattern rather than by commit.
+#
+# `excluded.` is the SQLite/Postgres pseudo-table available only inside an
+# upsert's DO UPDATE clause. A line containing it is SQL by construction.
+[[allowlists]]
+description = "SQL upsert: col=excluded.col is an ON CONFLICT clause, not a key"
+regexTarget = "line"
+regexes = ['''=\s*excluded\.''']
+
+# The certification-candidate sanitizer's own test carries deliberately
+# credential-shaped fixtures whose whole purpose is to prove `sanitized()`
+# REFUSES a document that carries them. The only one the default rules flag, in
+# the current tree and in full history, is the sequential fake
+# `api_key=abcdef0123456789`. A path-only allowlist skipped every rule for the
+# whole file, so a real credential committed there passed the gate (#1962).
+# This block is an AND of the exact path and that exact captured secret: any
+# other token-shaped value in the file is still reported, and a new sanitizer
+# fixture that trips a rule needs its own exact entry here.
+# tests/test_gitleaks_allowlist.py proves both properties.
+[[allowlists]]
+description = "certification sanitizer test: the sequential fake api_key fixture in that one file, nothing else"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+# Anchored: gitleaks matches path regexes as substrings, so an unanchored
+# pattern would also exempt `...conformance.py.bak` or a prefixed copy.
+paths = ['''^kew/tests/test_certification_conformance\.py$''']
+regexes = ['''^abcdef0123456789$''']
+
+# The bounded-run-key tests (#1957) use a fake issued secret such as
+# `issued_key="bounded-secret-1944"` to trace the bounded credential through the
+# launch environment and the revoke call. The literal is the word
+# "bounded-secret" plus the issue number: it names itself as a fixture and trips
+# the entropy rule only by length. The allowlist is scoped to the SECRET the
+# rule captured (never the whole line) and anchored, so a real credential that
+# shares a line with the fixture, or merely contains the phrase, is still
+# reported. tests/test_gitleaks_allowlist.py proves both properties.
+[[allowlists]]
+description = "bounded-run-key tests: the self-describing fake issued secret bounded-secret-<n>, not a key"
+regexTarget = "secret"
+regexes = ['''^bounded-secret-\d+$''']
+
+# The allowlist regression test writes credential-shaped samples into scratch
+# directories at runtime (assembled from fragments, never literal in source).
+# One earlier revision of that test carried its "contains the phrase" sample as a
+# literal, and full-history scans still see that commit. This block exempts
+# exactly that value, only in that file, and nothing else: it is an AND of the
+# path and the captured secret, so a real credential committed to the test file
+# stays reportable (the test proves it with a token-shaped value at that path).
+[[allowlists]]
+description = "gitleaks allowlist regression test: the historical literal sample in that one file, nothing else"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^kew/tests/test_gitleaks_allowlist\.py$''']
+regexes = ['''^xK9bounded-secret-\d+[A-Za-z0-9]{12}$''']
+
+# These exact database lookup fixtures are metadata addresses, not credentials.
+# Full-history scans retain the round-14 and round-15 literals after replacement.
+# Match the complete lookup and exact test path; no credential value is exempted.
+[[allowlists]]
+description = "bounded-run tests: exact issuance-intent database lookup fixtures"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''^kew/tests/test_bounded_run_keys\.py$''']
+regexes = [
+    '''^run_key_intent:round14-crash"$''',
+    '''^run_key_intent:round15-absent"$''',
+    '''^run_key_intent:round16-late"$''',
+]
+
+# The publication-scan tests (#1969) set a fake SYNTHETIC_PROVIDER_KEY so a run
+# admitted with env:SYNTHETIC_PROVIDER_KEY holds its needle. The literal names
+# itself as a placeholder and trips the entropy rule only by length. AND of the
+# two test paths and the exact captured secret: a real key in those files, or
+# this value anywhere else, is still reported (tests/test_gitleaks_allowlist.py).
+[[allowlists]]
+description = "publication-scan tests: the fake SYNTHETIC_PROVIDER_KEY placeholder in two files, nothing else"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^kew/tests/test_ci_fix\.py$''', '''^kew/tests/test_publication_worker\.py$''']
+regexes = ['''^kew-placeholder-synthetic-key-0123$''']
+
+# OpenShell launcher tests (#2317): the launcher refuses a forwarded Codex value
+# shaped like a real credential, so the test carries one fake sample per shape it
+# sweeps. Three of those samples trip gitleaks rules. AND of the exact test path
+# and the exact anchored fake values: any other token-shaped value in the file is
+# still reported, and the same values elsewhere are reported too.
+# tests/test_gitleaks_allowlist.py proves both properties.
+[[allowlists]]
+description = "OpenShell launcher tests: the fake credential-shape samples in that one file, nothing else"
+targetRules = ["aws-access-token", "generic-api-key", "stripe-access-token"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^kew/tests/test_openshell_launcher\.py$''']
+regexes = [
+    '''^AKIAABCDEFGHIJKLMNOP$''',
+    '''^sk_live_abcdefghijklmnopqr$''',
+    '''^xoxb\-1234567890\-abcdefghijkl$''',
+]
+
+# #2318: fake credential values proving the OpenShell launch environment carries names, not values in kew/tests/test_run_credentials.py. AND of the exact test path and the exact
+# anchored fake values: any other token-shaped value in the file is still
+# reported, and the same values elsewhere are reported too.
+[[allowlists]]
+description = "#2318: fake test values in test_run_credentials.py, nothing else"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^kew/tests/test_run_credentials\.py$''']
+regexes = [
+    '''^anthropic\-secret\-2318$''',
+]
+
+# #3345: fake known-secret values the wrapped-secret redaction tests trace
+# through redact() in kew/tests/test_credential_redaction.py. AND of the exact
+# test path and the exact anchored fake values: any other token-shaped value in
+# the file is still reported, and the same values elsewhere are reported too.
+[[allowlists]]
+description = "#3345: fake redaction-test secrets in test_credential_redaction.py, nothing else"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^kew/tests/test_credential_redaction\.py$''']
+regexes = [
+    '''^sk\-placeholder0123456789$''',
+    '''^placeholder123$''',
+]

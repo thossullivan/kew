@@ -1,0 +1,929 @@
+name: CI
+
+# Nine portable jobs name `ubuntu-latest` literally. The test and
+# agent-image-scan jobs select their runner by repository visibility: the
+# self-hosted runner while this repository is private, `ubuntu-latest`
+# otherwise. Only the exact value 'private' selects self-hosted; a public,
+# internal or missing visibility resolves to the hosted runner. The expression
+# is one fixed string (RUNNER_BY_EVENT_VISIBILITY in
+# kew/tests/support/workflow_runners.py), evaluated for every visibility by
+# kew/tests/test_workflow_runner_visibility.py.
+#
+# ci.yml is `pull_request`-triggered, so its jobs execute PR-authored code
+# (dependencies, test code, npm scripts). For a pull_request event GitHub runs
+# the workflow file from the PR's merge ref, so a fork PR can rewrite any of
+# this. Runner selection here is a convenience, not the security boundary.
+# The boundary is repository configuration: a public repository registers no
+# self-hosted runner and requires approval before fork PR workflows run
+# (docs/operations.md, "Public repository runner rule").
+#
+# Each visibility-routed job starts with a `Runner boundary` step that runs
+# no repository code and fails when the job landed on a runner that is not
+# GitHub-hosted in a repository that is not private. It never blocks the
+# hosted path.
+#
+# Self-hosted is independently correct for the three workflows whose whole
+# point is the host's own state — approval.yml (the live run-store),
+# audit-anchor.yml (the canonical ledger), canary.yml (the locally-installed
+# runner CLIs). They run only while the repository is private and are skipped
+# otherwise, and none of them are `pull_request`-triggered.
+#
+# Hosted jobs use fresh clones. The two visibility-routed jobs retain their
+# shared-clone repair, which is a no-op on a fresh clone. The containment job
+# proves Linux behavior on a hosted Docker-capable runner.
+#
+# Agent PR gate (#2033). While the repository is private, the two
+# visibility-routed jobs skip an agent-authored pull request until a human
+# adds the `ci-approved` label. GitHub evaluates the job `if:` before any
+# runner picks the job up, so a skipped job runs nothing on the host. An agent
+# PR is one labelled `agent-pr` (kew's labels.agent_pr) or one whose head
+# branch starts with `agent/issue-` (kew's branches.prefix): the host opens the
+# PR before it can label it, so the `opened` event carries no label yet. The
+# approval label is kew's labels.ci_approved. kew removes it before it pushes
+# new agent commits to the PR, so each new agent head needs a fresh approval.
+# Adding the label is a `labeled` event, which starts CI. A `labeled` event for
+# any other label runs no job, and gets a concurrency group of its own so it
+# cannot cancel a real run. The gate allow-lists `push`, the one non-PR
+# trigger here; any other event, pull_request_target included, must pass the
+# agent check. Human PRs, pushes to main and the public
+# repository's hosted path are unchanged. The label names are pinned to
+# kew.toml by kew/tests/test_workflow_agent_pr_gate.py.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ci-approved' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The Switchyard image tooling is opt-in: "1" exactly when the repository is
+  # private, where the jobs run on the private runner. The kew-switchyard image
+  # builds only from its pinned private source input, which exists on that
+  # runner alone, so every other path gets "" and skips the Switchyard layer of
+  # the image scan and the tests marked requires_switchyard_image
+  # (tests/conftest.py), each printing why. Nothing else is skipped, and the
+  # archive secret reaches only the steps this value opts in. Opting the hosted
+  # runner in is the switch in docs/operations.md
+  # ("Public repository runner rule").
+  KEW_SWITCHYARD_IMAGE: ${{ github.event.repository.visibility == 'private' && '1' || '' }}
+  # No silent skips (#2480): in every job, a pytest skip the environment caused
+  # (a missing docker, git, bash, gitleaks) fails and names what was missing,
+  # so a misprovisioned runner cannot pass the publication, scan-gate or
+  # containment suites without running them. Intended skips are declared once,
+  # in kew/tests/support/required_tools.py. scripts/verify.sh exports the same
+  # value; tests/test_verify_parity.py pins the pair.
+  KEW_REQUIRE_TOOLS: "1"
+
+jobs:
+  lint:
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Ruff check
+        working-directory: kew
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        working-directory: kew
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy)
+        working-directory: kew
+        run: uv run mypy src/
+
+      - name: Bandit security scan
+        working-directory: kew
+        run: uv run bandit -r src/ -c pyproject.toml
+
+      - name: Import contract (lint-imports)
+        working-directory: kew
+        run: uv run lint-imports
+
+      # Proactive pricing-completeness guard (#934): fails the PR gate the
+      # moment a router/config-emittable model resolves to no pricing key (a
+      # silent $0 meter). Runs here, not only in the weekly pricing-drift job,
+      # so the guard holds even when that job is down.
+      - name: Pricing completeness guard
+        working-directory: kew
+        run: uv run pytest tests/test_pricing_completeness.py
+
+      # API-surface drift gate (A3, #1438): the committed openapi.json must
+      # match the schema the app actually serves. export_openapi.py's docstring
+      # claimed CI verified this while nothing ran the check, so the API
+      # contract — and every doc claim counted off it — was honour-system.
+      # Mirrored in scripts/verify.sh; parity and a both-sides deletion are
+      # pinned by tests/test_verify_parity.py. What the committed schema then
+      # has to account for is pinned by tests/test_openapi_route_coverage.py.
+      - name: OpenAPI drift check
+        working-directory: kew
+        run: uv run python scripts/export_openapi.py --check
+
+  test:
+    # Agent PR gate (#2033), see the header. Only `push` (this workflow's one
+    # non-PR trigger) skips the agent check; every other event must pass it,
+    # and an event that carries no pull request cannot pass it as human.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'ci-approved') &&
+      (github.event_name == 'push' ||
+      github.event.repository.visibility != 'private' ||
+      contains(github.event.pull_request.labels.*.name, 'ci-approved') ||
+      (github.event.pull_request &&
+      !contains(github.event.pull_request.labels.*.name, 'agent-pr') &&
+      !startsWith(github.event.pull_request.head.ref, 'agent/issue-')))
+    runs-on: ${{ github.event.repository.visibility == 'private' && 'self-hosted' || 'ubuntu-latest' }}
+    # The runner lock serializes the shared Docker daemon across CI and Release (#1948).
+    # Waiting gets 90 minutes. The holder bounds work and draining at 45 minutes.
+    # Release can wait 15 minutes for draining. Job time includes both waits.
+    timeout-minutes: 150
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+      # The single matrix leg can share its host with other runner work.
+      # Cap xdist at six workers to protect deadline tests from scheduler load.
+      # verify.sh defaults the same cap (the runners and local runs share this
+      # host); its pytest command text stays identical for parity.
+      PYTEST_XDIST_AUTO_NUM_WORKERS: "6"
+    steps:
+      # Runner boundary (F1). First step, before any checkout: it runs no
+      # repository code. Refuses a runner that is not GitHub-hosted unless the
+      # repository is private; an empty or unknown value fails closed. The
+      # hosted path always passes.
+      - name: Runner boundary — self-hosted requires a private repository
+        if: runner.environment != 'github-hosted' && github.event.repository.visibility != 'private'
+        env:
+          BOUNDARY_RUNNER: ${{ runner.environment }}
+          BOUNDARY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: |
+          echo "::error::This job landed on a '$BOUNDARY_RUNNER' runner in a '$BOUNDARY_VISIBILITY' repository. Only a private repository may use the self-hosted runner, because a fork PR would execute attacker-controlled code on that machine. Unregister the runner from this repository."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      # Restored with the move back to a persistent shared runner (2026-08-10).
+      # PR #938 added this; 7d9f3a1f deleted it when every job moved to a
+      # hosted runner with a fresh clone — correctly, and with a note that it
+      # "has to come back" if a job ever returned. It returned, this did not,
+      # and the first self-hosted run failed exactly as predicted: the shared
+      # clone retained a non-cone sparse checkout from an earlier workflow,
+      # so `working-directory: kew` did not exist.
+      #
+      # actions/checkout runs `sparse-checkout disable` itself and it did NOT
+      # stick — the clone came back with core.sparseCheckout still true and an
+      # empty worktree — so this is a check, not a duplicate of that.
+      #
+      # Runs at the checkout root (NOT working-directory: kew — kew/ may be the
+      # missing thing).
+      - name: Preflight — ensure kew/ checkout layout
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          git sparse-checkout disable 2>/dev/null || true
+          git config --unset core.sparseCheckout 2>/dev/null || true
+          git checkout -f HEAD 2>/dev/null || true
+          if [ ! -f kew/pyproject.toml ]; then
+            echo "::error::kew/ package directory missing from checkout at $PWD."
+            echo "::error::The self-hosted runner's shared clone is in a bad state (likely a leftover sparse checkout from an earlier workflow)."
+            echo "::error::Runner-host fix: delete _work/kew on the runner to force a fresh clone."
+            exit 1
+          fi
+          echo "Checkout layout OK: kew/ present at $PWD/kew"
+
+      - name: Install uv
+        timeout-minutes: 3
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        timeout-minutes: 5
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        timeout-minutes: 6
+        working-directory: kew
+        run: uv sync
+
+      # An opted-in job must actually run the sidecar certification. If the
+      # marker, the conftest deselection or this switch ever drifts, the marked
+      # tests would silently vanish from a job that believes it runs them, so
+      # assert the selection is non-empty before the suite starts.
+      - name: Preflight — the opted-in run selects the Switchyard image tests
+        timeout-minutes: 5
+        run: bash .github/scripts/assert_switchyard_tests_selected.sh
+
+      # KEW_REQUIRE_TOOLS fails a test that skips for a missing tool, and the
+      # tools it requires are REQUIRED_TOOLS in kew/tests/support/required_tools.py.
+      # The private runner has them; a hosted VM installs every distribution
+      # package that list names (a no-op for one the image already ships), and
+      # gitleaks below. tests/test_verify_parity.py holds this step to the list.
+      - name: Preflight — install the tools KEW_REQUIRE_TOOLS needs on the hosted runner
+        if: runner.environment == 'github-hosted'
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends jq lsof openssh-client perl ripgrep ruby
+
+      # KEW_REQUIRE_TOOLS turns a missing gitleaks into a failure: the
+      # allowlist tests (tests/test_gitleaks_allowlist.py) run the real
+      # scanner. The private runner has it installed; a hosted VM starts
+      # without it, so it installs the `secrets` job's pinned, checksummed
+      # build. The run script is that job's, byte for byte, and
+      # tests/test_verify_parity.py keeps the copies equal.
+      - name: Install gitleaks
+        if: runner.environment == 'github-hosted'
+        timeout-minutes: 3
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          # The asset is chosen from the RUNNER, not hardcoded. A pinned
+          # linux_x64 tarball on a macOS runner fails at the download or
+          # produces a binary that cannot execute — and this gate must stay
+          # portable across the hosted/self-hosted moves it has now made
+          # three times.
+          #
+          # The SHA-256 of each release archive is pinned and verified before
+          # extraction, the same way the trivy step verifies its scanner. The
+          # values are copied from gitleaks_<VER>_checksums.txt published with
+          # the same release. Advancing the pin: fetch
+          # https://github.com/gitleaks/gitleaks/releases/download/v<VER>/gitleaks_<VER>_checksums.txt
+          # and copy the four archive lines below.
+          case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)  asset="darwin_arm64"; sha="b251ab2bcd4cd8ba9e56ff37698c033ebf38582b477d21ebd86586d927cf87e7" ;;
+            Darwin-x86_64) asset="darwin_x64";   sha="ca221d012d247080c2f6f61f4b7a83bffa2453806b0c195c795bbe9a8c775ed5" ;;
+            Linux-x86_64)  asset="linux_x64";    sha="79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e" ;;
+            Linux-aarch64) asset="linux_arm64";  sha="b4cbbb6ddf7d1b2a603088cd03a4e3f7ce48ee7fd449b51f7de6ee2906f5fa2f" ;;
+            *) echo "::error::no pinned gitleaks build for $(uname -s)-$(uname -m)"; exit 1 ;;
+          esac
+          if command -v sha256sum >/dev/null 2>&1; then
+            checksum() { sha256sum -c -; }
+          elif command -v shasum >/dev/null 2>&1; then
+            checksum() { shasum -a 256 -c -; }
+          else
+            echo "::error::neither sha256sum nor shasum is available, so the gitleaks archive cannot be verified. Refusing to run an unverified scanner."
+            exit 1
+          fi
+          archive="${RUNNER_TEMP:-/tmp}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          trap 'rm -f "$archive"' EXIT
+          curl -sSfL -o "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          if ! echo "${sha}  ${archive}" | checksum; then
+            echo "::error::the downloaded gitleaks archive does not match its pinned SHA-256. Refusing to run a scanner this workflow cannot identify."
+            exit 1
+          fi
+          mkdir -p "$HOME/.local/bin"
+          tar xzf "$archive" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/gitleaks" version
+
+      # The serial phase reads the kew-allowlist network and the pinned agent
+      # image. The private runner holds them as host state and never runs this
+      # step; a hosted VM starts without them, so it builds them here.
+      - name: Preflight — provision Docker inputs on the hosted runner
+        if: runner.environment == 'github-hosted'
+        timeout-minutes: 20
+        run: bash .github/scripts/provision_hosted_docker_inputs.sh
+
+      # The lock serializes the operator host's shared Docker daemon. A
+      # GitHub-hosted VM runs one job and shares no daemon, so it skips both
+      # lock steps.
+      - name: Docker daemon lock — acquire
+        if: runner.environment == 'self-hosted'
+        timeout-minutes: 91
+        run: python3 .github/scripts/docker_daemon_lock.py acquire --timeout-seconds 5400 --hold-max-seconds 2700
+
+      # Coverage floor (#951): fail the PR gate if line coverage drops below the
+      # measured baseline. The floor is deliberately non-aspirational — set ~2pt
+      # under the baseline so an honest refactor never trips it, but a whole
+      # governance path losing its tests does. Mirrored exactly in
+      # scripts/verify.sh (parity: tests/test_verify_parity.py).
+      #
+      # -n auto (pytest-xdist): 8.9k tests ran serially in ~10 min per matrix
+      # leg and the two legs share one self-hosted host, so a PR held both
+      # runners for the better part of half an hour. Parallel is ~2 min with
+      # the same coverage total (measured 2026-09-02). No -v: 8.6k PASSED lines
+      # per leg cost log upload time and buried the failure summary.
+      #
+      # Two phases. Tests that drive a Textual App through its pilot are
+      # timing sensitive and flake under CPU contention (#1772; the first
+      # xdist run on this host raised ScreenStackError), and two tests hold
+      # a real wall-clock deadline. They run alone after the parallel phase.
+      # tests/conftest.py applies the `serial` marker from the module source,
+      # the deadline tests carry it by hand; tests/test_serial_phase.py pins
+      # both phases. --cov-append joins the two coverage files before the
+      # floor. A failing first command stops the block (bash -e), so the
+      # job stays red.
+      #
+      # 40 minutes: a 4-vCPU hosted VM was still in the parallel phase, at
+      # 94%, when 25 ran out (2026-11-12), with the serial phase still to
+      # run. 40 is also the most the runner lock's work budget allows
+      # (tests/test_verify_parity.py).
+      - name: Test (pytest)
+        timeout-minutes: 40
+        working-directory: kew
+        env:
+          KEW_SWITCHYARD_SOURCE_ARCHIVE: ${{ env.KEW_SWITCHYARD_IMAGE == '1' && secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}
+        run: |
+          uv run pytest -n auto -m "not serial" --cov=src/kew
+          uv run pytest -m serial --cov=src/kew --cov-append --cov-fail-under=85
+
+      - name: Docker daemon lock — release
+        if: always() && runner.environment == 'self-hosted'
+        timeout-minutes: 16
+        run: python3 .github/scripts/docker_daemon_lock.py release --job-status ${{ job.status }}
+
+  frontend:
+    # Guards the SvelteKit cockpit: PR #629 shipped a svelte-check type error
+    # through the whole gate chain because no frontend job existed (#640).
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          # The repository's one Node pin, which release.yml builds the
+          # frontend with too. frontend/.npmrc sets engine-strict, and the
+          # locked dependencies refuse anything below ^22.22.2 / ^24.15.0, so
+          # the pin names a full minor (tests/test_frontend_node_version.py).
+          node-version-file: .nvmrc
+          # No cache input. A prior cache post-step uploaded 10 GB and caused
+          # 40–55 minute runs (#1752). The parity test pins its absence.
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend tests (vitest)
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Frontend check (svelte-check)
+        working-directory: frontend
+        run: npm run check
+
+  www:
+    # Guards the launch site. www/ shipped with three drift gates and no CI to
+    # run them, so they were honour-system: the token sheet could fall out of
+    # step with frontend/src/app.css, and an em dash could land in the copy,
+    # with nothing to say so until someone ran the commands by hand. The whole
+    # point of those gates is that brand drift cannot recur silently.
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          # No cache: input — see the frontend job (#1752).
+
+      - name: Install site dependencies
+        working-directory: www
+        run: npm ci
+
+      - name: Site gates (tokens, svelte-check, build + no-dashes)
+        working-directory: www
+        # One script rather than three steps, deliberately. verify.sh must mirror
+        # this command exactly (tests/test_verify_parity.py), and the parity
+        # signature resolves path-like argument tokens against the working
+        # directory — so a bare `npm run build` normalizes to `www/build` on a
+        # machine that has built locally and to `build` on a fresh checkout.
+        # That would pass in CI and fail on a developer's machine, which is the
+        # precise failure mode verify.sh exists to prevent. `gates` collides
+        # with no path.
+        #
+        # tokens:check is NOT the right gate here: tokens.css is gitignored, so
+        # a fresh checkout has nothing to compare and --check always fails. What
+        # matters in CI is that the dark block still extracts from app.css at
+        # all, which `npm run tokens` proves by throwing if it cannot.
+        #
+        # fetch-repo-stats falls back to the committed dated snapshot when gh is
+        # unavailable or unauthenticated, so this needs no token.
+        run: npm run gates
+
+  complexity:
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Xenon complexity gate
+        working-directory: kew
+        run: |
+          # Xenon 0.9.3 normally exits 1 for a violation. Keep this gate
+          # fail-closed if a wrapper emits ERROR diagnostics but exits 0.
+          xenon_log="${RUNNER_TEMP}/kew-xenon-$$.log"
+          trap 'rm -f "$xenon_log"' EXIT
+          set +e
+          uv run xenon --max-absolute B --max-modules B --max-average A \
+            -e "$(paste -sd, .xenon-excludes)" src/ 2>"$xenon_log"
+          xenon_exit=$?
+          set -e
+          xenon_output=$(<"$xenon_log")
+          if [ -n "$xenon_output" ]; then
+            printf '%s\n' "$xenon_output" >&2
+          fi
+          if grep -q 'ERROR:xenon:' "$xenon_log"; then
+            echo "CI: Xenon reported a complexity violation" >&2
+            exit 1
+          fi
+          if [ "$xenon_exit" -ne 0 ]; then
+            exit "$xenon_exit"
+          fi
+
+  sast:
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      # Ruleset is PINNED to kew/.semgrep/pinned.yml (a recorded snapshot of the
+      # registry p/python set), not `--config auto` (floating latest), so the
+      # gate is deterministic. Drift is caught by sast-rule-drift.yml. Run from
+      # kew/ so the vendored config path — and thus the semgrep-derived rule-id
+      # prefix in --exclude-rule — matches scripts/verify.sh exactly (parity is
+      # enforced by tests/test_verify_parity.py). semgrep and setuptools run at
+      # the exact versions kew/scripts/tool-pins.env names, as in verify.sh.
+      - name: Semgrep scan
+        working-directory: kew
+        run: |
+          SEMGREP_VERSION="$(awk -F= '$1 == "SEMGREP_VERSION" { print $2 }' scripts/tool-pins.env)"
+          SETUPTOOLS_VERSION="$(awk -F= '$1 == "SETUPTOOLS_VERSION" { print $2 }' scripts/tool-pins.env)"
+          uvx --with setuptools=="${SETUPTOOLS_VERSION}" semgrep=="${SEMGREP_VERSION}" scan --config .semgrep/pinned.yml --error \
+            --strict --timeout 120 --timeout-threshold 0 --max-target-bytes 0 \
+            --exclude-rule semgrep.python.jinja2.security.audit.autoescape-disabled-false.incorrect-autoescape-disabled \
+            src/
+
+  deps:
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # PR code runs in this job on the self-hosted runner; it needs no
+        # authenticated Git operations, so keep the token out of .git/config.
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: pip-audit
+        working-directory: kew
+        run: uv run pip-audit --skip-editable --desc
+
+      # Supply-chain posture (#266): fail if any dependency carries a copyleft
+      # license. --partial-match makes "GPL" catch the GPL/LGPL/AGPL family
+      # without tripping on permissive licenses (MIT/Apache/BSD/PSF/ISC/MPL).
+      # pip-licenses runs at the exact version kew/scripts/tool-pins.env names,
+      # as in verify.sh.
+      - name: Dependency license check
+        working-directory: kew
+        run: |
+          PIP_LICENSES_VERSION="$(awk -F= '$1 == "PIP_LICENSES_VERSION" { print $2 }' scripts/tool-pins.env)"
+          uv run --with pip-licenses=="${PIP_LICENSES_VERSION}" pip-licenses --fail-on="GPL" --partial-match
+
+  containment:
+    # Proves the sandbox mount-boundary holds against the #502 bypass payloads
+    # and that the post-#935 egress default + guard fail-closed. Needs a
+    # Docker-capable runner: without docker the escape/mount test
+    # @_REQUIRES_DOCKER silently skips, leaving the containment claim unproven
+    # in the gate — so the preflight below fails closed rather than trusting
+    # the runner label.
+    #
+    # Hosted Ubuntu restores proof on the Linux platform users run. The
+    # preflight still refuses to pass without a reachable Docker daemon.
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # This job executes PR-controlled dependency and test code. It needs no
+        # authenticated Git operations, so do not persist the checkout token.
+        with:
+          persist-credentials: false
+
+      - name: Preflight — require Docker (containment proof must not silently skip)
+        # Fail closed. The mount-escape test (@_REQUIRES_DOCKER) skips when
+        # `docker` is absent (skipif not shutil.which("docker")); on a runner
+        # without docker pytest would still exit 0, turning this gate green
+        # WITHOUT proving containment. A daemon that is unavailable looks like
+        # a green gate without this. `docker info` confirms the daemon is
+        # reachable, not only that the CLI is on PATH.
+        shell: bash
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Docker unavailable on this runner — the mount-escape containment test (@_REQUIRES_DOCKER) would skip, leaving the containment claim unproven. This job requires a Docker-capable runner."
+            exit 1
+          fi
+          # The probe launches alpine:latest with --pull=never. A hosted
+          # runner starts with an empty image store, so provision the image
+          # here; the test itself now fails loudly if no container ran.
+          if ! docker pull alpine:latest >/dev/null; then
+            echo "::error::Could not provision alpine:latest for the mount-escape containment probe; the probe would fail before any container ran."
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Containment proof (pytest)
+        working-directory: kew
+        run: uv run pytest tests/test_sandbox_containment.py -v
+
+  agent-image-scan:
+    # W1.4 / #1432. The agent images ARE the containment boundary, and nothing
+    # publishes them — `docker-agent.yml` has never run, and the 2026-08-07
+    # ruling is that it never will. So the thing to gate is not a publish, it
+    # is the image this checkout builds and this machine then dispatches into.
+    #
+    # The whole gate lives in scripts/scan-agent-image.sh, called identically
+    # here and from scripts/verify.sh — the same one-script stance the docs and
+    # www gates take, so the two sides cannot drift and the parity signature
+    # cannot depend on a matrix expression. What it does, why --ignore-unfixed,
+    # and how it proves it actually scanned are documented in that script.
+    # Agent PR gate (#2033), see the header. Only `push` (this workflow's one
+    # non-PR trigger) skips the agent check; every other event must pass it,
+    # and an event that carries no pull request cannot pass it as human.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'ci-approved') &&
+      (github.event_name == 'push' ||
+      github.event.repository.visibility != 'private' ||
+      contains(github.event.pull_request.labels.*.name, 'ci-approved') ||
+      (github.event.pull_request &&
+      !contains(github.event.pull_request.labels.*.name, 'agent-pr') &&
+      !startsWith(github.event.pull_request.head.ref, 'agent/issue-')))
+    runs-on: ${{ github.event.repository.visibility == 'private' && 'self-hosted' || 'ubuntu-latest' }}
+    # The runner lock serializes the shared Docker daemon across CI and Release (#1948).
+    # Waiting gets 90 minutes. The holder bounds work and draining at 45 minutes.
+    # Release can wait 15 minutes for draining. Job time includes both waits.
+    timeout-minutes: 150
+    steps:
+      # Runner boundary (F1). First step, before any checkout: it runs no
+      # repository code. Refuses a runner that is not GitHub-hosted unless the
+      # repository is private; an empty or unknown value fails closed. The
+      # hosted path always passes.
+      - name: Runner boundary — self-hosted requires a private repository
+        if: runner.environment != 'github-hosted' && github.event.repository.visibility != 'private'
+        env:
+          BOUNDARY_RUNNER: ${{ runner.environment }}
+          BOUNDARY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: |
+          echo "::error::This job landed on a '$BOUNDARY_RUNNER' runner in a '$BOUNDARY_VISIBILITY' repository. Only a private repository may use the self-hosted runner, because a fork PR would execute attacker-controlled code on that machine. Unregister the runner from this repository."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # Builds PR-authored Dockerfiles on the self-hosted runner and needs no
+        # authenticated Git operations, so do not leave the checkout token in
+        # .git/config for that build to read (matches the containment job).
+        with:
+          persist-credentials: false
+
+      - name: Preflight — ensure kew/ checkout layout
+        timeout-minutes: 1
+        # MUST be inline shell, not a local composite action: when the shared
+        # self-hosted clone is sparse-pruned (the #932/PR #938 incident), the
+        # composite's own action.yml is pruned too. Pure shell is always there.
+        shell: bash
+        run: |
+          git sparse-checkout disable 2>/dev/null || true
+          git config --unset core.sparseCheckout 2>/dev/null || true
+          git checkout -f HEAD 2>/dev/null || true
+          if [ ! -f kew/pyproject.toml ] || [ ! -f docker/agent.Dockerfile ]; then
+            echo "::error::kew/ or docker/ missing from checkout at $PWD — the self-hosted runner's shared clone is in a bad state (likely a leftover sparse checkout from an earlier workflow)."
+            echo "::error::Runner-host fix: delete _work/kew on the runner to force a fresh clone."
+            exit 1
+          fi
+
+      - name: Install Trivy (pinned by digest)
+        timeout-minutes: 4
+        # Pinned and downloaded, not `brew install trivy`: the scanner version
+        # IS the gate, and a host-installed one drifts silently between runs on
+        # a persistent runner.
+        #
+        # The version and the SHA-256 of each release archive come from ONE
+        # file, `kew/src/kew/hosts/provision/trivy.pin` — the same file
+        # `scripts/scan-agent-image.sh` reads the gate's pin from and the kew
+        # provisioning recipe installs trivy from. A literal here is a fourth
+        # place for the four to disagree, and a runner or host carrying a trivy
+        # the gate refuses fails the scan AFTER the whole suite has run (#2462).
+        #
+        # The archive's digest is pinned, not fetched, and verified before
+        # extraction. A version string is self-reported — a substituted archive
+        # can answer with the pinned version and return clean scans forever,
+        # which in a supply-chain gate is the whole attack (round-2 review,
+        # Major 6). Piping the download straight into tar made that unverifiable
+        # by construction, so it lands on disk first.
+        #
+        # Advancing the pin: edit that file only.
+        shell: bash
+        run: |
+          pin="$GITHUB_WORKSPACE/kew/src/kew/hosts/provision/trivy.pin"
+          if [ ! -f "$pin" ]; then
+            echo "::error::no scanner pin at $pin — the gate is the version that file names, so this cannot install it."
+            exit 1
+          fi
+          # Read, not sourced: the pin file is assignments, and reading it keeps
+          # whatever it contains out of this shell.
+          pinned() { awk -F= -v k="$1" '$1 == k { print $2 }' "$pin"; }
+          TRIVY_VERSION="$(pinned TRIVY_VERSION)"
+          if [ -z "$TRIVY_VERSION" ]; then
+            echo "::error::$pin defines no TRIVY_VERSION"
+            exit 1
+          fi
+          case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)  asset="macOS-ARM64"; sha="$(pinned TRIVY_SHA256_MACOS_ARM64)" ;;
+            Darwin-x86_64) asset="macOS-64bit"; sha="$(pinned TRIVY_SHA256_MACOS_64BIT)" ;;
+            Linux-x86_64)  asset="Linux-64bit"; sha="$(pinned TRIVY_SHA256_LINUX_64BIT)" ;;
+            Linux-aarch64) asset="Linux-ARM64"; sha="$(pinned TRIVY_SHA256_LINUX_ARM64)" ;;
+            *) echo "::error::no pinned trivy build for $(uname -s)-$(uname -m)"; exit 1 ;;
+          esac
+          if [ -z "$sha" ]; then
+            echo "::error::$pin pins no SHA-256 for the $asset archive"
+            exit 1
+          fi
+          # macOS ships `shasum`; most Linux images ship `sha256sum` and not
+          # `shasum`. Pick whichever exists rather than assuming the runner is
+          # the one this was written on.
+          if command -v sha256sum >/dev/null 2>&1; then
+            checksum() { sha256sum -c -; }
+          elif command -v shasum >/dev/null 2>&1; then
+            checksum() { shasum -a 256 -c -; }
+          else
+            echo "::error::neither sha256sum nor shasum is available, so the trivy archive cannot be verified. Refusing to run an unverified scanner."
+            exit 1
+          fi
+          archive="${RUNNER_TEMP:-/tmp}/trivy_${TRIVY_VERSION}_${asset}.tar.gz"
+          # Set before the download, so an interrupted or failed curl does not
+          # leave a partial archive behind for a later run to trip over.
+          trap 'rm -f "$archive"' EXIT
+          curl -sSfL -o "$archive" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_${asset}.tar.gz"
+          if ! echo "${sha}  ${archive}" | checksum; then
+            echo "::error::the downloaded trivy archive does not match its pinned SHA-256. Refusing to run a scanner this workflow cannot identify."
+            exit 1
+          fi
+          mkdir -p "$HOME/.local/bin"
+          tar xzf "$archive" -C "$HOME/.local/bin" trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # The lock serializes the operator host's shared Docker daemon. A
+      # GitHub-hosted VM runs one job and shares no daemon, so it skips both
+      # lock steps.
+      - name: Docker daemon lock — acquire
+        if: runner.environment == 'self-hosted'
+        timeout-minutes: 91
+        run: python3 .github/scripts/docker_daemon_lock.py acquire --timeout-seconds 5400 --hold-max-seconds 2700
+
+      - name: Agent image CVE gate
+        timeout-minutes: 35
+        env:
+          KEW_SWITCHYARD_SOURCE_ARCHIVE: ${{ env.KEW_SWITCHYARD_IMAGE == '1' && secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}
+        run: bash scripts/scan-agent-image.sh
+
+      - name: Docker daemon lock — release
+        if: always() && runner.environment == 'self-hosted'
+        timeout-minutes: 16
+        run: python3 .github/scripts/docker_daemon_lock.py release --job-status ${{ job.status }}
+
+  memory-channel:
+    # Lesson-channel guard (spec D8, Task 8): a PR that touches `.kew/memory/`
+    # (the untrusted lesson corpus injected into dispatch prompts) may not touch
+    # ordinary work files in the same commit, and vice-versa — killing the
+    # inline-smuggling channel ahead of any distiller. Enforced per commit so a
+    # PR can still carry a work commit AND a lesson commit as long as each is
+    # pure (Task 8's own bootstrap relies on exactly this). Full history +
+    # PR-head checkout so `origin/main..HEAD` names the real PR commits.
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # This job runs PR-controlled repository Python (uv sync + the guard
+        # script) and needs only local history reads after the fetch, so do
+        # not leave the checkout token persisted in .git/config for that code
+        # to read (artipacked hardening; matches the containment job).
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Memory-channel guard
+        working-directory: kew
+        env:
+          MEMORY_GUARD_BASE: origin/main
+        run: uv run python scripts/check_memory_channel.py
+
+  secrets:
+    # A labeled event runs jobs only for the CI approval label (#2033).
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-approved'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        # PINNED, and deliberately with no "use whatever is already installed"
+        # branch. The previous version of this step preferred any gitleaks on
+        # PATH, then brew, and only fell back to a pinned download — so the
+        # gate's ruleset was whatever the machine happened to have. That is not
+        # a gate: this repo's history scanned CLEAN on the self-hosted Mac
+        # (brew's 8.30.0) and DIRTY on a hosted runner (pinned 8.24.3), same
+        # commits, same config.
+        #
+        # The cause was silent: `.gitleaks.toml` declares its allowlist as
+        # `[[allowlists]]`, which 8.24.3 does not understand and discards
+        # WITHOUT a warning, so the SQL-upsert allowlist simply wasn't applied.
+        # An unknown config key that is ignored rather than rejected makes the
+        # whole file inert while still looking present.
+        #
+        # Bumping the pin is therefore a deliberate act: re-run the scan and
+        # confirm `.gitleaks.toml` is still honoured by the new version. This
+        # mirrors the `sast` gate, which pins its semgrep ruleset for the same
+        # reason (kew/.semgrep/README.md).
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          # The asset is chosen from the RUNNER, not hardcoded. A pinned
+          # linux_x64 tarball on a macOS runner fails at the download or
+          # produces a binary that cannot execute — and this gate must stay
+          # portable across the hosted/self-hosted moves it has now made
+          # three times.
+          #
+          # The SHA-256 of each release archive is pinned and verified before
+          # extraction, the same way the trivy step verifies its scanner. The
+          # values are copied from gitleaks_<VER>_checksums.txt published with
+          # the same release. Advancing the pin: fetch
+          # https://github.com/gitleaks/gitleaks/releases/download/v<VER>/gitleaks_<VER>_checksums.txt
+          # and copy the four archive lines below.
+          case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)  asset="darwin_arm64"; sha="b251ab2bcd4cd8ba9e56ff37698c033ebf38582b477d21ebd86586d927cf87e7" ;;
+            Darwin-x86_64) asset="darwin_x64";   sha="ca221d012d247080c2f6f61f4b7a83bffa2453806b0c195c795bbe9a8c775ed5" ;;
+            Linux-x86_64)  asset="linux_x64";    sha="79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e" ;;
+            Linux-aarch64) asset="linux_arm64";  sha="b4cbbb6ddf7d1b2a603088cd03a4e3f7ce48ee7fd449b51f7de6ee2906f5fa2f" ;;
+            *) echo "::error::no pinned gitleaks build for $(uname -s)-$(uname -m)"; exit 1 ;;
+          esac
+          if command -v sha256sum >/dev/null 2>&1; then
+            checksum() { sha256sum -c -; }
+          elif command -v shasum >/dev/null 2>&1; then
+            checksum() { shasum -a 256 -c -; }
+          else
+            echo "::error::neither sha256sum nor shasum is available, so the gitleaks archive cannot be verified. Refusing to run an unverified scanner."
+            exit 1
+          fi
+          archive="${RUNNER_TEMP:-/tmp}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          trap 'rm -f "$archive"' EXIT
+          curl -sSfL -o "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          if ! echo "${sha}  ${archive}" | checksum; then
+            echo "::error::the downloaded gitleaks archive does not match its pinned SHA-256. Refusing to run a scanner this workflow cannot identify."
+            exit 1
+          fi
+          mkdir -p "$HOME/.local/bin"
+          tar xzf "$archive" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/gitleaks" version
+
+      - name: Preflight — the pinned gitleaks is the one that will run
+        # The pin is only worth something if it is the binary actually invoked.
+        # `gitleaks` resolving to something else on PATH is exactly how the gate
+        # drifted before, and it drifted silently — so assert the version rather
+        # than trusting the install step's ordering.
+        shell: bash
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          found=$(gitleaks version)
+          if [ "$found" != "$GITLEAKS_VERSION" ]; then
+            echo "::error::gitleaks on PATH is $found, not the pinned $GITLEAKS_VERSION. A different version is a different gate: 8.24.3 silently ignores .gitleaks.toml's [[allowlists]] and reports this repo as dirty."
+            exit 1
+          fi
+          echo "gitleaks $found (pinned)"
+
+      - name: Gitleaks scan
+        run: gitleaks detect --source . --verbose --redact

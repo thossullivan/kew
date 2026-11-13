@@ -1,0 +1,78 @@
+{
+  "banner": {
+    "fleet_stopped": false,
+    "no_live_driver": false
+  },
+  "rows": [],
+  "glance": {
+    "fleet": {
+      "stopped": false,
+      "pending": 0
+    },
+    "caps": {
+      "daily": {
+        "window_days": 1,
+        "spent": 0.0,
+        "cap": 250.0,
+        "agentic": 0.0,
+        "interactive": 0.0
+      },
+      "weekly": {
+        "window_days": 7,
+        "spent": 0.0,
+        "cap": 1500.0,
+        "agentic": 0.0,
+        "interactive": 0.0
+      }
+    },
+    "routing": [
+      {
+        "complexity": "small",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "medium",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "large",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      }
+    ],
+    "ready_queue": [],
+    "queue_candidates": [],
+    "recent_completions": [],
+    "pressure": {
+      "delivery_repo": "thossullivan/kew",
+      "engaged": true,
+      "countable": true,
+      "used": 0,
+      "total": 4,
+      "held": 0,
+      "oldest_hold_age_seconds": null,
+      "diff_burden_lines": 0,
+      "saturated": false,
+      "reasons": [],
+      "enforcement": "inactive",
+      "enforcement_detail": "the human-review policy is configured and reported, but not active",
+      "policy_generation": 3,
+      "observation": {
+        "dimension": "review_capacity",
+        "availability": "available",
+        "provenance": "observed",
+        "observed_at": "2026-09-24T15:47:02+00:00",
+        "detail": null
+      }
+    }
+  },
+  "as_of": {
+    "runs": "2026-09-24T15:47:02+00:00",
+    "tracker": "2026-09-24T15:47:02+00:00",
+    "forge": "2026-09-24T15:47:02+00:00"
+  },
+  "unavailable": [],
+  "needs_you_by_epic": {}
+}

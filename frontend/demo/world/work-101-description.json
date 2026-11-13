@@ -1,0 +1,13 @@
+{
+  "item_id": "101",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Parse ledger entries from a CSV export",
+  "url": "https://github.com/acme/ledger/issues/101",
+  "description": "Read the bank-exported CSV into ledger entries, one per row, keeping the source row number.",
+  "expected": "every row of the sample export becomes one entry.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

@@ -1,0 +1,207 @@
+{
+  "weeks": [
+    {
+      "week_start": "2026-08-10",
+      "merged_main": 4,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-08-17",
+      "merged_main": 6,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-08-24",
+      "merged_main": 3,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-08-31",
+      "merged_main": 5,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-09-07",
+      "merged_main": 2,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-09-14",
+      "merged_main": 4,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 0,
+      "ready_hours": {
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "rounds_to_ready": {
+        "p50": null,
+        "max": null
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 0,
+      "spend_unattributed": 0,
+      "nodes_done": 0,
+      "pr_sync_observed_at": null,
+      "partial": false
+    },
+    {
+      "week_start": "2026-09-21",
+      "merged_main": 5,
+      "merged_kew_touched": 3,
+      "merged_kew_authored": 3,
+      "ready_items": 3,
+      "ready_hours": {
+        "p50": 1.2,
+        "p90": 1.9,
+        "max": 2.0
+      },
+      "rounds_to_ready": {
+        "p50": 1,
+        "max": 1
+      },
+      "cost_per_merged": {
+        "mean": 4.36,
+        "p50": 4.62
+      },
+      "spend_total": 17.35,
+      "spend_unattributed": 1.18,
+      "nodes_done": 3,
+      "pr_sync_observed_at": "2026-09-24T16:41:00+00:00",
+      "partial": false
+    },
+    {
+      "week_start": "2026-09-28",
+      "merged_main": 1,
+      "merged_kew_touched": 0,
+      "merged_kew_authored": 0,
+      "ready_items": 1,
+      "ready_hours": {
+        "p50": 215.4,
+        "p90": 215.4,
+        "max": 215.4
+      },
+      "rounds_to_ready": {
+        "p50": 1,
+        "max": 1
+      },
+      "cost_per_merged": {
+        "mean": null,
+        "p50": null
+      },
+      "spend_total": 1.87,
+      "spend_unattributed": 1.45,
+      "nodes_done": 0,
+      "pr_sync_observed_at": "2026-10-03T14:33:02+00:00",
+      "partial": true
+    }
+  ],
+  "min_sample": 3,
+  "merged_main_head": "4be1d07",
+  "merged_main_unavailable": null
+}

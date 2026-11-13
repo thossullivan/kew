@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "checks": [
+    {
+      "id": "project-config",
+      "status": "ok",
+      "summary": "kew.toml found",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "required-tools",
+      "status": "ok",
+      "summary": "git, gh and docker are on PATH",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "runner-credential",
+      "status": "ok",
+      "summary": "claude-code has a credential",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "gh-auth",
+      "status": "ok",
+      "summary": "gh is signed in",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "containment",
+      "status": "ok",
+      "summary": "agent runs are contained",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "container-runtime",
+      "status": "ok",
+      "summary": "'docker' answered `info`",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "route-image",
+      "status": "fail",
+      "summary": "'kew-agent:0.9.0' is not present locally",
+      "hint": "from a kew checkout, run 'docker build -f docker/agent.Dockerfile -t kew-agent:0.9.0 .'",
+      "fix": "docker build -f docker/agent.Dockerfile -t kew-agent:0.9.0 .",
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "model-eol",
+      "status": "ok",
+      "summary": "no routed model is retiring",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    }
+  ],
+  "ok": false,
+  "checked_at": "2026-09-24T15:46:58+00:00"
+}

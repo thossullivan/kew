@@ -1,0 +1,3292 @@
+{
+  "schema": "kew/command-index@1",
+  "commands": [
+    {
+      "command": "kew approve",
+      "path": [
+        "approve"
+      ],
+      "help": "Release a needs-approval hold (records approval_granted).",
+      "arguments": [
+        {
+          "name": "ISSUE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew attach",
+      "path": [
+        "attach"
+      ],
+      "help": "Attach to a running agent's live event stream.",
+      "arguments": [
+        {
+          "name": "ISSUE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew audit anchor",
+      "path": [
+        "audit",
+        "anchor"
+      ],
+      "help": "Append the current chain head to the anchors file (pure-local; no git).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--anchors"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew audit export",
+      "path": [
+        "audit",
+        "export"
+      ],
+      "help": "Export the audit trail to JSON or CSV (chronological).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--format",
+            "-f"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--since"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew audit ledger-rebind",
+      "path": [
+        "audit",
+        "ledger-rebind"
+      ],
+      "help": "Explicitly recover or adopt one verified ledger; never merge chains.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--target"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--expected-ledger-id"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--expected-anchor-hash"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--yes"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew audit policy",
+      "path": [
+        "audit",
+        "policy"
+      ],
+      "help": "Show the current effective policy, or resolve a retained policy hash.",
+      "arguments": [
+        {
+          "name": "[HASH]",
+          "required": false,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew audit tail",
+      "path": [
+        "audit",
+        "tail"
+      ],
+      "help": "Show recent audit events (oldest first).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--limit",
+            "-n"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--event"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--item"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--follow",
+            "-f"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew audit verify",
+      "path": [
+        "audit",
+        "verify"
+      ],
+      "help": "Verify audit-log chain integrity (exit 0 ok / 1 tamper / 2 cannot-run).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--anchors"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew backup",
+      "path": [
+        "backup"
+      ],
+      "help": "Snapshot the dispatch.db record (+ config) into a portable archive.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--include-logs"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew canary",
+      "path": [
+        "canary"
+      ],
+      "help": "Attest kew still reads fresh vendor CLI output correctly.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--record"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--exercise-resume"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew ci-fix",
+      "path": [
+        "ci-fix"
+      ],
+      "help": "Dispatch CI failure auto-fix for a GitHub Actions run.",
+      "arguments": [
+        {
+          "name": "RUN_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew cleanup",
+      "path": [
+        "cleanup"
+      ],
+      "help": "Find and fix orphaned label states left after a crash.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--reset-to"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew config effective",
+      "path": [
+        "config",
+        "effective"
+      ],
+      "help": "Show the runtime configuration and, optionally, its winning sources.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--sources"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew delegate watch",
+      "path": [
+        "delegate",
+        "watch"
+      ],
+      "help": "Watch for assign-to-kew delegation and claim → dispatch it (foreground).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew deny",
+      "path": [
+        "deny"
+      ],
+      "help": "Deny a needs-approval hold (records approval_declined; parks the issue).",
+      "arguments": [
+        {
+          "name": "ISSUE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew dispatch",
+      "path": [
+        "dispatch"
+      ],
+      "help": "Dispatch an issue. With --loop, supervise the runner as a first-class loop.",
+      "arguments": [
+        {
+          "name": "ISSUE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--loop"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--max-steps"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--show-prompt"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--approve"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-budget"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew doctor",
+      "path": [
+        "doctor"
+      ],
+      "help": "Run local environment diagnostics.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew doctor route-live-confirm",
+      "path": [
+        "doctor",
+        "route-live-confirm"
+      ],
+      "help": "Confirm one exact execution boundary with a single bounded provider call.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--complexity"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--reclaim",
+            "--no-reclaim"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-probe"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--yes",
+            "-y"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew drive",
+      "path": [
+        "drive"
+      ],
+      "help": "Drive every active epic of the project from one supervised process.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--interval"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--max-parallel"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--kew-binary"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--detach"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew drive hold",
+      "path": [
+        "drive",
+        "hold"
+      ],
+      "help": "Admit no new work — dispatch, review or remediation — until `kew drive release`. Every epic keeps ticking, so running work finishes and merges. The hold is kept in the ledger and outlives the drive.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew drive install",
+      "path": [
+        "drive",
+        "install"
+      ],
+      "help": "Install the drive as a launchd agent (macOS): it starts at login and restarts when it exits abnormally. `kew drive stop` still ends it.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--interval"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--max-parallel"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--kew-binary"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--env-file"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew drive pause",
+      "path": [
+        "drive",
+        "pause"
+      ],
+      "help": "Stop ticking EPIC (or every epic) until `kew drive resume`; a running tick finishes. The pause is kept in the ledger and outlives the drive.",
+      "arguments": [
+        {
+          "name": "EPIC",
+          "required": false,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew drive release",
+      "path": [
+        "drive",
+        "release"
+      ],
+      "help": "Lift `kew drive hold`: the next tick admits under the cap again.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew drive resume",
+      "path": [
+        "drive",
+        "resume"
+      ],
+      "help": "Tick EPIC again — or, with no EPIC, lift every pause.",
+      "arguments": [
+        {
+          "name": "EPIC",
+          "required": false,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew drive status",
+      "path": [
+        "drive",
+        "status"
+      ],
+      "help": "Print the running drive's heartbeat: its stage, rotation and last tick per epic. Exits 1 when no drive runs or its heartbeat has stalled.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew drive stop",
+      "path": [
+        "drive",
+        "stop"
+      ],
+      "help": "Stop the running drive after its current tick — or, with EPIC, stop ticking that epic for the rest of this drive's run.",
+      "arguments": [
+        {
+          "name": "EPIC",
+          "required": false,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew drive uninstall",
+      "path": [
+        "drive",
+        "uninstall"
+      ],
+      "help": "Remove the launchd agent `kew drive install` wrote; a drive it started is stopped by launchd.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew epic abandon",
+      "path": [
+        "epic",
+        "abandon"
+      ],
+      "help": "Abandon preserved work and return the node for fresh dispatch.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "NODE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "kew epic acceptance amend",
+      "path": [
+        "epic",
+        "acceptance",
+        "amend"
+      ],
+      "help": "Record an amendment to NAME's node ITEM's acceptance contract.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--author"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--checkout"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic advance",
+      "path": [
+        "epic",
+        "advance"
+      ],
+      "help": "Run ONE tick of the epic driver: dispatch ready nodes, merge approved PRs, and print the resulting status.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--max-parallel"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--takeover"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic archive",
+      "path": [
+        "epic",
+        "archive"
+      ],
+      "help": "Retire a finished or abandoned epic from the active views.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic continue",
+      "path": [
+        "epic",
+        "continue"
+      ],
+      "help": "Continue one positively-orphaned dirty epic worktree in place.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "NODE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew epic graph",
+      "path": [
+        "epic",
+        "graph"
+      ],
+      "help": "Export the epic DAG as a Mermaid or DOT diagram.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--format"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic heartbeat",
+      "path": [
+        "epic",
+        "heartbeat"
+      ],
+      "help": "Say the epic's loop is alive and waiting on purpose.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--waiting"
+          ],
+          "is_flag": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "kew epic merge",
+      "path": [
+        "epic",
+        "merge"
+      ],
+      "help": "Merge ONE READY node of an epic, on the operator's own authority.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--head"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic plan",
+      "path": [
+        "epic",
+        "plan"
+      ],
+      "help": "Turn an implementation plan into a drivable epic (governed planning run).",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--from"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--from-manifest"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--amend"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic retry",
+      "path": [
+        "epic",
+        "retry"
+      ],
+      "help": "Re-admit a FAILED epic node WITHOUT deleting its run history: clear its `agent-failed` label, release any stale reservation, and record a retry marker so the driver's overlay treats the stale failure run(s) as superseded instead of discarding them — cost/token history stays intact for `kew report`.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "NODE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew epic run",
+      "path": [
+        "epic",
+        "run"
+      ],
+      "help": "Poll the epic driver (advance every `--interval` seconds) until COMPLETE or STALLED. Never loops on STALLED — exits non-zero so an operator can intervene. With ``--all``, advances every known epic round-robin in the one loop until ALL are terminal.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": false,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--interval"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--max-parallel"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--all"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--takeover"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--kew-binary"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic send-back",
+      "path": [
+        "epic",
+        "send-back"
+      ],
+      "help": "Send a READY epic node back for remediation — the operator's NEEDS_CHANGES. Records a NEEDS_CHANGES round against the head the node's READY verdict stands on, which must still be the pull request's head on GitHub, attested with you as its actor and the reason file's text as its one finding. The drive's next tick reads the node as remediating and runs the remediation under the node's own item id, so the drive keeps owning the node — unlike `kew review <PR>` or a commit of your own on the agent branch.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "NODE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason-file"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic status",
+      "path": [
+        "epic",
+        "status"
+      ],
+      "help": "Summarize epic progress: node counts by status, the ready frontier, stuck nodes + blast radius, and the terminal signal — including `awaiting_merges` when a human merge is all that is left. Never dispatches or merges.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic unarchive",
+      "path": [
+        "epic",
+        "unarchive"
+      ],
+      "help": "Return an archived epic to the active views.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic unhold",
+      "path": [
+        "epic",
+        "unhold"
+      ],
+      "help": "Release a driver hold on an epic node — the operator counterpart to the driver's own hold bookkeeping. Clears the `epic_holds` row for <name>/<item> via the store API and, on a GitHub tracker, strips the stale `pr-pending-review` label (mirror of the manual unwedge playbook); a non-github tracker owns node state in the tracker itself, so no label is touched. Names the cleared reason + held-since time; exits 2 when no hold exists for that epic/item.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic validate",
+      "path": [
+        "epic",
+        "validate"
+      ],
+      "help": "Validate the epic DAG (cycles, dangling deps, self-edges).",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew epic watch",
+      "path": [
+        "epic",
+        "watch"
+      ],
+      "help": "Emit one structured event per epic state that needs a person.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--follow",
+            "-f"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--interval"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--timeout"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--replay"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic-prefix"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew export",
+      "path": [
+        "export"
+      ],
+      "help": "Export run history to JSON, CSV, or a model-eol inventory.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--format",
+            "-f"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--since"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--purge"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew finalize",
+      "path": [
+        "finalize"
+      ],
+      "help": "Repair a run left awaiting host publication after out-of-band publication.",
+      "arguments": [
+        {
+          "name": "RUN_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew gc",
+      "path": [
+        "gc"
+      ],
+      "help": "List what closed work left on disk; --apply removes it.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--apply"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--images"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew health",
+      "path": [
+        "health"
+      ],
+      "help": "Attest the control plane is functioning: meter, budgets, audit, runner.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--window"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew hosts provision",
+      "path": [
+        "hosts",
+        "provision"
+      ],
+      "help": "Run kew's checked-in provisioning recipe on a host and record its versions.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--recipe"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew hosts release",
+      "path": [
+        "hosts",
+        "release"
+      ],
+      "help": "Drop a named holder's lease on a host, by hand.",
+      "arguments": [
+        {
+          "name": "NAME",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--holder"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew ingest file",
+      "path": [
+        "ingest",
+        "file"
+      ],
+      "help": "Ingest a Claude Code OTLP/JSON metrics export into the run store.",
+      "arguments": [
+        {
+          "name": "PATH",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew ingest serve",
+      "path": [
+        "ingest",
+        "serve"
+      ],
+      "help": "Run a loopback OTLP/HTTP receiver for Claude Code metrics.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew init",
+      "path": [
+        "init"
+      ],
+      "help": "Write kew.toml from detection, flags and answers, then run setup and doctor.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--ci"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--format"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--runtime"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--repo"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--budget-per-issue"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--yes",
+            "-y"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew kill",
+      "path": [
+        "kill"
+      ],
+      "help": "Stop one run through its authenticated process identity.",
+      "arguments": [
+        {
+          "name": "RUN_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew loop pause",
+      "path": [
+        "loop",
+        "pause"
+      ],
+      "help": "Pause a running loop by stopping its current step.",
+      "arguments": [
+        {
+          "name": "LOOP_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew loop resume",
+      "path": [
+        "loop",
+        "resume"
+      ],
+      "help": "Resume a needs_human / budget_limited loop with guidance.",
+      "arguments": [
+        {
+          "name": "LOOP_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--guidance"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--budget"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--max-steps"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--timeout"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge check",
+      "path": [
+        "merge",
+        "check"
+      ],
+      "help": "Refuse a hand merge while the head's newest review verdict stands against it.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "HEAD",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--override-reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge claim list",
+      "path": [
+        "merge",
+        "claim",
+        "list"
+      ],
+      "help": "Show every live merge claim.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew merge claim release",
+      "path": [
+        "merge",
+        "claim",
+        "release"
+      ],
+      "help": "Give the head back to the drive.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--head"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--owner"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge claim renew",
+      "path": [
+        "merge",
+        "claim",
+        "renew"
+      ],
+      "help": "Extend your live claim by another 15 minutes.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--head"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--owner"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge claim take",
+      "path": [
+        "merge",
+        "claim",
+        "take"
+      ],
+      "help": "Claim a PR head for 15 minutes; renew it every 5 while you verify.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--head"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--owner"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge queue add",
+      "path": [
+        "merge",
+        "queue",
+        "add"
+      ],
+      "help": "Queue a READY PR head behind every entry already queued.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--head"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--session"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge queue list",
+      "path": [
+        "merge",
+        "queue",
+        "list"
+      ],
+      "help": "Show the queue in the order it merges.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--all"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew merge queue remove",
+      "path": [
+        "merge",
+        "queue",
+        "remove"
+      ],
+      "help": "Take a PR out of the queue.",
+      "arguments": [
+        {
+          "name": "PR",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew merge queue run",
+      "path": [
+        "merge",
+        "queue",
+        "run"
+      ],
+      "help": "Verify and merge the head of the queue once, as the drive does.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew model-eol check",
+      "path": [
+        "model-eol",
+        "check"
+      ],
+      "help": "Check configured and explicit model ids against the curated registry.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--model",
+            "-m"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew models refresh",
+      "path": [
+        "models",
+        "refresh"
+      ],
+      "help": "Refresh catalog prices and lifecycle from OpenRouter and model-eol.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--write"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--report"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--eol-feed"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--accept-large-change"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--catalog"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew no-change confirm",
+      "path": [
+        "no-change",
+        "confirm"
+      ],
+      "help": "Authorize this item's no-change outcome and synchronize it to its source.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew no-change reject",
+      "path": [
+        "no-change",
+        "reject"
+      ],
+      "help": "Refuse this item's no-change outcome. Closes nothing, unblocks nothing.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "kew no-change rejudge",
+      "path": [
+        "no-change",
+        "rejudge"
+      ],
+      "help": "Re-check this item's no-change against the current base, and record it.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--accept-changes"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew no-change retry-sync",
+      "path": [
+        "no-change",
+        "retry-sync"
+      ],
+      "help": "Re-run a synchronization that held, for an outcome already decided.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew plan show",
+      "path": [
+        "plan",
+        "show"
+      ],
+      "help": "Print an item's recorded plan: its sha, source and acceptance criteria.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--history"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts approve",
+      "path": [
+        "prompts",
+        "approve"
+      ],
+      "help": "Activate a proposed profile version, retiring the one it replaces.",
+      "arguments": [
+        {
+          "name": "ROLE",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "VERSION",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--generation"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts decline",
+      "path": [
+        "prompts",
+        "decline"
+      ],
+      "help": "Decline a proposed profile version; what the role runs is unchanged.",
+      "arguments": [
+        {
+          "name": "ROLE",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "VERSION",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts list",
+      "path": [
+        "prompts",
+        "list"
+      ],
+      "help": "List each agent role, its prompt source and its active profile version.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts propose",
+      "path": [
+        "prompts",
+        "propose"
+      ],
+      "help": "Propose an addendum for a role; it changes nothing until approved.",
+      "arguments": [
+        {
+          "name": "ROLE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--file"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts retire",
+      "path": [
+        "prompts",
+        "retire"
+      ],
+      "help": "Retire a role's active profile, leaving it on its base prompt.",
+      "arguments": [
+        {
+          "name": "ROLE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--generation"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew prompts show",
+      "path": [
+        "prompts",
+        "show"
+      ],
+      "help": "Print the prompt a role's launch renders, or why the launch refuses.",
+      "arguments": [
+        {
+          "name": "ROLE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew publication attest",
+      "path": [
+        "publication",
+        "attest"
+      ],
+      "help": "Name an operator-pushed head as the published output of its producer.",
+      "arguments": [
+        {
+          "name": "BRANCH",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "name": "SHA",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--item"
+          ],
+          "is_flag": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "kew quota clear",
+      "path": [
+        "quota",
+        "clear"
+      ],
+      "help": "Release one runner's quota hold now, before the provider's reset.",
+      "arguments": [
+        {
+          "name": "RUNNER",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew rename-repo",
+      "path": [
+        "rename-repo"
+      ],
+      "help": "Move the ledger's rows from an old repository slug to project.repo.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--from"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--apply"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--from-name-reused"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew report",
+      "path": [
+        "report"
+      ],
+      "help": "Outcome-linked spend reports and the evidence-pack export.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--notify"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--models"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew report export",
+      "path": [
+        "report",
+        "export"
+      ],
+      "help": "Export a self-contained evidence pack (HTML or JSON twin).",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--format",
+            "-f"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--since"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew report provenance",
+      "path": [
+        "report",
+        "provenance"
+      ],
+      "help": "Write each console feature's build history, and a cleaned run export.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--features"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--out"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--corpus"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--repo"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew report sync",
+      "path": [
+        "report",
+        "sync"
+      ],
+      "help": "Backfill PR outcomes (merged/closed, reviews, diff stats) for past runs.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew resolve",
+      "path": [
+        "resolve"
+      ],
+      "help": "Resolve merge conflicts on an agent PR branch.",
+      "arguments": [
+        {
+          "name": "PR_NUMBER",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-budget"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew restore",
+      "path": [
+        "restore"
+      ],
+      "help": "Restore a backup archive into the configured log directory.",
+      "arguments": [
+        {
+          "name": "ARCHIVE",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--with-config"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--verify",
+            "--no-verify"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew resume",
+      "path": [
+        "resume"
+      ],
+      "help": "Clear the fleet-stop latch and re-enable dispatch.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew review",
+      "path": [
+        "review"
+      ],
+      "help": "Gather PR review comments and dispatch agent to address them.",
+      "arguments": [
+        {
+          "name": "PR_NUMBER",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--author"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-budget"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--governed"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew run",
+      "path": [
+        "run"
+      ],
+      "help": "Take the next ready issue from the queue and dispatch the configured runner.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--drain"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--show-prompt"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--workers"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-budget"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew run-request list",
+      "path": [
+        "run-request",
+        "list"
+      ],
+      "help": "The newest run requests and what the drive did with each.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew run-request queue",
+      "path": [
+        "run-request",
+        "queue"
+      ],
+      "help": "Queue COMMAND for the running `kew drive`, which runs it as you.",
+      "arguments": [
+        {
+          "name": "COMMAND",
+          "required": true,
+          "multiple": true
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--item"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew run-request show",
+      "path": [
+        "run-request",
+        "show"
+      ],
+      "help": "One run request in full. Exits 1 when there is no such request.",
+      "arguments": [
+        {
+          "name": "REQUEST_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew sandbox build",
+      "path": [
+        "sandbox",
+        "build"
+      ],
+      "help": "Build a runner image from the inputs installed with kew.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--tag"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--unpinned"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew sandbox certify",
+      "path": [
+        "sandbox",
+        "certify"
+      ],
+      "help": "Prove a runtime's egress is closed, and record the proof.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--runtime"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--flow"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew sandbox network",
+      "path": [
+        "sandbox",
+        "network"
+      ],
+      "help": "Create the kew-allowlist network contained dispatch attaches to.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--check"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew sandbox smoke",
+      "path": [
+        "sandbox",
+        "smoke"
+      ],
+      "help": "Launch one container end-to-end and name the first failing layer.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--no-build"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew schema",
+      "path": [
+        "schema"
+      ],
+      "help": "Print every visible kew command, its options, and exit codes as JSON.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew serve",
+      "path": [
+        "serve"
+      ],
+      "help": "Serve the kew web UI + API + approval inbox on localhost.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--host"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--port"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--expose",
+            "--no-expose"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--new-token"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew serve url",
+      "path": [
+        "serve",
+        "url"
+      ],
+      "help": "Print the access URL (with token) for the running kew serve instance.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew settle",
+      "path": [
+        "settle"
+      ],
+      "help": "Reap one dead run whose container never started, and free its slot.",
+      "arguments": [
+        {
+          "name": "RUN_ID",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew setup",
+      "path": [
+        "setup"
+      ],
+      "help": "Create labels, security hooks, and directories.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--with-skills"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew skills diff",
+      "path": [
+        "skills",
+        "diff"
+      ],
+      "help": "Show drift between installed copies and shipped versions.",
+      "arguments": [
+        {
+          "name": "NAMES",
+          "required": false,
+          "multiple": true
+        }
+      ],
+      "options": []
+    },
+    {
+      "command": "kew skills install",
+      "path": [
+        "skills",
+        "install"
+      ],
+      "help": "Install shipped artifacts into the repo's .claude/ directory.",
+      "arguments": [
+        {
+          "name": "NAMES",
+          "required": false,
+          "multiple": true
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--all"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew skills list",
+      "path": [
+        "skills",
+        "list"
+      ],
+      "help": "Show shipped artifacts and their installed state.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew skills update",
+      "path": [
+        "skills",
+        "update"
+      ],
+      "help": "Refresh installed artifacts to the shipped versions.",
+      "arguments": [
+        {
+          "name": "NAMES",
+          "required": false,
+          "multiple": true
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--force"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew status",
+      "path": [
+        "status"
+      ],
+      "help": "Show dispatch queue status.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--history"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--cost"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--run"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--analytics"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew stop",
+      "path": [
+        "stop"
+      ],
+      "help": "Kill all in-flight agent runs and halt dispatch until `kew resume`.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew switchyard benchmark",
+      "path": [
+        "switchyard",
+        "benchmark"
+      ],
+      "help": "Compare a fixed corpus through direct and managed passthrough modes.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--corpus"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--runner"
+          ],
+          "is_flag": false,
+          "required": true
+        },
+        {
+          "flags": [
+            "--model"
+          ],
+          "is_flag": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "kew triage decide",
+      "path": [
+        "triage",
+        "decide"
+      ],
+      "help": "Record YOUR decision about an item's triage proposal.",
+      "arguments": [
+        {
+          "name": "ITEM",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--dispatch"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--ask"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--close-duplicate"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--decline"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--by"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew triage queue",
+      "path": [
+        "triage",
+        "queue"
+      ],
+      "help": "Print every triage proposal no person has decided yet.",
+      "arguments": [],
+      "options": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "command": "kew tui",
+      "path": [
+        "tui"
+      ],
+      "help": "Launch the terminal dashboard.",
+      "arguments": [],
+      "options": []
+    },
+    {
+      "command": "kew verify",
+      "path": [
+        "verify"
+      ],
+      "help": "Run the merge verification on a host and record what it returned.",
+      "arguments": [
+        {
+          "name": "REF",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "name": "WORDS",
+          "required": false,
+          "multiple": true
+        }
+      ],
+      "options": [
+        {
+          "flags": [
+            "--host"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--shards"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--pr-body"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--item"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--epic"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--pr"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-claim"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--force-claim-reason"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--full"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--explain-selection"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--selection-report"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--frontend-report"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--last"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--issue"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--reason"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--kew-binary"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--since"
+          ],
+          "is_flag": false,
+          "required": false
+        },
+        {
+          "flags": [
+            "--env-file"
+          ],
+          "is_flag": false,
+          "required": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "role": "adversarial_review",
+  "kind": "reviewer",
+  "min_items": 10,
+  "versions": [
+    {
+      "version": null,
+      "label": "built-in",
+      "state": null,
+      "n": 8,
+      "comparable": false,
+      "verdicts": {
+        "READY": 6,
+        "READY_WITH_RESIDUALS": 1,
+        "NEEDS_CHANGES": 1
+      }
+    }
+  ],
+  "generation": 0
+}

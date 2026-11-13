@@ -1,0 +1,1 @@
+openshell version 0.1.2 (driver docker)

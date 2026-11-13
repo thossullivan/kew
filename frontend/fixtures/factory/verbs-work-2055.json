@@ -1,0 +1,162 @@
+{
+  "identity": {
+    "source_tracker": "github",
+    "item_id": "2055",
+    "item_ref": "#2055",
+    "delivery_repo": "thossullivan/kew",
+    "epic_ref": "launch-fixes",
+    "node_id": "2055",
+    "run_id": "f5dcb6a5",
+    "attempt_number": 1
+  },
+  "source": {
+    "tracker": "github",
+    "item_state": "open",
+    "synchronization": "synchronized",
+    "observation": {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  },
+  "route": {
+    "runner": "claude-code",
+    "model": "claude-opus-5",
+    "reported_model": "claude-opus-5",
+    "containment": "contained",
+    "provenance": "declared",
+    "claim": "honored"
+  },
+  "execution": {
+    "state": "completed",
+    "run_status": "success",
+    "attempts": 1,
+    "started_at": "2026-09-24T15:23:52+00:00",
+    "finished_at": "2026-09-24T15:46:58+00:00",
+    "error_category": ""
+  },
+  "artifact": {
+    "state": "published",
+    "publication": "published",
+    "branch": "agent/issue-2055",
+    "pr_url": "https://github.com/thossullivan/kew/pull/2059",
+    "orphan": false
+  },
+  "judgment": {
+    "state": "awaiting_human_decision",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    },
+    "decided_at": null
+  },
+  "outcome": {
+    "state": "in_progress",
+    "detail": "governed review round 1 is reading the pull request"
+  },
+  "integration": {
+    "checks": "passing",
+    "mergeability": "clean",
+    "review_decision": "review_required",
+    "observation": {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  },
+  "readiness": {
+    "state": "unproven",
+    "fingerprint": null,
+    "evidence_ref": null,
+    "detail": "nothing has probed this boundary",
+    "observation": {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    }
+  },
+  "no_change": {
+    "state": "not_applicable",
+    "judgment_state": "",
+    "policy": "",
+    "reasons": [],
+    "sync_outstanding": 0,
+    "sync_failed": 0,
+    "effects_outstanding": 0
+  },
+  "review_pressure": {
+    "delivery_repo": "thossullivan/kew",
+    "engaged": true,
+    "countable": true,
+    "used": 1,
+    "total": 4,
+    "held": 1,
+    "oldest_hold_age_seconds": null,
+    "diff_burden_lines": 252,
+    "saturated": false,
+    "reasons": [],
+    "enforcement": "inactive",
+    "enforcement_detail": "the human-review policy is configured and reported, but not active",
+    "policy_generation": 3,
+    "observation": {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  },
+  "exception": {
+    "state": "awaiting_human_decision",
+    "detail": "kew opens the pull request; you decide whether it lands.",
+    "blocking": true,
+    "dimension": "judgment"
+  },
+  "safest_action": {
+    "action": "wait",
+    "reason": "kew opens the pull request; you decide whether it lands.",
+    "blocked_by": null
+  },
+  "actions": [],
+  "view_revision": "wv1:2055a1c4f0be47d9b6c2e5a70f1d8843",
+  "composed_at": "2026-10-03T14:33:02+00:00",
+  "observations": [
+    {
+      "dimension": "pull_request",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "review_capacity",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    },
+    {
+      "dimension": "route_boundary",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "observed_at": null,
+      "detail": "nothing has probed this boundary"
+    },
+    {
+      "dimension": "tracker_item",
+      "availability": "available",
+      "provenance": "observed",
+      "observed_at": "2026-10-03T14:33:02+00:00",
+      "detail": null
+    }
+  ]
+}

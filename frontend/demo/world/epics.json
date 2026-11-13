@@ -1,0 +1,30 @@
+[
+  {
+    "epic_ref": "ledger-v2",
+    "signal": "progressing",
+    "counts": {
+      "todo": 3,
+      "queued": 0,
+      "in_progress": 1,
+      "in_review": 2,
+      "done": 5,
+      "failed": 1,
+      "held": 0,
+      "blocked": 1,
+      "cancelled": 0
+    },
+    "drain_total_usd": 45.65,
+    "last_tick_ts": "2026-10-21T14:59:32+00:00",
+    "interval_s": 60,
+    "last_tick_duration_s": 2,
+    "last_attempt_started_at": "2026-10-21T14:59:30+00:00",
+    "last_attempt_finished_at": "2026-10-21T14:59:32+00:00",
+    "last_attempt_outcome": "nothing",
+    "last_attempt_reached_tick": true,
+    "change_count": 28,
+    "label": "since last tick",
+    "archived": false,
+    "archived_at": null,
+    "archive_reason": ""
+  }
+]

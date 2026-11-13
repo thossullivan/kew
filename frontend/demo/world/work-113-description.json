@@ -1,0 +1,13 @@
+{
+  "item_id": "113",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Import from an OFX bank file",
+  "url": "https://github.com/acme/ledger/issues/113",
+  "description": "Import an OFX bank file the same way a CSV export is imported.",
+  "expected": "the sample OFX file imports the same entries as its CSV twin.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

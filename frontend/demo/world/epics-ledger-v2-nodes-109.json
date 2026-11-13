@@ -1,0 +1,33 @@
+{
+  "id": "109",
+  "runs": [
+    {
+      "run_id": "73b221bf",
+      "status": "failure",
+      "model": "claude-opus-5",
+      "runner": "claude-code",
+      "cost_usd": 2.97,
+      "total_tokens": 3581461,
+      "cache_creation_tokens": 141963,
+      "cache_read_tokens": 3549072,
+      "pr_url": null,
+      "started_at": "2026-10-21T07:00:00+00:00",
+      "finished_at": "2026-10-21T07:09:00+00:00"
+    },
+    {
+      "run_id": "b16e5025",
+      "status": "failure",
+      "model": "claude-opus-5",
+      "runner": "claude-code",
+      "cost_usd": 1.6,
+      "total_tokens": 4909902,
+      "cache_creation_tokens": 195360,
+      "cache_read_tokens": 4884000,
+      "pr_url": null,
+      "started_at": "2026-10-21T07:14:00+00:00",
+      "finished_at": "2026-10-21T07:36:00+00:00"
+    }
+  ],
+  "lifetime_usd": 4.57,
+  "drain_usd": 4.57
+}

@@ -1,0 +1,14 @@
+{
+  "gateway": "https://127.0.0.1:8443",
+  "driver": "docker",
+  "version": "0.1.2",
+  "tls": { "enabled": true },
+  "telemetry": { "enabled": false },
+  "agent": { "proposals": false, "approval": "manual" },
+  "images": {
+    "supervisor": "ghcr.io/nvidia/openshell-supervisor@sha256:3f1d0c9a4b7e6d52801fa9c3e5b7148d2a6c0fb391745de82c6b0a99fe3147bd",
+    "sandbox": "ghcr.io/nvidia/openshell-sandbox@sha256:9c4e2a7b05d81f36ab52c0d94e7138af6b25d0c3817f49ea5b6c20d738fa91e4"
+  },
+  "kernel": { "landlock_abi": 4 },
+  "sandboxes": { "running": 2, "stopped": 0 }
+}

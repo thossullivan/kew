@@ -1,0 +1,117 @@
+# kew.toml — Configuration for kew
+# See: https://github.com/thossullivan/kew
+
+[project]
+name = {{PROJECT_NAME}}
+# repo = "owner/repo"  # Auto-detected from gh if empty, else the git origin
+
+[agent]
+timeout_minutes = 120         # Kill agent after this long
+max_budget_usd = 10.0         # Per-run budget cap
+# runner = ""                 # Force a runner ("claude-code", "codex", "opencode", "pi", "hermes", "lemonade")
+# model = ""                  # Override model (empty = default)
+
+[agent.claude_code]
+skip_permissions = true       # Pass --dangerously-skip-permissions
+autocompact_pct = 70          # CLAUDE_AUTOCOMPACT_PCT_OVERRIDE
+
+[agent.lemonade]
+# base_url = "http://localhost:13305/v1"  # Any OpenAI-compatible endpoint
+# max_steps = 40
+
+# Official Codex is explicit-only. It runs on the host inside its own native
+# sandbox, so it needs no container setup and no [sandbox] change:
+# [routing]
+# simple = { runner = "codex", model = "gpt-5.6-sol" }
+#
+# [agent.codex]
+# reasoning_effort = "high"
+# service_tier = "fast"
+
+[branches]
+prefix = "agent/issue-"       # Branch naming: {prefix}{issue_num}
+# base = ""                   # Base branch (empty = auto-detect)
+worktree_base = ".worktrees"  # Where worktrees live
+
+[labels]
+ready = "ready"
+in_progress = "in-progress"
+agent_working = "agent-working"
+agent_failed = "agent-failed"
+agent_pr = "agent-pr"
+pr_pending_review = "pr-pending-review"
+blocked = "blocked"
+completed_no_changes = "agent-completed-no-changes"
+agent_needs_help = "agent-needs-help"
+budget_exceeded = "budget-exceeded"
+large_pr = "large-pr"
+ready_to_merge = "ready-to-merge"
+priorities = ["p0-critical", "p1-high", "p2-medium", "p3-low"]
+
+[labels.complexity]
+simple = { tokens = "~30k", scope = "1-2 files" }
+medium = { tokens = "~60k", scope = "2-4 files" }
+complex = { tokens = "~100k", scope = "cross-cutting" }
+
+[commands]
+ci = {{CI_COMMAND}}
+format = {{FORMAT_COMMAND}}
+verify = {{CI_COMMAND}}
+commit_prefix = {{COMMIT_PREFIX}}
+# co_author = ""
+
+[prompt]
+# template = ""              # Custom Jinja2 template path
+# append = ""                # Extra instructions appended to prompt
+include_safety_rules = true
+include_execution_strategy = true
+include_coderabbit = false        # Opt-in; needs the coderabbit CLI on PATH
+include_dispatch_report = true
+include_repo_map = true
+repo_map_tokens = 1024
+
+[security]
+# blocked_prefix_patterns = ["kubectl delete"]
+# blocked_exact_patterns = ["DROP DATABASE"]
+
+[retry]
+max_attempts = 1              # 1 = no retry, 2 = one retry
+backoff_base_seconds = 30
+backoff_multiplier = 2.0
+retriable_exit_codes = [1]
+
+[parallel]
+max_workers = 1               # Concurrent dispatch workers (use --workers to override)
+shutdown_grace_seconds = 30
+
+[review]
+auto_reply = true
+include_resolved = false
+
+[triggers]
+ci_failure_max_retries = 2
+
+[budget]
+per_issue_usd = 15.0
+daily_usd = 50.0
+weekly_usd = 200.0
+
+[routing]
+default = "claude-code"
+# Per-complexity overrides:
+# simple = { runner = "lemonade", model = "lemonade/Qwen3-Coder-30B" }
+# medium = "claude-code"
+# complex = { runner = "claude-code", model = "claude-opus-4-6" }
+
+[pricing]
+# Custom model pricing overrides: [input_cost, output_cost] per million tokens
+# [pricing.overrides]
+# "custom-model" = [3.0, 15.0]
+
+[alerting]
+# webhook_url = ""
+notify_on_failure = true
+notify_on_success = false
+
+[logging]
+dir = "./logs/dispatch"

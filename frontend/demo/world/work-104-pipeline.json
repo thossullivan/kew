@@ -1,0 +1,68 @@
+{
+  "item_id": "104",
+  "lanes": [
+    {
+      "name": "main",
+      "stages": [
+        {
+          "stage": "implement",
+          "state": "done",
+          "label": "run 1b464391",
+          "detail": "success",
+          "evidence": {
+            "kind": "run",
+            "ref": "1b464391"
+          }
+        },
+        {
+          "stage": "publish",
+          "state": "done",
+          "label": "scan clean",
+          "detail": "bdcc2ba3",
+          "evidence": {
+            "kind": "output_scan",
+            "ref": "bdcc2ba3"
+          }
+        },
+        {
+          "stage": "review",
+          "state": "done",
+          "label": "round 1",
+          "detail": "ready",
+          "evidence": {
+            "kind": "review_verdict",
+            "ref": "bdcc2ba3"
+          }
+        },
+        {
+          "stage": "merge",
+          "state": "done",
+          "label": "merged",
+          "detail": "",
+          "evidence": {
+            "kind": "pull_request",
+            "ref": "https://github.com/acme/ledger/pull/204"
+          }
+        }
+      ]
+    }
+  ],
+  "unavailable": [],
+  "composed_at": "2026-10-21T15:00:00+00:00",
+  "merge_verify": {
+    "outcome": "passed",
+    "head": "bdcc2ba3533f4c51c18f5d73d77ce4c17e34a9a1",
+    "is_current_head": true,
+    "error_category": null,
+    "held_out": {
+      "outcome": "passed",
+      "failed": [],
+      "declared": [],
+      "undeclared": [],
+      "failed_more": 0,
+      "declared_more": 0,
+      "undeclared_more": 0
+    },
+    "recorded_at": "2026-10-20T14:20:00+00:00"
+  }
+}

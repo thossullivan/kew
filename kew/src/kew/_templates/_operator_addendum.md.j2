@@ -1,0 +1,8 @@
+{# The approved operator addendum (#3023): one block, rendered above the fixed
+   safety and publication sections, which each say they take precedence. The
+   heading is the one dispatch.md.j2 renders inline (#3022). -#}
+{% if profile_addendum %}## Operator instructions — {{ profile_addendum.role }} profile v{{ profile_addendum.version }}
+
+{{ profile_addendum.body }}
+
+{% endif -%}

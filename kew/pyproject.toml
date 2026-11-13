@@ -1,0 +1,240 @@
+[project]
+name = "kew-cli"
+version = "1.0.0"
+description = "The open-source control plane for autonomous coding agents"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.13,<3.14"
+authors = [
+    { name = "Tom Sullivan", email = "tom@tomsullivan.dev" },
+]
+keywords = ["kew", "claude", "claude-code", "dispatch", "github", "automation", "ai", "agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+dependencies = [
+    "typer>=0.15.0",
+    "pydantic>=2.0.0",
+    "jinja2>=3.1.0",
+    "textual>=1.0.0",
+]
+
+[project.optional-dependencies]
+serve = [
+    "fastapi>=0.115",
+    # Plain uvicorn, not [standard]: kew calls uvicorn.run() with a host/port
+    # and nothing else (cli/serve.py), streams via SSE rather than WebSockets,
+    # and uses no reload/env-file/worker management. The extra pulled in
+    # httptools, python-dotenv, PyYAML, uvloop, watchfiles and websockets for
+    # features nothing here uses.
+    "uvicorn>=0.34",
+]
+[project.urls]
+Homepage = "https://github.com/thossullivan/kew"
+Documentation = "https://kew.dev/docs/"
+Repository = "https://github.com/thossullivan/kew"
+Changelog = "https://github.com/thossullivan/kew/blob/main/CHANGELOG.md"
+Issues = "https://github.com/thossullivan/kew/issues"
+
+[project.scripts]
+kew = "kew.cli:app"
+kew-lemonade = "kew.runners.lemonade_agent:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kew"]
+# Include the generated SvelteKit bundle (git-ignored) so `kew serve` can
+# serve the UI from the wheel. Built by scripts/build_web.sh before packaging.
+artifacts = ["src/kew/serve/web/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Only the files the test-quality ratchet scans (scripts/test_quality_scan.py
+# reads test_*.py); pytest's default would also collect *_test.py unscanned.
+python_files = ["test_*.py"]
+pythonpath = ["src"]
+tmp_path_retention_policy = "failed"
+tmp_path_retention_count = 1
+# Harness integrity (#2480): a misspelled marker is a collection error, not a
+# silently unmatched `-m` selection, and an xfail that starts passing fails
+# until its mark is removed. tests/test_required_tools_mode.py pins both.
+# The ini key, not `--strict-markers` in addopts: pytest 9 does not honour the
+# flag arriving through addopts (measured on 9.0.3), and addopts stays empty
+# anyway (tests/test_serial_phase.py::test_no_addopts_can_narrow_the_phases).
+strict_markers = true
+xfail_strict = true
+# The serial phase. tests/conftest.py applies `serial` to every test in a
+# module that drives a Textual App through its pilot (timing flakes under
+# load, #1772); tests with a real wall-clock deadline carry it by hand. CI,
+# verify.sh runs `-m "not serial"` under xdist, then `-m serial` alone.
+# Release runs those complete phases in separate hosted and trusted jobs.
+# tests/test_serial_phase.py pins both arrangements.
+markers = [
+    "serial: timing sensitive; runs in one pytest process after the xdist phase",
+    "requires_switchyard_image: needs the kew-switchyard image; selected only when KEW_SWITCHYARD_IMAGE=1",
+    "policy: repo-wide scan gate no targeted selection would pick; every governed remediation runs `-m policy` (#2174)",
+    "live_openshell: dials an operator OpenShell gateway; also gated on KEW_LIVE_OPENSHELL=1, so CI never runs it",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# B101: assert is fine in non-test code for invariants
+# B404: subprocess import is fundamental — kew orchestrates gh/claude/git CLIs
+# B701: jinja2 autoescape=False is intentional — templates render Markdown, not HTML
+skips = ["B101", "B404", "B701"]
+
+# Mutation set spans the governance core, not just the routing/cost modules
+# (#951): audit_chain/sandbox/security/dispatch_core gate tamper-evidence,
+# containment, the command-guard, and dispatch — a surviving mutant there is a
+# governance regression. Stays on the weekly cron (scheduled-audits.yml), never
+# the PR gate: mutation runtime over this many modules is far too long to block
+# a PR. Surviving mutants auto-file a follow-up issue from that workflow.
+[tool.mutmut]
+paths_to_mutate = [
+    "src/kew/selector.py",
+    "src/kew/pricing.py",
+    "src/kew/budget.py",
+    "src/kew/orchestrator.py",
+    "src/kew/audit_chain.py",
+    "src/kew/sandbox.py",
+    "src/kew/security.py",
+    "src/kew/dispatch_core.py",
+]
+# The suites that exercise the mutated modules — not all of tests/: mutmut 3
+# runs them from kew/mutants/, where scripts/ and the workflows are not copied,
+# and one failing test aborts stats collection, leaving every mutant
+# "not checked" (#2479).
+tests_dir = [
+    "tests/test_selector.py",
+    "tests/test_pricing.py",
+    "tests/test_pricing_completeness.py",
+    "tests/test_budget.py",
+    "tests/test_orchestrator.py",
+    "tests/test_orchestrator_cpu_retry.py",
+    "tests/test_audit_chain.py",
+    "tests/test_sandbox.py",
+    "tests/test_sandbox_client_exit.py",
+    "tests/test_sandbox_containment.py",
+    "tests/test_sandbox_network_cli.py",
+    "tests/test_sandbox_stream_parity.py",
+    "tests/test_security.py",
+    "tests/test_dispatch_core.py",
+    "tests/test_dispatch_core_characterization.py",
+]
+# mutmut 3 copies only the mutated files into mutants/src/kew/; without the rest
+# of the package there, `import kew` resolves to the unmutated checkout and every
+# mutant reads "not checked" (#2479).
+also_copy = ["src/kew/"]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.0",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "import-linter>=2.0",
+    "mutmut>=3.3.0",
+    "mypy>=1.19.1",
+    "pip-audit>=2.9.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    # xdist: the suite is 8.9k tests and serial pytest takes ~10 min per CI
+    # matrix leg; -n auto brings it to ~2 min. CI, verify.sh and CONTRIBUTING
+    # all pass -n auto (parity: tests/test_verify_parity.py).
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.15.6",
+    # PyYAML is a DIRECT dev dependency: five workflow-contract tests import it
+    # (test_release_workflow, test_verify_parity, test_canary_workflow,
+    # test_audit_anchor_workflow, test_scheduled_audits_workflow). It used to
+    # arrive only as a uvicorn[standard] transitive — declaring it here is what
+    # makes dropping that extra safe.
+    "pyyaml>=6.0",
+    # shellcheck-py is a DIRECT dev dependency so the recipe lint is a real
+    # gate: `kew/src/kew/hosts/provision/*.sh` builds every verification host,
+    # and tests/test_hosts_provision.py lints it. As an optional external tool
+    # that check skipped on every machine that happened not to have shellcheck
+    # installed — CI included — which is a criterion nobody was checking.
+    "shellcheck-py>=0.10.0",
+    "uvicorn>=0.34",
+    "xenon>=0.9.3",
+]
+
+[tool.importlinter]
+root_package = "kew"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "kew never imports click directly (typer no longer depends on it)"
+type = "forbidden"
+source_modules = ["kew"]
+forbidden_modules = ["click"]
+# typer 0.27 installs without click, so a `from click import ...` anywhere in
+# kew breaks a clean `uv tool install` at import while the dev env, which has
+# click through uvicorn/import-linter, stays green. Use typer.Context and the
+# typer re-exports instead.
+
+[[tool.importlinter.contracts]]
+name = "kew.serve reads runs only through kew.service"
+type = "forbidden"
+source_modules = ["kew.serve"]
+forbidden_modules = ["kew.run_store", "kew.orchestrator", "kew.audit"]
+# The invariant is "serve must not import these *directly* — it goes through
+# kew.service". allow_indirect_imports scopes the check to direct edges: a
+# `from kew.run_store import ...` in a serve module still fails (verified), but
+# the legitimate serve -> kew.service -> kew.run_store/kew.audit routing is
+# permitted. Without this flag the contract is unsatisfiable, since the service
+# boundary must import run_store/audit to read runs and append events — which is
+# why it was never wired into CI (#456). This is not a weakening: the boundary
+# (no direct bypass of kew.service) is exactly what's enforced.
+allow_indirect_imports = "true"
+
+[[tool.importlinter.contracts]]
+name = "epic snapshots cross to serve/service as JSON, not imports"
+type = "forbidden"
+source_modules = ["kew.serve", "kew.service"]
+forbidden_modules = ["kew.graph"]
+
+# The dispatch stack is layered: the CLI drives dispatch, dispatch drives the
+# orchestrator (run_agent), the orchestrator drives the runners, and the store
+# persists runs at the bottom. A lower layer must never import a higher one —
+# that is what keeps run_store/runners reusable and prevents import cycles back
+# up into the CLI. Layers are listed high→low. run_store sits below runners
+# because runners reach it transitively (kew.runners.registry → kew.config →
+# kew.run_store); grouping the two as independent siblings would (correctly)
+# break on that edge. The order mirrors the real edges — cli → dispatch_core →
+# orchestrator → runners → run_store — verified by `lint-imports`; the plan's
+# abstract "cli → orchestrator → dispatch" sketch is inverted from the code,
+# where dispatch_core imports orchestrator.run_agent, not the reverse.
+[[tool.importlinter.contracts]]
+name = "layered dispatch stack (cli → dispatch → orchestrator → runners → store)"
+type = "layers"
+layers = [
+    "kew.cli",
+    "kew.dispatch_core",
+    "kew.orchestrator",
+    "kew.runners",
+    "kew.run_store",
+]

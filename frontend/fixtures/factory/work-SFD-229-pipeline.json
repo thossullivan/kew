@@ -1,0 +1,49 @@
+{
+  "item_id": "SFD-229",
+  "lanes": [
+    {
+      "name": "main",
+      "stages": [
+        {
+          "stage": "implement",
+          "state": "done",
+          "label": "run f2a84bd1",
+          "detail": "success",
+          "evidence": { "kind": "run", "ref": "f2a84bd1" }
+        },
+        {
+          "stage": "publish",
+          "state": "pending",
+          "label": "published",
+          "detail": "no scan recorded",
+          "evidence": null,
+          "passed": true
+        },
+        {
+          "stage": "review",
+          "state": "not_ready",
+          "label": "round 2",
+          "detail": "needs changes",
+          "evidence": null
+        },
+        {
+          "stage": "merge",
+          "state": "needs_you",
+          "label": "needs you",
+          "detail": "changes requested",
+          "evidence": null
+        }
+      ]
+    }
+  ],
+  "unavailable": [],
+  "composed_at": "2026-09-29T10:08:00+00:00",
+  "merge_verify": {
+    "outcome": "incomplete",
+    "head": "b71c04e2d95a3f68e1c7a40b2d9e5f3168ac07d4",
+    "is_current_head": false,
+    "error_category": "host_job_deadline_exceeded",
+    "held_out": null,
+    "recorded_at": "2026-09-29T09:51:12+00:00"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "agent": {
+    "agent.max_budget_usd": {
+      "effective": 25,
+      "file_value": 25,
+      "default_value": 25,
+      "override": null
+    },
+    "agent.model": {
+      "effective": "",
+      "file_value": "",
+      "default_value": "",
+      "override": null
+    }
+  },
+  "breaker": {
+    "breaker.cost_anomaly_factor": {
+      "effective": 3,
+      "file_value": 3,
+      "default_value": 3,
+      "override": null
+    }
+  },
+  "budget": {
+    "budget.daily_usd": {
+      "effective": 80,
+      "file_value": 80,
+      "default_value": 50,
+      "override": null
+    },
+    "budget.per_issue_usd": {
+      "effective": 25,
+      "file_value": 25,
+      "default_value": 15,
+      "override": null
+    },
+    "budget.weekly_usd": {
+      "effective": 400,
+      "file_value": 400,
+      "default_value": 200,
+      "override": null
+    }
+  },
+  "review": {
+    "review.model": {
+      "effective": "",
+      "file_value": "",
+      "default_value": "",
+      "override": null
+    }
+  },
+  "routing": {}
+}

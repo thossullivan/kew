@@ -1,0 +1,67 @@
+# kew.dev — local serving model, mirrored in production.
+#
+# One tree. `npm run dist` composes the marketing build and the mkdocs output
+# into build/, with the docs physically at build/docs/. That is the same
+# directory the box serves, so this file and the production site block differ
+# only in the address line (":80" here; "kew.dev" there, where Caddy also
+# provisions TLS).
+#
+# This previously mounted two trees and stripped the prefix with handle_path.
+# It worked, but it meant the thing tested locally was not quite the thing
+# served, and the docs' relative asset references resolved by coincidence
+# rather than because the paths matched. See DEPLOY.md.
+
+:80 {
+	root * /srv/site
+	encode gzip zstd
+
+	# Bare /docs would otherwise 404 — mkdocs expects the trailing slash.
+	redir /docs /docs/
+
+	# The docs are a plain static tree and should 404 honestly. Keeping them out
+	# of the marketing handler matters: that one falls back to /index.html, which
+	# would otherwise answer a mistyped docs URL with the landing page.
+	handle /docs/* {
+		file_server
+	}
+
+	handle {
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+
+	header {
+		# The site is fully self-contained: no CDN scripts, no remote fonts.
+		# The docs serve their own IBM Plex and carry no GitHub widget (#1168);
+		# scripts/check-docs.sh fails a build whose pages load another origin.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+#
+# demo.kew.dev: a commented EXAMPLE only, not served. The demo console
+# (frontend/build-demo/, staged by deploy-demo.sh as a dry run) goes public only
+# with the owner's approval. The production block is in DEPLOY.md; the CSP is
+# the one above, unchanged.
+#
+# demo.kew.dev {
+# 	root * /srv/kew-demo
+# 	encode gzip zstd
+#
+# 	try_files {path} /index.html
+# 	file_server
+#
+# 	header {
+# 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
+# 		X-Content-Type-Options "nosniff"
+# 		Referrer-Policy "strict-origin-when-cross-origin"
+# 	}
+#
+# 	header /_app/immutable/* Cache-Control "public, max-age=31536000, immutable"
+# }

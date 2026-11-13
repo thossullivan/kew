@@ -1,0 +1,17 @@
+{
+  "budget.per_issue_usd": {
+    "effective": 25,
+    "file_value": 25,
+    "override": null
+  },
+  "budget.daily_usd": {
+    "effective": 80,
+    "file_value": 80,
+    "override": null
+  },
+  "budget.weekly_usd": {
+    "effective": 400,
+    "file_value": 400,
+    "override": null
+  }
+}

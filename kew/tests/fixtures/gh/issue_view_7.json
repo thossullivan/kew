@@ -1,0 +1,32 @@
+{
+  "closedByPullRequestsReferences": [
+    {
+      "number": 42,
+      "repository": {
+        "name": "r",
+        "owner": {
+          "login": "o"
+        }
+      },
+      "state": "OPEN",
+      "url": "https://github.com/o/r/pull/42"
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOABCDEF8AAAABc1kz9Q",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    },
+    {
+      "id": "LA_kwDOABCDEF8AAAABc1k0AA",
+      "name": "kew:in-progress",
+      "description": "",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 7,
+  "state": "OPEN",
+  "stateReason": null
+}

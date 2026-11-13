@@ -1,0 +1,495 @@
+{
+  "epic_ref": "ledger-v2",
+  "now": "2026-10-21T15:00:00+00:00",
+  "span": {
+    "start": "2026-10-19T19:00:00+00:00",
+    "end": "2026-10-21T15:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "101",
+      "title": "Parse ledger entries from a CSV export",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-19T19:00:00+00:00",
+          "to": "2026-10-19T19:37:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-19T19:37:00+00:00",
+          "to": "2026-10-19T20:05:00+00:00"
+        },
+        {
+          "status": "done",
+          "from": "2026-10-19T20:05:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "f9910678",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-19T19:00:00+00:00",
+          "finished_at": "2026-10-19T19:37:00+00:00",
+          "cost_usd": 2.3,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "d22c1ed4",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-19T19:43:00+00:00",
+          "finished_at": "2026-10-19T20:02:00+00:00",
+          "cost_usd": 2.2,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY",
+          "recorded_at": "2026-10-19T20:02:00+00:00"
+        }
+      ],
+      "merged_at": "2026-10-19T20:05:00+00:00"
+    },
+    {
+      "id": "102",
+      "title": "Exact decimal amounts in every currency",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-19T23:00:00+00:00",
+          "to": "2026-10-19T23:25:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-19T23:25:00+00:00",
+          "to": "2026-10-19T23:46:00+00:00"
+        },
+        {
+          "status": "done",
+          "from": "2026-10-19T23:46:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "6690a7f4",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-19T23:00:00+00:00",
+          "finished_at": "2026-10-19T23:25:00+00:00",
+          "cost_usd": 4.87,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "9809cee6",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-19T23:30:00+00:00",
+          "finished_at": "2026-10-19T23:43:00+00:00",
+          "cost_usd": 0.82,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY",
+          "recorded_at": "2026-10-19T23:43:00+00:00"
+        }
+      ],
+      "merged_at": "2026-10-19T23:46:00+00:00"
+    },
+    {
+      "id": "103",
+      "title": "Double-entry posting rule",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-20T09:00:00+00:00",
+          "to": "2026-10-20T09:18:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-20T09:18:00+00:00",
+          "to": "2026-10-20T09:36:00+00:00"
+        },
+        {
+          "status": "done",
+          "from": "2026-10-20T09:36:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "826d8cf0",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-20T09:00:00+00:00",
+          "finished_at": "2026-10-20T09:18:00+00:00",
+          "cost_usd": 2.52,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "45aac9aa",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-20T09:23:00+00:00",
+          "finished_at": "2026-10-20T09:33:00+00:00",
+          "cost_usd": 1.58,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY",
+          "recorded_at": "2026-10-20T09:33:00+00:00"
+        }
+      ],
+      "merged_at": "2026-10-20T09:36:00+00:00"
+    },
+    {
+      "id": "104",
+      "title": "Account balance query",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-20T13:00:00+00:00",
+          "to": "2026-10-20T13:17:00+00:00"
+        },
+        {
+          "status": "failed",
+          "from": "2026-10-20T13:17:00+00:00",
+          "to": "2026-10-20T13:19:00+00:00"
+        },
+        {
+          "status": "in_progress",
+          "from": "2026-10-20T13:19:00+00:00",
+          "to": "2026-10-20T13:39:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-20T13:39:00+00:00",
+          "to": "2026-10-20T14:20:00+00:00"
+        },
+        {
+          "status": "done",
+          "from": "2026-10-20T14:20:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "9a8eb37d",
+          "kind": "dispatch",
+          "status": "failure",
+          "started_at": "2026-10-20T13:00:00+00:00",
+          "finished_at": "2026-10-20T13:17:00+00:00",
+          "cost_usd": 2.01,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "1b464391",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-20T13:19:00+00:00",
+          "finished_at": "2026-10-20T13:39:00+00:00",
+          "cost_usd": 4.36,
+          "attempt_number": 2
+        },
+        {
+          "run_id": "a1fba96a",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-20T13:44:00+00:00",
+          "finished_at": "2026-10-20T14:15:00+00:00",
+          "cost_usd": 1.07,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY",
+          "recorded_at": "2026-10-20T14:15:00+00:00"
+        }
+      ],
+      "merged_at": "2026-10-20T14:20:00+00:00"
+    },
+    {
+      "id": "105",
+      "title": "Monthly statement export",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-20T19:00:00+00:00",
+          "to": "2026-10-20T19:43:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-20T19:43:00+00:00",
+          "to": "2026-10-20T20:10:00+00:00"
+        },
+        {
+          "status": "done",
+          "from": "2026-10-20T20:10:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "ff3a322f",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-20T19:00:00+00:00",
+          "finished_at": "2026-10-20T19:43:00+00:00",
+          "cost_usd": 3.92,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "9e5d7d74",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-20T19:49:00+00:00",
+          "finished_at": "2026-10-20T20:04:00+00:00",
+          "cost_usd": 1.11,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY_WITH_RESIDUALS",
+          "recorded_at": "2026-10-20T20:04:00+00:00"
+        }
+      ],
+      "merged_at": "2026-10-20T20:10:00+00:00"
+    },
+    {
+      "id": "106",
+      "title": "Reconcile against a bank statement",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-21T14:40:12+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "ab4656b0",
+          "kind": "dispatch",
+          "status": "pending",
+          "started_at": "2026-10-21T14:40:12+00:00",
+          "finished_at": null,
+          "cost_usd": 0,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [],
+      "merged_at": null
+    },
+    {
+      "id": "107",
+      "title": "Idempotent import of a re-sent file",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-21T09:00:00+00:00",
+          "to": "2026-10-21T09:43:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-21T09:43:00+00:00",
+          "to": "2026-10-21T10:13:00+00:00"
+        },
+        {
+          "status": "in_progress",
+          "from": "2026-10-21T10:13:00+00:00",
+          "to": "2026-10-21T10:28:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-21T10:28:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "fc4a4ea4",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-21T09:00:00+00:00",
+          "finished_at": "2026-10-21T09:43:00+00:00",
+          "cost_usd": 3.33,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "5cad8a97",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-21T09:49:00+00:00",
+          "finished_at": "2026-10-21T10:11:00+00:00",
+          "cost_usd": 2.03,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "d903a58e",
+          "kind": "review_remediation",
+          "status": "success",
+          "started_at": "2026-10-21T10:13:00+00:00",
+          "finished_at": "2026-10-21T10:25:00+00:00",
+          "cost_usd": 2.53,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "0d1ef5f0",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-21T10:28:00+00:00",
+          "finished_at": "2026-10-21T10:50:00+00:00",
+          "cost_usd": 1.54,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "NEEDS_CHANGES",
+          "recorded_at": "2026-10-21T10:11:00+00:00"
+        },
+        {
+          "round": 2,
+          "verdict": "READY",
+          "recorded_at": "2026-10-21T10:50:00+00:00"
+        }
+      ],
+      "merged_at": null
+    },
+    {
+      "id": "108",
+      "title": "Multi-currency trial balance",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-21T03:00:00+00:00",
+          "to": "2026-10-21T03:26:00+00:00"
+        },
+        {
+          "status": "in_review",
+          "from": "2026-10-21T03:26:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "f220f966",
+          "kind": "dispatch",
+          "status": "success",
+          "started_at": "2026-10-21T03:00:00+00:00",
+          "finished_at": "2026-10-21T03:26:00+00:00",
+          "cost_usd": 3.16,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "b5b7e790",
+          "kind": "adversarial_review",
+          "status": "success",
+          "started_at": "2026-10-21T03:31:00+00:00",
+          "finished_at": "2026-10-21T03:56:00+00:00",
+          "cost_usd": 1.73,
+          "attempt_number": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "verdict": "READY",
+          "recorded_at": "2026-10-21T03:56:00+00:00"
+        }
+      ],
+      "merged_at": null
+    },
+    {
+      "id": "109",
+      "title": "Close a period and lock its entries",
+      "bands": [
+        {
+          "status": "in_progress",
+          "from": "2026-10-21T07:00:00+00:00",
+          "to": "2026-10-21T07:40:00+00:00"
+        },
+        {
+          "status": "failed",
+          "from": "2026-10-21T07:40:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [
+        {
+          "run_id": "73b221bf",
+          "kind": "dispatch",
+          "status": "failure",
+          "started_at": "2026-10-21T07:00:00+00:00",
+          "finished_at": "2026-10-21T07:09:00+00:00",
+          "cost_usd": 2.97,
+          "attempt_number": 1
+        },
+        {
+          "run_id": "b16e5025",
+          "kind": "dispatch",
+          "status": "failure",
+          "started_at": "2026-10-21T07:14:00+00:00",
+          "finished_at": "2026-10-21T07:36:00+00:00",
+          "cost_usd": 1.6,
+          "attempt_number": 2
+        }
+      ],
+      "rounds": [],
+      "merged_at": null
+    },
+    {
+      "id": "110",
+      "title": "Audit trail for every posting",
+      "bands": [
+        {
+          "status": "blocked",
+          "from": "2026-10-20T09:41:00+00:00",
+          "to": null
+        }
+      ],
+      "runs": [],
+      "rounds": [],
+      "merged_at": null
+    },
+    {
+      "id": "111",
+      "title": "Year-end rollover",
+      "bands": [],
+      "runs": [],
+      "rounds": [],
+      "merged_at": null
+    },
+    {
+      "id": "112",
+      "title": "Ledger CLI help and examples",
+      "bands": [],
+      "runs": [],
+      "rounds": [],
+      "merged_at": null
+    },
+    {
+      "id": "113",
+      "title": "Import from an OFX bank file",
+      "bands": [],
+      "runs": [],
+      "rounds": [],
+      "merged_at": null
+    }
+  ]
+}

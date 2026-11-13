@@ -1,0 +1,101 @@
+{
+  "agent": {
+    "agent.max_budget_usd": {
+      "effective": 25.0,
+      "file_value": 25.0,
+      "default_value": 25.0,
+      "override": null
+    },
+    "agent.model": {
+      "effective": "claude-sonnet-5-5",
+      "file_value": "claude-sonnet-5-5",
+      "default_value": "",
+      "override": null
+    }
+  },
+  "breaker": {
+    "breaker.cost_anomaly_factor": {
+      "effective": 3.0,
+      "file_value": 3.0,
+      "default_value": 3.0,
+      "override": null
+    }
+  },
+  "budget": {
+    "budget.daily_usd": {
+      "effective": 250.0,
+      "file_value": 250.0,
+      "override": null,
+      "default_value": 50.0
+    },
+    "budget.per_issue_usd": {
+      "effective": 25.0,
+      "file_value": 25.0,
+      "override": null,
+      "default_value": 15.0
+    },
+    "budget.weekly_usd": {
+      "effective": 1500.0,
+      "file_value": 600.0,
+      "override": {
+        "value": 1500.0,
+        "set_by": "operator",
+        "set_at": "2026-09-24T15:23:40+00:00",
+        "reason": "weekly cap reached at $600"
+      },
+      "default_value": 200.0
+    }
+  },
+  "review": {
+    "review.model": {
+      "effective": "",
+      "file_value": "",
+      "default_value": "",
+      "override": null
+    }
+  },
+  "routing": {
+    "routing.complex": {
+      "effective": {
+        "runner": "claude-code",
+        "model": "claude-opus-5"
+      },
+      "file_value": {
+        "runner": "claude-code",
+        "model": "claude-opus-5"
+      },
+      "default_value": null,
+      "override": null
+    },
+    "routing.default": {
+      "effective": {
+        "runner": "claude-code",
+        "model": "claude-sonnet-4-6"
+      },
+      "file_value": {
+        "runner": "claude-code",
+        "model": "claude-sonnet-4-6"
+      },
+      "default_value": null,
+      "override": null
+    },
+    "routing.medium": {
+      "effective": null,
+      "file_value": null,
+      "default_value": null,
+      "override": null
+    },
+    "routing.simple": {
+      "effective": {
+        "runner": "codex",
+        "model": "gpt-5.6-luna"
+      },
+      "file_value": {
+        "runner": "codex",
+        "model": "gpt-5.6-luna"
+      },
+      "default_value": null,
+      "override": null
+    }
+  }
+}

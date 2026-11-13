@@ -1,0 +1,52 @@
+{
+  "run_id": "9a8eb37d",
+  "attempt_number": 1,
+  "item_id": "104",
+  "issue_num": 104,
+  "source_tracker": "github",
+  "source_id": "104",
+  "sealed": false,
+  "through_seq": 1,
+  "chain_head": "9a8eb37d9a8eb37d9a8eb37d9a8eb37d9a8eb37d9a8eb37d9a8eb37d9a8eb37d",
+  "chain_verified": true,
+  "artifact_node_id": null,
+  "runner_telemetry": "structured",
+  "events": [
+    {
+      "seq": 1,
+      "timestamp": "2026-10-20T13:00:00+00:00",
+      "kind": "evidence.dispatch",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": false,
+      "terminal": false,
+      "facts": {
+        "route": "claude-code/claude-opus-5"
+      }
+    }
+  ],
+  "gaps": [],
+  "availability": [
+    {
+      "dimension": "host_sequence",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "artifact_seal",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "detail": "the run sealed no artifact"
+    },
+    {
+      "dimension": "artifact_diff",
+      "availability": "unavailable",
+      "provenance": "observed",
+      "detail": "the run sealed no artifact"
+    }
+  ]
+}

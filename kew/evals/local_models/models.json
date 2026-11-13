@@ -1,0 +1,8 @@
+{
+  "_comment": "Model ids as your local server names them. Discover with: curl http://localhost:13305/api/v1/models (Lemonade) or /v1/models (OpenAI-compatible). Replace these with what your endpoint actually serves.",
+  "models": [
+    "Qwen3-Coder-30B-A3B-Instruct-GGUF",
+    "gpt-oss-20b",
+    "GLM-4.7-Flash"
+  ]
+}

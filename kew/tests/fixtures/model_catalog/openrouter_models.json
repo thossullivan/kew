@@ -1,0 +1,54 @@
+{
+  "data": [
+    {
+      "id": "anthropic/claude-sonnet-5",
+      "name": "Anthropic: Claude Sonnet 5 (renamed)",
+      "pricing": {
+        "prompt": "0.000003",
+        "completion": "0.000015"
+      }
+    },
+    {
+      "id": "deepseek/deepseek-v4-flash-0731",
+      "name": "DeepSeek: V4 Flash 0731",
+      "pricing": {
+        "prompt": "0.0000004",
+        "completion": "0.0000016"
+      }
+    },
+    {
+      "id": "openai/gpt-9",
+      "name": "OpenAI: GPT-9",
+      "pricing": {
+        "prompt": "0.00001",
+        "completion": "0.00004"
+      }
+    },
+    {
+      "id": "openrouter/auto",
+      "name": "Auto Router",
+      "pricing": {
+        "prompt": "-1",
+        "completion": "-1"
+      }
+    },
+    {
+      "id": "qwen/qwen3-coder-next",
+      "name": "Qwen: Qwen3 Coder Next",
+      "runner": "claude-code",
+      "routable": true,
+      "pricing": {
+        "prompt": "0.00000035",
+        "completion": "0.0000016"
+      }
+    },
+    {
+      "id": "qwen/qwen3.5-max",
+      "name": "Qwen: Qwen3.5 Max",
+      "pricing": {
+        "prompt": "0.0000012",
+        "completion": "0.000006"
+      }
+    }
+  ]
+}

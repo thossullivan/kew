@@ -1,0 +1,50 @@
+{
+  "epic_ref": "launch-fixes",
+  "row": {
+    "type": "epic_wait",
+    "consequence": "wait",
+    "age": "2026-10-15T09:00:00+00:00",
+    "reason": "#1010 — failed-terminal (exit 137, host_restart_repeated, preserved work)",
+    "primary_action": "check why the host keeps going down, then kew epic continue the node",
+    "issue_num": 1010,
+    "item_id": "1010",
+    "estimate_usd": null,
+    "epic_ref": "launch-fixes",
+    "url": null,
+    "pr_number": null,
+    "work_unread": false,
+    "attention_kind": "held",
+    "label": "the host restarted under this node twice; its work is preserved",
+    "command": "kew epic continue launch-fixes 1010",
+    "sentence": "the host restarted under this node twice; its work is preserved",
+    "title": "t1010",
+    "link": null,
+    "verify_link": null,
+    "node_ids": [],
+    "repo": null
+  },
+  "node": {
+    "id": "1010",
+    "title": "t1010",
+    "status": "failed",
+    "status_since": "2026-10-15T09:00:00+00:00",
+    "url": null,
+    "pr_url": null,
+    "external": false,
+    "stuck": "failed-terminal (exit 137, host_restart_repeated, preserved work)",
+    "attention": {
+      "kind": "held",
+      "reason": "failed-terminal (exit 137, host_restart_repeated, preserved work)",
+      "url": null,
+      "action": "check why the host keeps going down, then kew epic continue the node",
+      "command": "kew epic continue launch-fixes 1010",
+      "sentence": "the host restarted under this node twice; its work is preserved",
+      "link": null,
+      "verify_link": null
+    },
+    "blocked_reason": "failed-terminal (exit 137, host_restart_repeated, preserved work)",
+    "recovery_command": "kew epic continue launch-fixes 1010",
+    "motion": "waiting_human",
+    "alive": true
+  }
+}

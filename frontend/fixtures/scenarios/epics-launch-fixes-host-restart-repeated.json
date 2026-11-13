@@ -1,0 +1,386 @@
+{
+  "epic_ref": "launch-fixes",
+  "snapshot": {
+    "epic_ref": "launch-fixes",
+    "tick_id": 412,
+    "tick_ts": "",
+    "signal": "progressing",
+    "counts": {
+      "todo": 3,
+      "in_progress": 1,
+      "in_review": 1,
+      "done": 13,
+      "failed": 1,
+      "held": 0,
+      "blocked": 1,
+      "cancelled": 0
+    },
+    "frontier": [
+      "2040",
+      "2054",
+      "2060"
+    ],
+    "nodes": [
+      {
+        "id": "2000",
+        "title": "W4.3 renames",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2000",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2021",
+        "title": "review verdict from the stream",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2021",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "1969",
+        "title": "pre-push credential scan",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/1969",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2001",
+        "title": "W4.4 grammar",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2001",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2047",
+        "title": "review gate trailing notices",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2047",
+        "pr_url": "https://github.com/thossullivan/kew/pull/2048",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2054",
+        "title": "key-shape cap",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2054",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "2058",
+        "title": "dispatch dry run",
+        "status": "failed",
+        "status_since": "2026-09-24T15:40:00+00:00",
+        "url": "https://github.com/thossullivan/kew/issues/2058",
+        "pr_url": null,
+        "external": false,
+        "stuck": "failed-terminal (exit 137, host_restart_repeated)",
+        "attention": {
+          "kind": "host_restart_repeated",
+          "reason": "failed-terminal (exit 137, host_restart_repeated)",
+          "url": null,
+          "action": "check why the host keeps going down, then kew epic retry the node",
+          "command": "kew epic retry launch-fixes 2058",
+          "sentence": "the host restarted under this node twice",
+          "link": null
+        },
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2060",
+        "title": "changed-files .venv",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2060",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "2040",
+        "title": "docs waiting on snapshot",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2040",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "2055",
+        "title": "review gate lows",
+        "status": "in_review",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2055",
+        "pr_url": "https://github.com/thossullivan/kew/pull/2059",
+        "external": false,
+        "stuck": null,
+        "attention": {
+          "kind": "merge_decision",
+          "reason": "PR open for #2055 — awaiting review",
+          "url": "https://github.com/thossullivan/kew/pull/2059",
+          "action": "",
+          "command": "",
+          "sentence": "Merge verify failed at 3670e43f: 2 of main's tests fail on this PR — the merge decision is yours",
+          "link": {
+            "label": "Open PR #2059 to merge",
+            "href": "https://github.com/thossullivan/kew/pull/2059"
+          },
+          "verify_link": {
+            "label": "See the failed merge verify",
+            "href": "/work?item=2055#merge-verify"
+          }
+        },
+        "blocked_reason": null,
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "2053",
+        "title": "stderr noise",
+        "status": "blocked",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2053",
+        "pr_url": null,
+        "external": false,
+        "stuck": "needs a design decision: a different user for reviewed code",
+        "attention": null,
+        "blocked_reason": "needs a design decision: a different user for reviewed code",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "2033",
+        "title": "agent-PR CI gate",
+        "status": "in_progress",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2033",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "executing",
+        "alive": true
+      },
+      {
+        "id": "1117",
+        "title": "Linear launch gate",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/1117",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "1994",
+        "title": "public-ready workflows",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/1994",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "1870",
+        "title": "npm advisories",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/1870",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2002",
+        "title": "first-run blockers",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2002",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2031",
+        "title": "CodeRabbit opt-in",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2031",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2030",
+        "title": "docs truth",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2030",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "1803",
+        "title": "governor swap + ci-fix budget",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/1803",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "2045",
+        "title": "hotfix classify",
+        "status": "done",
+        "status_since": null,
+        "url": "https://github.com/thossullivan/kew/issues/2045",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "motion": "settled",
+        "alive": false
+      }
+    ],
+    "edges": [
+      [
+        "2001",
+        "2040"
+      ],
+      [
+        "2021",
+        "2040"
+      ],
+      [
+        "1969",
+        "2054"
+      ],
+      [
+        "1969",
+        "2058"
+      ],
+      [
+        "1969",
+        "2060"
+      ],
+      [
+        "2047",
+        "2053"
+      ],
+      [
+        "2000",
+        "2001"
+      ],
+      [
+        "2021",
+        "2047"
+      ],
+      [
+        "2047",
+        "2055"
+      ]
+    ],
+    "unavailable": []
+  },
+  "heartbeat": {
+    "last_tick_started_at": null,
+    "last_tick_ts": null,
+    "last_tick_duration_s": null,
+    "tick_count": 412,
+    "interval_s": 60,
+    "last_signal": "progressing",
+    "change_count": 0
+  },
+  "economics": {
+    "window_start": null,
+    "drain_total_usd": 4.55,
+    "node_drain_usd": {
+      "2055": 3.1,
+      "2033": 1.45
+    },
+    "label": "since last tick"
+  }
+}

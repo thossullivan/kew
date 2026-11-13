@@ -1,0 +1,13 @@
+{
+  "item_id": "110",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Audit trail for every posting",
+  "url": "https://github.com/acme/ledger/issues/110",
+  "description": "Keep an audit trail of who posted what, and when.",
+  "expected": "every posting names its author and time.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

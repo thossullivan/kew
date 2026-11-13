@@ -1,0 +1,160 @@
+name: SAST Rule Drift
+
+# Non-blocking canary for the PINNED semgrep ruleset (kew/.semgrep/pinned.yml).
+# The `sast` CI gate scans against that vendored snapshot instead of
+# `--config auto`, so it never sees upstream rule changes. This job re-fetches
+# the registry ruleset the snapshot was recorded from and diffs it, opening a
+# digest issue on drift (only while the repository is private; a public copy
+# reports drift as a warning) so the pin can be refreshed deliberately (see
+# kew/.semgrep/README.md). It does NOT gate PRs — mirrors scheduled-audits.yml's
+# hosted-runner + github-script(issues.create) conventions.
+
+on:
+  schedule:
+    # Weekly on Mondays at 06:30 UTC — just after the 06:00 weekly-audit slot.
+    - cron: "30 6 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+# Source registry ruleset the pin was recorded from. Keep in sync with the
+# "Source" line in kew/.semgrep/README.md.
+env:
+  PINNED_FILE: kew/.semgrep/pinned.yml
+  REGISTRY_URL: https://semgrep.dev/c/p/python
+
+jobs:
+  visibility:
+    # A schedule event's payload carries no repository object, so
+    # github.event.repository.visibility is empty on a scheduled run. Read the
+    # repository's visibility from the API instead. Hosted, checks out
+    # nothing, and runs no repository code. A failed read fails this job, and
+    # the job that needs it does not run.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      visibility: ${{ steps.read.outputs.visibility }}
+    steps:
+      - name: Read repository visibility
+        id: read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "visibility=${visibility}" >> "$GITHUB_OUTPUT"
+
+  rule-drift:
+    needs: visibility
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Diff pinned ruleset vs latest registry
+        id: diff
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          PINNED_FILE: ${{ env.PINNED_FILE }}
+          REGISTRY_URL: ${{ env.REGISTRY_URL }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const ruleIds = (text) => {
+              const ids = new Set();
+              for (const line of text.split('\n')) {
+                const m = line.match(/^- id:\s*(\S+)/);
+                if (m) ids.add(m[1]);
+              }
+              return ids;
+            };
+            const normalize = (text) =>
+              text.split('\n').map(l => l.replace(/\s+$/, '')).join('\n').trim();
+
+            const pinned = fs.readFileSync(process.env.PINNED_FILE, 'utf8');
+
+            // A registry/network blip is an INTERNAL failure, not drift — never
+            // file a drift issue on it. Fail loudly so the red run is visible.
+            let latest;
+            try {
+              const resp = await fetch(process.env.REGISTRY_URL);
+              if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+              latest = await resp.text();
+            } catch (e) {
+              core.setFailed(`Could not fetch ${process.env.REGISTRY_URL}: ${e.message} — internal failure, not drift`);
+              return;
+            }
+            if (!latest.startsWith('rules:')) {
+              core.setFailed('Registry response did not look like a semgrep ruleset — internal failure, not drift');
+              return;
+            }
+
+            const pinnedIds = ruleIds(pinned);
+            const latestIds = ruleIds(latest);
+            const added = [...latestIds].filter(id => !pinnedIds.has(id)).sort();
+            const removed = [...pinnedIds].filter(id => !latestIds.has(id)).sort();
+            const contentChanged = normalize(pinned) !== normalize(latest);
+
+            if (!added.length && !removed.length && !contentChanged) {
+              core.info(`No drift: pinned ruleset matches ${process.env.REGISTRY_URL} (${pinnedIds.size} rules).`);
+              return;
+            }
+
+            const list = (ids) => ids.length
+              ? ids.map(id => `- \`${id}\``).join('\n')
+              : '_none_';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'sast: pinned semgrep ruleset drifted from registry';
+            const body = [
+              `The pinned SAST ruleset (\`${process.env.PINNED_FILE}\`, ${pinnedIds.size} rules) has drifted`,
+              `from the registry source (\`${process.env.REGISTRY_URL}\`, ${latestIds.size} rules).`,
+              '',
+              `**Rules added upstream (${added.length}):**`,
+              list(added),
+              '',
+              `**Rules removed upstream (${removed.length}):**`,
+              list(removed),
+              '',
+              (!added.length && !removed.length && contentChanged)
+                ? '_Rule ids are unchanged but rule bodies differ — an existing rule was updated._'
+                : (contentChanged ? '_Rule bodies also changed._' : ''),
+              '',
+              'Refresh the pin deliberately (see `kew/.semgrep/README.md`): re-download',
+              `\`${process.env.REGISTRY_URL}\` over \`${process.env.PINNED_FILE}\`, run`,
+              '`bash scripts/verify.sh` to confirm the tree stays green, and commit.',
+              '',
+              `[Workflow run](${runUrl})`,
+            ].join('\n');
+
+            fs.writeFileSync(process.env.RUNNER_TEMP + '/sast-drift-title.txt', title);
+            fs.writeFileSync(process.env.RUNNER_TEMP + '/sast-drift.md', body);
+            core.setOutput('drift', 'true');
+            core.warning(`SAST rule drift detected: +${added.length}/-${removed.length} rules.`);
+
+      # Filed only while this repository is private; a public copy reports
+      # drift as the warning above and opens no public issue.
+      - name: File the drift issue
+        if: steps.diff.outputs.drift == 'true' && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const title = fs.readFileSync(process.env.RUNNER_TEMP + '/sast-drift-title.txt', 'utf8');
+            const body = fs.readFileSync(process.env.RUNNER_TEMP + '/sast-drift.md', 'utf8');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'security-audit',
+            });
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, labels: ['security-audit'], body,
+              });
+            }

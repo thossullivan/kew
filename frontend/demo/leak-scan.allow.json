@@ -1,0 +1,79 @@
+{
+  "owner": "acme",
+  "hosts": [
+    "github.com",
+    "kew.dev"
+  ],
+  "bundle_hosts": [
+    "github.com",
+    "kew.dev",
+    "svelte.dev",
+    "svelteflow.dev",
+    "platform.claude.com",
+    "docs.anthropic.com",
+    "developers.openai.com",
+    "openrouter.ai",
+    "tailwindcss.com",
+    "www.w3.org"
+  ],
+  "bundle_repo": "kew",
+  "exempt": [
+    {
+      "path": "provenance/provenance.json",
+      "mode": "source",
+      "keys": {
+        "features[].prs[].url": [
+          "owner",
+          "denylist"
+        ],
+        "features[].epics[]": [
+          "denylist"
+        ]
+      }
+    },
+    {
+      "path": "provenance/runs.json",
+      "mode": "source",
+      "keys": {
+        "runs[].pr_url": [
+          "owner",
+          "denylist"
+        ],
+        "runs[].epic": [
+          "denylist"
+        ],
+        "runs[].run_id": [
+          "denylist"
+        ]
+      }
+    },
+    {
+      "path": "features.toml",
+      "mode": "source",
+      "keys": {
+        "features[].epics": [
+          "denylist"
+        ]
+      }
+    },
+    {
+      "path": "public-repo.json",
+      "mode": "source",
+      "keys": {
+        "repo": [
+          "owner",
+          "denylist"
+        ]
+      }
+    },
+    {
+      "path": "demo-provenance.json",
+      "mode": "bundle",
+      "keys": {
+        "features[].epics[]": [
+          "denylist"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "item_id": "105",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Monthly statement export",
+  "url": "https://github.com/acme/ledger/issues/105",
+  "description": "Write a month of postings per account as a statement file.",
+  "expected": "the statement for the sample month matches the bank one.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

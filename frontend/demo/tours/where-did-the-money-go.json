@@ -1,0 +1,36 @@
+{
+  "id": "where-did-the-money-go",
+  "title": "Where did the money go?",
+  "start": "/runs/1b464391",
+  "steps": [
+    {
+      "route": "/runs/1b464391",
+      "target": "run-cost",
+      "docs": "web/epics.md",
+      "anchor": "following-the-money-from-a-run-to-its-epic",
+      "passage": "where-did-the-money-go/1"
+    },
+    {
+      "route": "/epics/ledger-v2",
+      "query": { "node": "104" },
+      "target": "node-runs",
+      "docs": "web/epics.md",
+      "anchor": "following-the-money-from-a-run-to-its-epic",
+      "passage": "where-did-the-money-go/2"
+    },
+    {
+      "route": "/budget",
+      "target": "budget-spend",
+      "docs": "configuration.md",
+      "anchor": "budget",
+      "passage": "where-did-the-money-go/3"
+    },
+    {
+      "route": "/epics",
+      "target": "epic-drain",
+      "docs": "web/epics.md",
+      "anchor": "following-the-money-from-a-run-to-its-epic",
+      "passage": "where-did-the-money-go/4"
+    }
+  ]
+}

@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+# kew in-sandbox launcher for the OpenShell containment runtime.
+#
+# Under `[sandbox] runtime = "openshell"` kew does not launch the image
+# entrypoint: `openshell sandbox exec` replaces it. So everything
+# docker/agent-entrypoint.sh and docker/agent-opencode-entrypoint.sh do before
+# the runner starts has to happen HERE instead, and the host calls
+#
+#   openshell sandbox exec ... -- /usr/local/bin/kew-openshell-launch \
+#       <startup-nonce> <program> [runner args...]
+#
+# The entrypoint contract itself is unchanged and still canonical in
+# docs/sandbox-entrypoint-contract.md: mounted checkout, prompt-file->stdin,
+# "$@" extra args, one JSON event per line on stdout. Only the boundary moves.
+#
+# Three differences from the entrypoints drive the shape of this script:
+#
+#  1. The startup nonce arrives as an ARGUMENT, not in the environment.
+#     `openshell sandbox exec` owns the child's environment, so an exported
+#     KEW_AGENT_START_NONCE is not guaranteed to survive into it; the
+#     acknowledgement `is_startup_ack` consumes would then never be printed and
+#     every attempt would look like a launch failure.
+#  2. OpenShell sets HOME to the image workdir, which is the bind-mounted
+#     checkout. Left alone, every runner config directory, credential cache and
+#     ~/.gitconfig would be written INTO the tree kew publishes. This script
+#     repoints HOME and XDG_CONFIG_HOME outside the checkout and REFUSES to run
+#     if that lands inside it anyway.
+#  3. ONE launcher serves EVERY agent image. Each entrypoint owns a single
+#     runner and hard-codes its pre-dispatch work — claude's `--print`,
+#     OpenCode's catalog probe — so the same work is a branch on the program
+#     name here. Dropping a branch silently drops that runner's guarantee, which
+#     is why each branch carries a test of its own. Codex has no entrypoint to
+#     mirror: docker/agent-codex.Dockerfile is OpenShell-only, so this script is
+#     the ONLY place its placeholder auth.json is written.
+set -euo pipefail
+
+if (($# < 2)); then
+  echo "ERROR: usage: kew-openshell-launch <startup-nonce> <program> [args...]" >&2
+  exit 64
+fi
+
+STARTUP_NONCE="$1"
+shift
+
+# The exec marker: this process's pid and kernel start time, written FIRST so
+# the window in which an exec has no marker is as short as it can be. `exec`
+# below keeps the pid and the start time, so the marker names the agent itself
+# for as long as it runs. The host reads it back through a second, bounded
+# `sandbox exec` (kew.openshell_launch.AGENT_EXEC_PROBE) when its own client
+# process has died: a dead local client is not a dead remote agent, and only
+# this marker can tell the two apart (#2625). The start time is what makes a
+# reused pid after a gateway restart read as ended rather than running.
+# Best-effort: a marker that cannot be written reads as "no marker", and the
+# host never treats that as a running agent it must not recover.
+KEW_EXEC_MARKER="${KEW_AGENT_EXEC_MARKER:-/tmp/kew-agent.exec}"
+if read -r KEW_EXEC_STAT </proc/$$/stat 2>/dev/null; then
+  # shellcheck disable=SC2206 # the stat fields are split on purpose
+  KEW_EXEC_FIELDS=(${KEW_EXEC_STAT##*) })
+  { printf '%s %s\n' "$$" "${KEW_EXEC_FIELDS[19]:-}" >"$KEW_EXEC_MARKER"; } 2>/dev/null || true
+fi
+
+# Shape-checked against kew.sandbox._STARTUP_ACK_LINE's nonce token: a nonce
+# carrying whitespace or a newline would let the caller forge extra lines on the
+# event stream the host parses.
+if [[ ! "$STARTUP_NONCE" =~ ^[A-Za-z0-9_-]+$ ]]; then
+  echo "ERROR: kew startup nonce missing or malformed" >&2
+  exit 64
+fi
+
+PROMPT_FILE="${KEW_PROMPT_FILE:-/work/.kew-prompt.txt}"
+
+if [[ ! -s "$PROMPT_FILE" ]]; then
+  echo "ERROR: kew agent prompt file missing or empty at $PROMPT_FILE" >&2
+  echo "  The host must write the prompt to <checkout>/.kew-prompt.txt before launch." >&2
+  exit 64
+fi
+
+# The prompt lives at the root of the mounted checkout, so its directory IS the
+# tree kew publishes — the one thing nothing but the runner may write into.
+CHECKOUT_DIR="$(cd -- "$(dirname -- "$PROMPT_FILE")" && pwd -P)"
+
+refuse_home_in_checkout() {
+  if [[ "$1" == "$CHECKOUT_DIR" || "$1" == "$CHECKOUT_DIR"/* ]]; then
+    echo "ERROR: kew agent HOME $1 is inside the published checkout $CHECKOUT_DIR" >&2
+    echo "  Point KEW_AGENT_HOME outside the checkout; agent config must never be published." >&2
+    exit 78
+  fi
+}
+
+AGENT_HOME="${KEW_AGENT_HOME:-/home/agent}"
+if [[ "$AGENT_HOME" != /* ]]; then
+  echo "ERROR: kew agent HOME must be an absolute path, got $AGENT_HOME" >&2
+  exit 78
+fi
+# NORMALIZED before the check, not merely checked: refuse_home_in_checkout is a
+# textual prefix test, so a traversal spelling (/home/agent/../../work/home)
+# names a directory INSIDE the checkout while passing it — and the mkdir below
+# would already have created it there, which is the leak being refused.
+# `realpath -m` folds `..` away and resolves the existing prefix's symlinks
+# without requiring the path itself to exist yet.
+if ! RESOLVED_AGENT_HOME="$(realpath -m -- "$AGENT_HOME")"; then
+  echo "ERROR: kew agent HOME could not be resolved: $AGENT_HOME" >&2
+  exit 78
+fi
+AGENT_HOME="$RESOLVED_AGENT_HOME"
+# Checked BEFORE the mkdir: creating the directory first would already have
+# written into the published checkout, which is the thing being refused. Then
+# checked again once it exists, because a symlink planted in between the two
+# checks can point back in.
+refuse_home_in_checkout "$AGENT_HOME"
+mkdir -p -- "$AGENT_HOME"
+AGENT_HOME="$(cd -- "$AGENT_HOME" && pwd -P)"
+refuse_home_in_checkout "$AGENT_HOME"
+export HOME="$AGENT_HOME"
+export XDG_CONFIG_HOME="$AGENT_HOME/.config"
+mkdir -p -- "$XDG_CONFIG_HOME"
+
+# Refuse missing prerequisites before emitting the startup acknowledgement.
+# The program is the ABSOLUTE governed path the host names
+# (kew.openshell_launch.runner_program), never resolved through PATH: a bare
+# name goes to whatever PATH holds first, and a checkout on it let a committed
+# `bin/claude` run as the runner (#2637). Nor may it live inside the checkout,
+# which is the PR's tree and governs nothing.
+if [[ "$1" != /* ]]; then
+  echo "ERROR: kew agent program must be an absolute path, got $1" >&2
+  exit 64
+fi
+AGENT_PROGRAM="$1"
+# Checked twice: with only its directory resolved (a `..` or a directory
+# symlink reaching back in, or a link IN the checkout pointing out), and fully
+# resolved (a link elsewhere pointing in).
+refuse_program_in_checkout() {
+  [[ "$1" == "$CHECKOUT_DIR"/* ]] || return 0
+  echo "ERROR: kew agent program $AGENT_PROGRAM resolves inside the checkout $CHECKOUT_DIR" >&2
+  exit 78
+}
+if ! AGENT_PROGRAM_DIR="$(realpath -m -- "$(dirname -- "$AGENT_PROGRAM")")" ||
+  ! RESOLVED_AGENT_PROGRAM="$(realpath -m -- "$AGENT_PROGRAM")"; then
+  echo "ERROR: kew agent program could not be resolved: $AGENT_PROGRAM" >&2
+  exit 78
+fi
+refuse_program_in_checkout "$AGENT_PROGRAM_DIR/$(basename -- "$AGENT_PROGRAM")"
+refuse_program_in_checkout "$RESOLVED_AGENT_PROGRAM"
+if [[ ! -f "$AGENT_PROGRAM" || ! -x "$AGENT_PROGRAM" ]]; then
+  echo "ERROR: kew agent executable missing or not executable: $1" >&2
+  exit 78
+fi
+shift
+
+# Git bootstrap (#742): HOME is ephemeral (no ~/.gitconfig) and the checkout is
+# a bind mount owned by a different uid than the agent user. Without these the
+# agent's `git commit` dies on "dubious ownership" and "Author identity
+# unknown" — work completes but never lands. Identity is container-local; the
+# host broker owns push/PR.
+git config --global --add safe.directory /work
+git config --global user.name "kew-agent"
+git config --global user.email "agent@kew.local"
+
+# Claude Code's non-essential traffic (autoupdater pings, telemetry) has no
+# endpoint in either OpenShell policy, so it would retry against a blocked host
+# for the whole run. Turn it off rather than make it fail slowly.
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+# The OpenCode runner selects models the pinned CLI's catalog may not carry, so
+# the image ships a config asset the entrypoint seeds into the runtime config
+# directory. HOME moved above, so seed it here too; absent in the Claude image.
+OPENCODE_CONFIG_ASSET="${KEW_OPENCODE_CONFIG:-/usr/local/share/kew/opencode.json}"
+if [[ -r "$OPENCODE_CONFIG_ASSET" ]]; then
+  mkdir -p -- "$XDG_CONFIG_HOME/opencode"
+  cp -- "$OPENCODE_CONFIG_ASSET" "$XDG_CONFIG_HOME/opencode/opencode.json"
+fi
+
+# docker/agent-opencode-entrypoint.sh, kept behaviourally identical: OpenCode
+# answers a model absent from its local catalog with a generic server error, so
+# the catalog is probed BEFORE the prompt is handed over. A stale image then
+# fails closed (78) with an actionable, model-specific diagnostic and no model
+# call — the OpenShell path must not be the one route where that gap reaches
+# the API instead.
+refuse_opencode_catalog_gap() {
+  local model="" current next index
+  for ((index = 1; index <= $#; index++)); do
+    current="${!index}"
+    case "$current" in
+      -m|--model)
+        next=$((index + 1))
+        if ((next <= $#)); then
+          model="${!next}"
+        fi
+        ;;
+      --model=*)
+        model="${current#*=}"
+        ;;
+    esac
+  done
+  [[ "$model" == openrouter/* ]] || return 0
+
+  local catalog
+  if ! catalog="$("$AGENT_PROGRAM" models openrouter --pure 2>/dev/null)"; then
+    echo "ERROR: OpenCode catalog probe failed for '$model'; refusing dispatch before model traffic." >&2
+    exit 78
+  fi
+  # `--pure` prints one fully-qualified "openrouter/<model-id>" per line, so the
+  # probe matches whole lines: a substring match would accept a truncated id
+  # (openrouter/deepseek/deepseek-v4-flash-073) that OpenCode cannot resolve.
+  if ! grep -Fxq -- "$model" <<<"$catalog"; then
+    echo "ERROR: OpenCode catalog gap: '$model' is not resolvable in this image; update docker/opencode.json." >&2
+    exit 78
+  fi
+}
+
+# Codex takes no credential from the environment: it reads
+# $HOME/.codex/auth.json and exits before any model call if that file is absent
+# or misshapen. Its OWN pre-dispatch work is therefore writing one — and for
+# the openshell-runtime pilot what it writes is a PLACEHOLDER, which is the
+# posture the 2026-10-03 feasibility spike proved (both runners launching with
+# no real token inside the sandbox). The placeholder VALUES are the host
+# provider's to name (openshell-runtime N5): it forwards them into the two
+# variables read below, which default to the built-in placeholders until it
+# does. Either way nothing credential-shaped is accepted — see
+# refuse_real_credential_shape — and the access token must be one of the exact
+# values in CODEX_ACCESS_TOKEN_PLACEHOLDERS; "no token in the sandbox" is a
+# property of this script, not of its defaults.
+#
+# The shape is the one Codex accepts and no more:
+#
+#   auth_mode: chatgptAuthTokens  — ChatGPT-mode tokens, not an API key. The
+#                                   `apikey` mode refuses immediately ("API key
+#                                   auth is missing a key").
+#   tokens.id_token               — an UNSIGNED JWT: real header and claims,
+#                                   and a signature segment that is a
+#                                   placeholder word rather than any signature.
+#                                   Codex parses this field and rejects the file
+#                                   outright unless all three segments are
+#                                   present and non-empty, which is why the
+#                                   third is there at all.
+#   tokens.refresh_token          — EMPTY. A refresh token is the one value here
+#                                   that would be worth stealing, and the pilot
+#                                   needs none: nothing is being refreshed.
+#
+# Written at 0600 under the moved HOME, so it never reaches the published
+# checkout (the refusals above are what guarantee that) and is not world
+# readable inside the sandbox either.
+CODEX_PLACEHOLDER="kew-openshell-placeholder"
+
+# base64url with the padding stripped, as JWT segments are encoded.
+jwt_segment() {
+  printf '%s' "$1" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '='
+}
+
+refuse_unquotable_placeholder() {
+  # These values are interpolated into JSON by printf, so a quote or backslash
+  # would produce a file Codex cannot parse — and the diagnostic would be
+  # Codex's, about a corrupt credential, three steps from the cause. Refuse the
+  # value instead; never echo it.
+  #
+  # Control characters are refused as a CLASS. RFC 8259 forbids every
+  # unescaped U+0000–U+001F inside a string, so the newline this guard named
+  # one at a time was a single member of that set: a forwarded placeholder
+  # carrying a tab, a carriage return or an escape wrote exactly the
+  # unparseable auth.json the guard exists to prevent (#2317 review).
+  # [[:cntrl:]] also covers DEL, which JSON permits — like
+  # refuse_real_credential_shape, this guard may be WIDER than what it
+  # protects, never narrower.
+  if [[ "$2" == *[\"\\]* || "$2" == *[[:cntrl:]]* ]]; then
+    echo "ERROR: kew Codex placeholder $1 contains a character that cannot be written as JSON" >&2
+    exit 78
+  fi
+}
+
+# The shapes a real credential takes, as POSIX extended regular expressions and
+# written to be matched UNANCHORED.
+#
+# Kept in step with _REAL_CREDENTIAL_PATTERNS in
+# kew/tests/test_openshell_launcher.py, which sweeps the WRITTEN file for the
+# same shapes with re.search, and which compares this list against its own
+# literally: one swept on the way OUT but accepted on the way IN is a real token
+# landing in auth.json verbatim (#2317 review).
+#
+# Regexes rather than the `case` globs this guard started with, because those
+# globs were prefix-ANCHORED while the sweep they claimed parity with searches.
+# A real credential does not arrive alone — it arrives inside whatever string
+# forwarded it ("Bearer ghp_...", "token=AKIA...", a stray leading space) — and
+# every one of those spellings passed the anchored guard (#2317 review).
+REAL_CREDENTIAL_SHAPES=(
+  'sk-[A-Za-z0-9_-]{8,}'          # OpenAI and Anthropic API keys
+  'sk_(live|test)_[A-Za-z0-9]{8,}'
+  'gh[pousr]_[A-Za-z0-9]{16,}'    # GitHub tokens
+  'github_pat_[A-Za-z0-9_]{20,}'
+  'AKIA[0-9A-Z]{12,}'             # AWS access key id
+  'xox[abprs]-[A-Za-z0-9-]{10,}'  # Slack
+  'AIza[0-9A-Za-z_-]{20,}'        # Google API key
+  # Then the shapes only this side carries. The guard may be WIDER than the
+  # sweep — refusing a value that is not a credential costs a diagnostic — but
+  # never narrower, which is the direction the parity test pins.
+  #
+  # A signed JWT's segments are base64url, so no literal prefix tells one apart
+  # from the unsigned placeholder id_token this script writes on purpose; the
+  # sweep therefore cannot carry this shape, and nothing reaching the guard is
+  # allowed to be JWT-shaped.
+  'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'
+  # `sk_` beyond Stripe's live/test: the glob this guard replaced refused the
+  # whole prefix, and other vendors spell their secret keys the same way.
+  'sk_[A-Za-z0-9_]{8,}'
+)
+
+refuse_real_credential_shape() {
+  # "No token in the sandbox" is the pilot's whole posture, and a variable that
+  # a provider can fill is exactly how a real one would arrive by accident.
+  # Enforced here rather than left to the default value, so the guarantee holds
+  # for what is PASSED as well as for what is built in. Shapes only — a prefix
+  # is not a secret, and the value is never echoed.
+  local shape
+  for shape in "${REAL_CREDENTIAL_SHAPES[@]}"; do
+    # Unquoted on purpose: quoting the right-hand side of `=~` turns the regex
+    # into a literal string and the guard would match nothing at all.
+    if [[ "$2" =~ $shape ]]; then
+      echo "ERROR: kew Codex placeholder $1 is shaped like a real credential; the OpenShell pilot runs with no token inside the sandbox" >&2
+      exit 78
+    fi
+  done
+}
+
+# The ONLY values the access token may take. The shape guard above is a
+# denylist, and a denylist cannot prove a value is a placeholder: an opaque
+# token no regex knows — a new vendor's prefix, a bare hex secret, a session
+# cookie — matched nothing and was written into auth.json verbatim (#2638).
+# So the access token is held to an exact contract instead: the built-in
+# default, or the value the host binds every brokered credential variable to
+# (kew.openshell_broker.PLACEHOLDER_CREDENTIAL_VALUE, which
+# tests/test_openshell_launcher.py compares against this list). Neither
+# authenticates anything; the gateway supplies the real credential at the
+# endpoint.
+CODEX_ACCESS_TOKEN_PLACEHOLDERS=(
+  "$CODEX_PLACEHOLDER-access-token"
+  'kew-openshell-broker-placeholder'
+)
+
+refuse_unlisted_access_token() {
+  # Compared whole and literally; never echoed — a value that is not one of
+  # these may be the real credential this contract exists to keep out.
+  local placeholder
+  for placeholder in "${CODEX_ACCESS_TOKEN_PLACEHOLDERS[@]}"; do
+    [[ "$2" == "$placeholder" ]] && return 0
+  done
+  echo "ERROR: kew Codex placeholder $1 is not a kew placeholder value; the OpenShell pilot runs with no token inside the sandbox" >&2
+  exit 78
+}
+
+write_codex_placeholder_auth() {
+  local account_id access_token id_token codex_home previous_umask
+  account_id="${KEW_CODEX_ACCOUNT_ID:-$CODEX_PLACEHOLDER-account}"
+  access_token="${KEW_CODEX_ACCESS_TOKEN:-$CODEX_PLACEHOLDER-access-token}"
+  refuse_unquotable_placeholder KEW_CODEX_ACCOUNT_ID "$account_id"
+  refuse_unquotable_placeholder KEW_CODEX_ACCESS_TOKEN "$access_token"
+  refuse_real_credential_shape KEW_CODEX_ACCOUNT_ID "$account_id"
+  refuse_real_credential_shape KEW_CODEX_ACCESS_TOKEN "$access_token"
+  refuse_unlisted_access_token KEW_CODEX_ACCESS_TOKEN "$access_token"
+
+  id_token="$(jwt_segment '{"alg":"none","typ":"JWT"}')"
+  id_token+=".$(jwt_segment "{\"email\":\"$CODEX_PLACEHOLDER@kew.local\",\"https://api.openai.com/auth\":{\"chatgpt_account_id\":\"$account_id\",\"chatgpt_plan_type\":\"pro\"}}")"
+  id_token+=".$(jwt_segment 'unsigned')"
+
+  # Pinned rather than merely defaulted: Codex reads CODEX_HOME in preference to
+  # $HOME/.codex, and an inherited value would point it at a directory this
+  # script never wrote.
+  codex_home="$HOME/.codex"
+  export CODEX_HOME="$codex_home"
+  mkdir -p -- "$codex_home"
+  # 0600 from the moment the file exists: a chmod after the write leaves a
+  # window at the umask's mode, and the real credential this placeholder stands
+  # in for has the same shape and the same path. The chmod stays for the
+  # re-launch case, where the file is already there at whatever mode.
+  previous_umask="$(umask)"
+  umask 077
+  printf '%s\n' "{" \
+    '  "auth_mode": "chatgptAuthTokens",' \
+    '  "tokens": {' \
+    "    \"id_token\": \"$id_token\"," \
+    "    \"access_token\": \"$access_token\"," \
+    '    "refresh_token": "",' \
+    "    \"account_id\": \"$account_id\"" \
+    "  }" \
+    "}" >"$codex_home/auth.json"
+  umask "$previous_umask"
+  chmod 600 -- "$codex_home/auth.json"
+}
+
+# Per-runner pre-dispatch work, keyed on the program the host named. Each
+# entrypoint serves ONE image and hard-codes its runner; this launcher serves
+# them all, so what an entrypoint does unconditionally becomes a branch here. A
+# program with no branch gets its argv through untouched.
+AGENT_FLAGS=()
+case "${AGENT_PROGRAM##*/}" in
+  claude)
+    # `--print` is IMAGE-owned, like the prompt handoff it belongs to (contract
+    # element 2): ClaudeCodeRunner.container_args() deliberately omits it and
+    # docker/agent-entrypoint.sh execs `claude --print "$@"`. Handed
+    # container_args() as-is, `claude` would start an INTERACTIVE session,
+    # never read the piped prompt file and emit no stream-json at all — the
+    # host would parse an empty event stream and read every attempt as a launch
+    # failure. Injected unconditionally, exactly as the entrypoint does, so
+    # both paths build the same argv from the same container_args().
+    AGENT_FLAGS=(--print)
+    ;;
+  opencode)
+    refuse_opencode_catalog_gap "$@"
+    ;;
+  codex)
+    # No AGENT_FLAGS: CodexRunner.container_args() already sends `exec --json
+    # --ignore-user-config`, so the argv is the host's, untouched.
+    write_codex_placeholder_auth
+    ;;
+esac
+
+# The host consumes this attempt acknowledgement before parsing agent events.
+printf 'KEW_AGENT_START %s\n' "$STARTUP_NONCE"
+exec "$AGENT_PROGRAM" "${AGENT_FLAGS[@]}" "$@" <"$PROMPT_FILE"

@@ -1,0 +1,8 @@
+{
+  "permission": "write",
+  "role_name": "write",
+  "user": {
+    "login": "alice",
+    "type": "User"
+  }
+}

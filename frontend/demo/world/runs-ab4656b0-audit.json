@@ -1,0 +1,37 @@
+{
+  "events": [
+    {
+      "seq": 2000,
+      "ts": "2026-10-21T14:40:13+00:00",
+      "event": "dispatch_owner_recorded",
+      "actor_type": "policy",
+      "item_id": "106",
+      "payload": {
+        "owner_pid": 4206
+      }
+    },
+    {
+      "seq": 2001,
+      "ts": "2026-10-21T14:40:14+00:00",
+      "event": "routing_decision",
+      "actor_type": "agent",
+      "item_id": "106",
+      "payload": {
+        "recommended_runner": "claude-code",
+        "applied": false
+      }
+    },
+    {
+      "seq": 2002,
+      "ts": "2026-10-21T14:40:35+00:00",
+      "event": "sandbox_resolved",
+      "actor_type": "host",
+      "item_id": "106",
+      "payload": {
+        "posture": "sandboxed"
+      }
+    }
+  ],
+  "run_id": "ab4656b0",
+  "next_seq": 2003
+}

@@ -1,0 +1,97 @@
+{
+  "run_id": "f5dcb6a5",
+  "attempt_number": 1,
+  "item_id": "2055",
+  "issue_num": 2055,
+  "source_tracker": "github",
+  "source_id": "2055",
+  "sealed": true,
+  "through_seq": 4,
+  "chain_head": "c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1c3b1",
+  "chain_verified": true,
+  "artifact_node_id": "f5dcb6a5:4",
+  "runner_telemetry": "structured",
+  "events": [
+    {
+      "seq": 1,
+      "timestamp": "2026-09-24T15:23:52+00:00",
+      "kind": "evidence.dispatch",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "route": "claude-code/claude-opus-5"
+      }
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-09-24T15:44:02+00:00",
+      "kind": "evidence.artifact",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "files": 6
+      }
+    },
+    {
+      "seq": 3,
+      "timestamp": "2026-09-24T15:44:40+00:00",
+      "kind": "evidence.receipt_fact",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "digest": "sha256:9f2c…"
+      }
+    },
+    {
+      "seq": 4,
+      "timestamp": "2026-09-24T15:45:10+00:00",
+      "kind": "evidence.verdict",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "verdict": "READY"
+      }
+    }
+  ],
+  "gaps": [],
+  "availability": [
+    {
+      "dimension": "host_sequence",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "artifact_seal",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    }
+  ]
+}

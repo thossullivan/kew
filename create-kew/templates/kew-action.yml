@@ -1,0 +1,130 @@
+# Reusable GitHub Action for event-driven kew.
+# Copy this file to your repo's .github/workflows/ directory.
+#
+# Requires:
+#   - Self-hosted runner with claude CLI installed and authenticated
+#   - Python 3.13+ and kew-cli installed (pip install kew-cli)
+#   - A container runtime, the image from "kew sandbox build", and the
+#     kew-allowlist network; "kew doctor" checks all three
+#
+# Triggers:
+#   - Issue labeled "ready" -> dispatches that issue
+#   - Manual trigger via workflow_dispatch with issue number
+#   - PR review submitted on agent PRs -> dispatches review (Wave 3)
+#   - CI failure on agent PRs -> dispatches fix (Wave 2)
+#
+# Exit codes ("kew dispatch", see docs/cli/exit-codes.md):
+#   0 - an agent ran
+#   1 - the agent ran and reported a failure
+#   2 - nothing ran: an admission refusal for the named issue (the "ready"
+#       label is gone, another dispatch holds the claim, or the issue's branch
+#       still exists on the remote), or an operational failure
+# A named dispatch that refuses exits 2, so a green job means an agent really
+# started. The label job below skips itself when the event payload already
+# shows a claim label, so re-labeling an in-flight issue is a skipped job
+# rather than a red one; a claim that lands after the event still exits 2,
+# because nothing was dispatched and the operator has to be able to see that.
+
+name: kew
+
+# Runs push branches, edit issue labels, open PRs, and read CI runs.
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+on:
+  issues:
+    types: [labeled]
+  pull_request_review:
+    types: [submitted]
+  check_suite:
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to dispatch"
+        required: true
+        type: number
+
+jobs:
+  dispatch-issue:
+    # An issue that already carries a claim label was not dispatchable when the
+    # label landed; kew would refuse it (exit 2), so skip instead of going red.
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.label.name == 'ready' &&
+      !contains(github.event.issue.labels.*.name, 'in-progress') &&
+      !contains(github.event.issue.labels.*.name, 'agent-working')
+    runs-on: self-hosted
+    concurrency:
+      group: dispatch-issue-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch issue
+        # Exit 2 fails this step on purpose: nothing was dispatched.
+        run: kew dispatch "$ISSUE_NUMBER"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+  dispatch-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    concurrency:
+      group: dispatch-issue-${{ inputs.issue_number }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch issue
+        # A hand-named issue that is not admissible fails this step (exit 2):
+        # the operator asked for this issue and nothing was dispatched.
+        run: kew dispatch "$ISSUE_NUMBER"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+
+  dispatch-ci-fix:
+    if: >-
+      github.event_name == 'check_suite' &&
+      github.event.check_suite.conclusion == 'failure'
+    runs-on: self-hosted
+    concurrency:
+      group: dispatch-ci-fix-${{ github.event.check_suite.head_branch }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find failed workflow run ID
+        id: find-run
+        run: |
+          RUN_ID=$(gh run list \
+            --branch "$HEAD_BRANCH" \
+            --status failure \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Event values reach the shell only as quoted variables: a branch
+          # name is chosen by whoever pushes it, never expand it into a script.
+          HEAD_BRANCH: ${{ github.event.check_suite.head_branch }}
+      - name: Fix CI failure
+        if: steps.find-run.outputs.run_id != ''
+        run: kew ci-fix "$RUN_ID"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.find-run.outputs.run_id }}
+
+  # Wave 3: Auto review dispatch (placeholder — requires Wave 3 implementation)
+  # dispatch-review:
+  #   if: >-
+  #     github.event_name == 'pull_request_review' &&
+  #     github.event.review.state == 'changes_requested'
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Address review
+  #       run: kew review ...

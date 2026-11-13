@@ -1,0 +1,87 @@
+{
+  "schema": "kew/models@1",
+  "reviewedAt": "2026-10-08",
+  "models": [
+    {
+      "id": "claude-sonnet-5",
+      "display_name": "Sonnet 5",
+      "provider": "anthropic",
+      "runner": "claude-code",
+      "price": {
+        "input_per_mtok": 2.0,
+        "output_per_mtok": 10.0,
+        "tiers": []
+      },
+      "price_source": "first-party",
+      "lifecycle": {
+        "status": "scheduled",
+        "shutdown": "2027-04-01",
+        "replacement": "claude-sonnet-5-5",
+        "evidence": [
+          {
+            "kind": "provider-lifecycle-doc",
+            "url": "https://platform.claude.com/docs/en/about-claude/model-deprecations",
+            "checkedAt": "2026-10-10"
+          }
+        ]
+      },
+      "routable": true,
+      "default_lanes": [],
+      "aliases": []
+    },
+    {
+      "id": "openrouter/deepseek/deepseek-v4-flash-0731",
+      "display_name": "DeepSeek V4 Flash (0731)",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 0.4,
+        "output_per_mtok": 1.6,
+        "tiers": []
+      },
+      "price_source": "openrouter",
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null,
+        "evidence": [
+          {
+            "kind": "router-catalog",
+            "url": "https://openrouter.ai/deepseek/deepseek-v4-flash-0731",
+            "checkedAt": "2026-08-16"
+          }
+        ]
+      },
+      "routable": false,
+      "default_lanes": [],
+      "aliases": []
+    },
+    {
+      "id": "openrouter/qwen/qwen3-coder-next",
+      "display_name": "Qwen3 Coder Next",
+      "provider": "openrouter",
+      "runner": "opencode",
+      "price": {
+        "input_per_mtok": 0.35,
+        "output_per_mtok": 1.6,
+        "tiers": []
+      },
+      "price_source": "openrouter",
+      "lifecycle": {
+        "status": "untracked",
+        "shutdown": null,
+        "replacement": null,
+        "evidence": [
+          {
+            "kind": "router-catalog",
+            "url": "https://openrouter.ai/qwen/qwen3-coder-next",
+            "checkedAt": "2026-08-16"
+          }
+        ]
+      },
+      "routable": false,
+      "default_lanes": [],
+      "aliases": []
+    }
+  ]
+}

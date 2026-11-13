@@ -1,0 +1,319 @@
+<!doctype html>
+<!--
+UXMonitor.html - kew Monitor, UX pass (2026-10-02). Static artboard, 1440x900, holds at 1280.
+
+Implements (brief 2026-10-02-ui-ux-brief.md):
+- 2.2 Readouts kept. Needs-you caption is one human sentence for the top row plus "and 1 more";
+  its link goes in-app to /work?item=2219, not to GitHub (P3, item 3).
+- 2.2 Event stream, top to bottom: range bar with presets -> overview histogram (24h, 15-minute
+  buckets, stacked by family: other / review+evidence / money / needs-you) -> brush window
+  with drawn handles -> detail strip for the brushed window -> filter chips -> list -> Load older.
+- 2.2 Paused/live indicator: a non-live range pauses polling; the bar says "Paused" with
+  "Jump to now" (L).
+- 2.2 Filters in the URL: epic chip ui-refine is the one active filter; item chip and kind
+  toggles are idle. Filters apply to the histogram and the list together, so the overview
+  shows ui-refine events only.
+- 2.2 Status rows name the transition, `from -> to` (P8). The epic comes from event.epic_ref.
+- Holds column: same category glyphs as Work (magenta diamond = merge decision, amber ring =
+  held). Commands are the A2 served commands. Section 7 decision 1: holds on archived epics
+  (containment, governance-hardening) are out; a quiet footnote says so and how to get them back.
+- Data: real /api/audit events from 2026-10-01/02, shown in local time (UTC-5). Brushed
+  window 02:45-04:30, filtered to ui-refine: 31 events.
+
+Decisions (Tom, 2026-10-02), applied here:
+- Range presets are Live 30m, 1h, 6h, 24h, 7d, Custom.
+- "Load older" may widen the window past its start: it pages with after=next_after and moves
+  the brush's left edge to match, so the button is useful even when one page fills the window.
+- Focus ring is 2px cyan (--focus, #05d9e8), shown on the overview track, which holds keyboard
+  focus for the brush keys.
+- The header "N needs you" counter is a link to /work?filter=needs-you.
+- Nav is Work, Monitor, Epics (no Evals tab).
+
+Other notes:
+- Frame is 1440x900, not the factory-ui 1440x960.
+- The live-runs band collapses to one line when nothing runs, to give the stream the height.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kew Monitor (UX pass)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0714;--ink-raised:#0d0a18;--ink-selected:#151025;--ink-track:#1d1730;
+  --hair:#221c33;--hair-quiet:#1a1528;--hair-strong:#342a4a;--hair-box:#2a2240;--guide:#16111f;
+  --text-1:#ebe6f2;--text-2:#b5acc8;--text-3:#8d84a3;--text-4:#6a6082;--text-5:#5a5070;
+  --edge-done:#3a3052;
+  --accent:#ff2a6d;--accent-2:#05d9e8;--success:#2ee6a6;--warn:#ffc94a;--danger:#ff4365;
+  --status-blocked:#b48ade;
+  --halo-cyan:rgba(5,217,232,.16);--halo-magenta:rgba(255,42,109,.16);
+  --focus:#05d9e8;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text-1);font-family:var(--sans)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.frame{width:100%;min-width:1280px;max-width:1440px;height:900px;margin:0 auto;display:flex;flex-direction:column;
+  background:var(--ink);font-variant-numeric:tabular-nums;overflow:hidden;position:relative}
+.mono{font-family:var(--mono)}
+.cap{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.t1{color:var(--text-1)}.t2{color:var(--text-2)}.t3{color:var(--text-3)}.t5{color:var(--text-5)}
+.c-acc{color:var(--accent)}.c-cyan{color:var(--accent-2)}.c-ok{color:var(--success)}.c-warn{color:var(--warn)}
+.sep{width:1px;height:14px;background:var(--hair-strong);display:inline-block}
+.grow{flex-grow:1}
+/* focus: visible ring, one per artboard shows it */
+.focus-ring{outline:2px solid var(--focus);outline-offset:2px}
+.focus-inset{box-shadow:inset 0 0 0 2px var(--focus)}
+/* header */
+.top{height:56px;flex-shrink:0;padding:0 32px;display:flex;align-items:center;gap:40px;border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-weight:600;font-size:26px;letter-spacing:-.03em;line-height:1}
+.brand i{width:12px;height:24px;background:var(--accent);display:inline-block}
+.nav{display:flex;gap:28px;height:56px;font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+.nav a,.nav span{display:flex;align-items:center;height:56px;border-bottom:2px solid transparent;padding-top:2px;color:var(--text-2)}
+.nav [aria-current]{border-bottom-color:var(--text-1);color:var(--text-1)}
+.meta{display:flex;align-items:center;gap:24px;font-family:var(--mono);font-size:13px;color:var(--text-2)}
+.meta .n{color:var(--text-1)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dia{width:7px;height:7px;background:var(--accent);transform:rotate(45deg);display:inline-block;flex-shrink:0}
+.ring{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--warn);display:inline-block;flex-shrink:0}
+.counter{display:flex;align-items:center;gap:8px}
+a.counter:hover .n{color:var(--accent-2)}
+/* buttons */
+.btn{height:36px;padding:0 14px;border-radius:4px;border:1px solid var(--hair-strong);display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:13px;color:var(--text-1);white-space:nowrap}
+.btn:hover{border-color:var(--text-4)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:600}
+.btn.quiet{border-color:transparent;color:var(--text-2);padding:0 10px}
+.btn .ext{font-size:12px}
+.kbd{font-family:var(--mono);font-size:11px;line-height:16px;min-width:18px;height:18px;padding:0 5px;border-radius:3px;
+  border:1px solid var(--hair-strong);border-bottom-width:2px;color:var(--text-2);display:inline-flex;align-items:center;justify-content:center}
+.btn.primary .kbd{border-color:rgba(10,7,20,.35);color:var(--ink)}
+code.cmd{font-family:var(--mono);font-size:13px;color:var(--accent-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdbox{display:flex;align-items:center;gap:12px;height:44px;padding:0 6px 0 14px;border-radius:4px;background:var(--ink-selected);
+  border:1px solid var(--hair-box)}
+.cmdbox .prompt{font-family:var(--mono);font-size:13px;color:var(--text-4);user-select:none}
+.cmdbox code{flex:1;min-width:0}
+
+.wrap{flex-grow:1;min-height:0;padding:20px 40px 0;display:flex;flex-direction:column;gap:16px}
+.readouts{display:grid;grid-template-columns:1fr 1.2fr 1.3fr 1.3fr;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);flex-shrink:0}
+.ro{padding:16px 28px 16px;display:flex;flex-direction:column;gap:8px;border-left:1px solid var(--hair)}
+.ro:first-child{padding-left:0;border-left:0}.ro:last-child{padding-right:0}
+.ro .big{font-family:var(--mono);font-size:40px;font-weight:500;line-height:1}
+.ro .cap2{font-size:15px;color:var(--text-2);line-height:1.4}
+.ro .cap2 a{color:var(--text-1);border-bottom:1px solid var(--hair-strong)}
+.ro .cap2 a:hover{color:var(--accent-2)}
+.gauge{position:relative;height:34px;margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.gauge .tr{position:absolute;left:0;right:0;top:4px;height:4px;background:var(--ink-track)}
+.gauge .fl{position:absolute;left:0;top:4px;height:4px;background:var(--warn)}
+.gauge .cap-m{position:absolute;right:0;top:-2px;width:2px;height:16px;background:var(--warn)}
+.gauge span{position:absolute;top:18px;white-space:nowrap}
+.liveruns{display:flex;align-items:baseline;gap:16px;padding-bottom:14px;border-bottom:1px solid var(--hair);flex-shrink:0}
+h2{margin:0;font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+.lower{flex-grow:1;min-height:0;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr)}
+.holds{padding:4px 36px 0 0;display:flex;flex-direction:column}
+.holds ul{margin:8px 0 0;padding:0;list-style:none}
+.holds li{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--hair-quiet)}
+.holds .cat{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;height:22px}
+.holds .what{font-size:15px;line-height:1.45;color:var(--text-2)}
+.holds .what b{font-weight:400;color:var(--text-1)}
+.holds .cmdline{margin-top:8px;display:flex;align-items:center;gap:8px}
+.holds .cmdline code{font-family:var(--mono);font-size:12px;color:var(--accent-2);background:var(--ink-selected);border:1px solid var(--hair-box);
+  border-radius:3px;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.holds .cmdline .cp{font-family:var(--mono);font-size:12px;color:var(--text-2);border:1px solid var(--hair-strong);border-radius:3px;padding:2px 8px;flex-shrink:0}
+.holds .foot{margin-top:14px;font-size:13px;line-height:1.5;color:var(--text-3)}
+.holds .foot code{font-family:var(--mono);font-size:12px;color:var(--text-2)}
+
+.stream{padding:4px 0 0 36px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+.stream > *:not(.list){flex-shrink:0}
+.shead{display:flex;align-items:center;gap:12px}
+.paused{display:inline-flex;align-items:center;gap:8px;height:26px;padding:0 4px 0 10px;border-radius:13px;border:1px solid var(--hair-strong);
+  font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.paused .pz{display:inline-flex;gap:2px}.paused .pz i{width:3px;height:9px;background:var(--warn)}
+.paused button{height:20px;padding:0 8px;border-radius:10px;background:var(--ink-selected);color:var(--text-1);font-family:var(--mono);font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.rangebar{margin-top:12px;display:flex;align-items:center;gap:12px}
+.seg{display:inline-flex;border:1px solid var(--hair-strong);border-radius:4px;overflow:hidden}
+.seg button{height:30px;padding:0 11px;font-family:var(--mono);font-size:12px;color:var(--text-2);border-left:1px solid var(--hair-strong);display:inline-flex;align-items:center;gap:6px}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--text-1);color:var(--ink);font-weight:600}
+.rangebar .span{font-family:var(--mono);font-size:12px;color:var(--text-3);white-space:nowrap}
+.legend{display:flex;gap:12px;font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:8px;height:8px;display:inline-block}
+
+.ov{position:relative;margin-top:24px;height:46px;outline-offset:3px;border-radius:3px;background:var(--ink-raised);border:1px solid var(--hair)}
+.ov .bars{position:absolute;left:0;right:0;bottom:0;top:4px;display:grid;grid-template-columns:repeat(96,minmax(0,1fr));align-items:end;gap:1px;padding:0 1px}
+.ov .bars span{display:flex;align-items:flex-end;height:100%}
+.ov .bars b{display:flex;flex-direction:column-reverse;width:100%}
+.ov .bars i{display:block;min-height:1px}
+.shade{position:absolute;top:0;bottom:0;background:rgba(10,7,20,.55)}
+.brush{position:absolute;top:-1px;bottom:-1px;border:1px solid var(--text-1);border-radius:2px;background:rgba(235,230,242,.05);cursor:grab}
+.brush .h{position:absolute;top:50%;width:10px;height:24px;margin-top:-12px;background:var(--text-1);border-radius:2px;display:flex;align-items:center;justify-content:center;gap:2px;cursor:ew-resize}
+.brush .h i{width:1px;height:12px;background:var(--ink)}
+.brush .h.l{left:-6px}.brush .h.r{right:-6px}
+.brush .wlab{position:absolute;top:-19px;font-family:var(--mono);font-size:11px;color:var(--text-1);white-space:nowrap}
+.brush .wlab.l{right:100%;margin-right:-4px;transform:translateX(0)}
+.brush .wlab.l{left:auto;right:calc(100% + 2px)}
+.brush .wlab.r{left:calc(100% + 2px)}
+.axis{position:relative;height:16px;margin-top:7px;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.axis i{position:absolute;top:-3px;width:1px;height:3px;background:var(--text-4)}
+.axis span{position:absolute;top:1px;transform:translateX(-50%);white-space:nowrap}
+
+.whead{margin-top:10px;display:flex;align-items:baseline;gap:12px;font-family:var(--mono);font-size:12px;color:var(--text-3)}
+.whead .t1{font-size:13px}
+.strip{position:relative;height:56px;margin-top:8px}
+.strip .base{position:absolute;left:0;right:0;top:30px;height:1px;background:var(--hair-strong)}
+.strip .tk{position:absolute;top:30px;width:1px}
+.strip .tl{position:absolute;top:40px;font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap}
+.strip .mk{position:absolute;top:10px;width:2px;height:20px;margin-left:-1px}
+.strip .gap{position:absolute;top:20px;height:0;border-top:1px dashed var(--hair-strong)}
+.strip .gl{position:absolute;top:13px;transform:translateX(-50%);padding:0 8px;background:var(--ink);font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap}
+.strip .burst{position:absolute;top:-4px;transform:translateX(-100%);margin-left:-6px;font-family:var(--mono);font-size:11px;color:var(--text-2);white-space:nowrap}
+
+.filters{margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding-bottom:10px;border-bottom:1px solid var(--hair)}
+.chip{height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--hair-strong);display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:12px;color:var(--text-2);white-space:nowrap}
+.chip .k{color:var(--text-3)}
+.chip.on{border-color:var(--accent-2);background:var(--halo-cyan);color:var(--text-1)}
+.chip.on .x{margin-left:2px;color:var(--text-2);font-size:13px}
+.chip.add{border-style:dashed}
+.kinds{display:inline-flex;gap:4px;margin-left:4px}
+.kinds .chip{padding:0 8px}
+.morechip{display:none !important}
+.list{flex-grow:1;min-height:0;overflow:hidden;position:relative}
+.list ol{margin:0;padding:6px 0 0;list-style:none}
+.list li{display:grid;grid-template-columns:72px 20px minmax(0,1fr);align-items:center;height:28px}
+.list li.gaprow{height:22px}
+.list .tm{font-family:var(--mono);font-size:13px;color:var(--text-3)}
+.list .rail{position:relative;height:100%}
+.list .rail::before{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--hair-strong)}
+.list .rail.dash::before{background:none;border-left:1px dashed var(--hair-strong)}
+.list .rail i{position:absolute;left:1px;top:50%;margin-top:-5px;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink)}
+.list .lb{font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)}
+.list .arr{color:var(--text-3)}
+.iref{font-family:var(--mono);font-size:13px;color:var(--text-1);border-bottom:1px dotted var(--text-4)}
+.list .fade{position:absolute;left:0;right:0;bottom:0;height:28px;background:linear-gradient(transparent,var(--ink))}
+.more{flex-shrink:0;display:flex;align-items:center;gap:12px;height:48px;border-top:1px solid var(--hair);font-family:var(--mono);font-size:12px;color:var(--text-3)}
+@media (max-width:1360px){
+  .legend{display:none}
+  .readouts{grid-template-columns:0.8fr 1.3fr 1.3fr 1.3fr}
+  .stream{padding-left:28px}.holds{padding-right:28px}
+  .kinds .chip:nth-child(n+5){display:none}
+  .kinds .morechip{display:inline-flex !important}
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <header class="top">
+    <div class="brand"><span>kew</span><i></i></div>
+    <nav class="nav" aria-label="Factory views">
+      <a href="UXWork.html">Work</a><a href="UXMonitor.html" aria-current="page">Monitor</a><a href="UXEpic.html">Epics</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="meta">
+      <span class="counter"><span class="dot" style="background:var(--accent-2)"></span><span class="n">0</span> working</span>
+      <a class="counter" href="UXWork.html?filter=needs-you" data-app-href="/work?filter=needs-you" title="Open the needs-you list in Work"><span class="dia"></span><span class="n">2</span> needs you</a>
+      <span class="sep" style="height:20px;background:var(--hair)"></span>
+      <span class="t3">thossullivan/kew</span>
+    </div>
+  </header>
+  <div class="wrap">
+    <section class="readouts" aria-label="Readouts">
+      <div class="ro"><span class="cap">Working</span><span class="big c-cyan">0</span><span class="cap2">nothing running</span></div>
+      <div class="ro"><span class="cap">Needs you</span><span class="big c-acc">2</span>
+        <span class="cap2"><a href="UXWork.html">#2219</a> &#8212; PR #2231 passed review and waits for your merge, and 1 more</span></div>
+      <div class="ro">
+        <div style="display:flex;align-items:baseline"><span class="cap">Today</span><span class="grow"></span><span class="mono t2" style="font-size:13px">10.2% of cap</span></div>
+        <span class="big c-warn">$121.83<span class="mono t3" style="font-size:15px;font-weight:400;margin-left:10px">/ $1,200</span></span>
+        <div class="gauge"><i class="tr"></i><i class="fl" style="width:10.15%"></i><i class="cap-m"></i><span style="left:0">$0</span><span style="left:50%;transform:translateX(-50%)">$600</span><span style="right:0">cap $1,200</span></div>
+      </div>
+      <div class="ro">
+        <div style="display:flex;align-items:baseline"><span class="cap">This week</span><span class="grow"></span><span class="mono t2" style="font-size:13px">51.1% of cap</span></div>
+        <span class="big c-warn">$2,042.77<span class="mono t3" style="font-size:15px;font-weight:400;margin-left:10px">/ $4,000</span></span>
+        <div class="gauge"><i class="tr"></i><i class="fl" style="width:51.07%"></i><i class="cap-m"></i><span style="left:0">$0</span><span style="left:50%;transform:translateX(-50%)">$2,000</span><span style="right:0">cap $4,000</span></div>
+      </div>
+    </section>
+
+    <section class="liveruns" aria-label="Live runs"><h2>Live runs</h2><span class="mono t3" style="font-size:13px">nothing running &#183; last finished #2219 at 09:03, $5.53</span></section>
+
+    <div class="lower">
+      <section class="holds" aria-label="Holds and blocks">
+        <div style="display:flex;align-items:baseline"><h2>Holds and blocks</h2><span class="grow"></span><span class="mono t3" style="font-size:11px">2 active</span></div>
+        <ul>
+          <li>
+            <span class="cat c-acc"><span class="dia"></span>merge</span>
+            <div>
+              <div class="what"><b>ui-refine / #2219</b> &#8212; PR #2231 passed review; the merge is your call &#183; waiting 1h 01m</div>
+              <div class="cmdline"><code>kew epic merge ui-refine 2219 --head be214719ea3af05163a69015fb421c8ed70c0886</code><button class="cp" type="button">Copy</button></div>
+            </div>
+          </li>
+          <li>
+            <span class="cat c-warn"><span class="ring"></span>held</span>
+            <div>
+              <div class="what"><b>go-live-2026-09 / SFD-232</b> &#8212; preserved work waits for you to continue it &#183; held 18d 10h</div>
+              <div class="cmdline"><code>kew epic continue go-live-2026-09 SFD-232</code><button class="cp" type="button">Copy</button></div>
+            </div>
+          </li>
+        </ul>
+        <p class="foot">4 holds on archived epics are not counted (containment, governance-hardening). <code>kew epic unarchive &lt;epic&gt;</code> brings them back.</p>
+      </section>
+
+      <section class="stream" aria-label="Event stream">
+        <div class="shead">
+          <h2>Event stream</h2>
+          <span class="paused" role="status"><span class="pz" aria-hidden="true"><i></i><i></i></span>Paused<button type="button">Jump to now <span class="kbd" style="height:15px;min-width:15px;font-size:10px">L</span></button></span>
+          <span class="grow"></span>
+          <span class="legend" aria-label="Overview colours"><span><i style="background:var(--text-4)"></i>other</span><span><i style="background:var(--accent-2)"></i>review / evidence</span><span><i style="background:var(--warn)"></i>money</span><span><i style="background:var(--accent)"></i>needs you</span></span>
+        </div>
+        <div class="rangebar">
+          <div class="seg" role="group" aria-label="Range">
+            <button type="button" aria-pressed="false"><span class="dot" style="background:var(--accent-2);width:6px;height:6px"></span>Live 30m</button>
+            <button type="button" aria-pressed="false">1h</button>
+            <button type="button" aria-pressed="false">6h</button>
+            <button type="button" aria-pressed="true">24h</button>
+            <button type="button" aria-pressed="false">7d</button>
+            <button type="button" aria-pressed="false">Custom&#8230;</button>
+          </div>
+          <span class="span">Oct 1 10:04 &#8211; Oct 2 10:04</span>
+        </div>
+        
+        <div class="ov focus-ring" tabindex="0" aria-label="Event overview, last 24 hours. Arrow keys pan the window, plus and minus zoom, L returns to live">
+          <div class="bars"><span></span><span></span><span></span><span></span><span></span><span></span><span><b style="height:39px"><i style="flex:21 0 0;background:var(--text-4)"></i><i style="flex:12 0 0;background:var(--accent-2)"></i></b></span><span></span><span></span><span><b style="height:14px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:33px"><i style="flex:12 0 0;background:var(--text-4)"></i><i style="flex:11 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:14px"><i style="flex:4 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:40px"><i style="flex:18 0 0;background:var(--text-4)"></i><i style="flex:12 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:14px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:30px"><i style="flex:9 0 0;background:var(--text-4)"></i><i style="flex:6 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:25px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:7 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:39px"><i style="flex:19 0 0;background:var(--text-4)"></i><i style="flex:12 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:30px"><i style="flex:6 0 0;background:var(--text-4)"></i><i style="flex:7 0 0;background:var(--accent-2)"></i><i style="flex:6 0 0;background:var(--warn)"></i></b></span><span><b style="height:15px"><i style="flex:4 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:15px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:4 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:10px"><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:34px"><i style="flex:11 0 0;background:var(--text-4)"></i><i style="flex:10 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:27px"><i style="flex:9 0 0;background:var(--text-4)"></i><i style="flex:4 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:19px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:6 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:21px"><i style="flex:6 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:21px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:37px"><i style="flex:11 0 0;background:var(--text-4)"></i><i style="flex:10 0 0;background:var(--accent-2)"></i><i style="flex:8 0 0;background:var(--warn)"></i></b></span><span><b style="height:18px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:4 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:23px"><i style="flex:5 0 0;background:var(--text-4)"></i><i style="flex:6 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:18px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:25px"><i style="flex:4 0 0;background:var(--text-4)"></i><i style="flex:5 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:24px"><i style="flex:5 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--accent)"></i></b></span><span><b style="height:25px"><i style="flex:4 0 0;background:var(--text-4)"></i><i style="flex:7 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:15px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:7px"><i style="flex:1 0 0;background:var(--text-4)"></i></b></span><span><b style="height:17px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span></span><span></span><span><b style="height:22px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:12px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:12px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span></span><span><b style="height:18px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:7px"><i style="flex:1 0 0;background:var(--text-4)"></i></b></span><span><b style="height:15px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:19px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:14px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:10px"><i style="flex:2 0 0;background:var(--text-4)"></i></b></span><span><b style="height:14px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span></span><span></span><span><b style="height:22px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i><i style="flex:2 0 0;background:var(--accent)"></i></b></span><span><b style="height:15px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:10px"><i style="flex:2 0 0;background:var(--text-4)"></i></b></span><span><b style="height:10px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:17px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:19px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:2 0 0;background:var(--warn)"></i></b></span><span><b style="height:12px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:12px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span></span><span><b style="height:22px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:34px"><i style="flex:13 0 0;background:var(--text-4)"></i><i style="flex:11 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:22px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i><i style="flex:2 0 0;background:var(--accent)"></i></b></span><span><b style="height:14px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span></span><span><b style="height:12px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:17px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i><i style="flex:1 0 0;background:var(--accent)"></i></b></span><span><b style="height:10px"><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span></span><span><b style="height:18px"><i style="flex:3 0 0;background:var(--text-4)"></i><i style="flex:4 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:12px"><i style="flex:2 0 0;background:var(--text-4)"></i><i style="flex:1 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:24px"><i style="flex:5 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i><i style="flex:4 0 0;background:var(--warn)"></i></b></span><span><b style="height:7px"><i style="flex:1 0 0;background:var(--text-4)"></i></b></span><span><b style="height:12px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:2 0 0;background:var(--accent-2)"></i></b></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span><b style="height:7px"><i style="flex:1 0 0;background:var(--text-4)"></i></b></span><span><b style="height:14px"><i style="flex:1 0 0;background:var(--text-4)"></i><i style="flex:3 0 0;background:var(--accent-2)"></i></b></span><span><b style="height:12px"><i style="flex:3 0 0;background:var(--text-4)"></i></b></span><span></span><span></span><span></span></div>
+          <div class="shade" style="left:0;width:69.514%"></div>
+          <div class="shade" style="left:76.806%;right:0"></div>
+          <div class="brush" style="left:69.514%;width:7.292%" role="slider" aria-label="Window 02:45 to 04:30" aria-valuetext="02:45 to 04:30">
+            <span class="h l" aria-hidden="true"><i></i><i></i></span><span class="h r" aria-hidden="true"><i></i><i></i></span>
+            <span class="wlab l">02:45</span><span class="wlab r">04:30</span>
+          </div>
+        </div>
+        <div class="axis"><i style="left:8.056%"></i><span style="left:8.056%">12:00</span><i style="left:20.556%"></i><span style="left:20.556%">15:00</span><i style="left:33.056%"></i><span style="left:33.056%">18:00</span><i style="left:45.556%"></i><span style="left:45.556%">21:00</span><i style="left:58.056%"></i><span style="left:58.056%">Oct 2</span><i style="left:70.556%"></i><span style="left:70.556%">03:00</span><i style="left:83.056%"></i><span style="left:83.056%">06:00</span><span style="left:100%;transform:translateX(-100%)">now 10:04</span></div>
+        <div class="whead"><span class="t1">02:45 &#8211; 04:30</span><span>1h 45m &#183; 31 events</span><span class="grow"></span>
+          <span style="display:inline-flex;gap:6px;align-items:center"><span class="kbd">&#8592;</span><span class="kbd">&#8594;</span>pan <span class="kbd">+</span><span class="kbd">&#8722;</span>zoom <span class="kbd">L</span>live</span></div>
+        <div class="strip" aria-hidden="true"><i class="base"></i><i class="tk" style="left:0.000%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:0.000%;transform:translateX(0)">02:45</span><i class="tk" style="left:4.762%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:9.524%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:14.286%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:14.286%;transform:translateX(-50%)">03:00</span><i class="tk" style="left:19.048%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:23.810%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:28.571%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:28.571%;transform:translateX(-50%)">03:15</span><i class="tk" style="left:33.333%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:38.095%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:42.857%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:42.857%;transform:translateX(-50%)">03:30</span><i class="tk" style="left:47.619%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:52.381%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:57.143%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:57.143%;transform:translateX(-50%)">03:45</span><i class="tk" style="left:61.905%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:66.667%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:71.429%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:71.429%;transform:translateX(-50%)">04:00</span><i class="tk" style="left:76.190%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:80.952%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:85.714%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:85.714%;transform:translateX(-50%)">04:15</span><i class="tk" style="left:90.476%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:95.238%;height:3px;background:var(--hair-strong)"></i><i class="tk" style="left:100.000%;height:7px;background:var(--text-4)"></i><span class="tl" style="left:100.000%;transform:translateX(-100%)">04:30</span><i class="mk" style="left:96.205%;background:var(--text-2)"></i><i class="mk" style="left:91.012%;background:var(--success)"></i><i class="mk" style="left:91.012%;background:var(--text-2)"></i><i class="mk" style="left:80.201%;background:var(--text-2)"></i><i class="mk" style="left:75.023%;background:var(--text-2)"></i><i class="mk" style="left:75.023%;background:var(--text-2)"></i><i class="mk" style="left:75.023%;background:var(--text-2)"></i><i class="mk" style="left:74.990%;background:var(--text-2)"></i><i class="mk" style="left:74.953%;background:var(--text-2)"></i><i class="mk" style="left:74.886%;background:var(--warn)"></i><i class="mk" style="left:74.886%;background:var(--warn)"></i><i class="mk" style="left:74.886%;background:var(--warn)"></i><i class="mk" style="left:74.886%;background:var(--warn)"></i><i class="mk" style="left:74.886%;background:var(--text-2)"></i><i class="mk" style="left:74.886%;background:var(--text-2)"></i><i class="mk" style="left:74.885%;background:var(--text-2)"></i><i class="mk" style="left:49.069%;background:var(--text-2)"></i><i class="mk" style="left:49.060%;background:var(--text-2)"></i><i class="mk" style="left:49.060%;background:var(--text-2)"></i><i class="mk" style="left:43.858%;background:var(--text-2)"></i><i class="mk" style="left:43.858%;background:var(--text-2)"></i><i class="mk" style="left:43.858%;background:var(--text-2)"></i><i class="mk" style="left:43.811%;background:var(--success)"></i><i class="mk" style="left:43.811%;background:var(--text-2)"></i><i class="mk" style="left:33.969%;background:var(--warn)"></i><i class="mk" style="left:33.969%;background:var(--text-2)"></i><i class="mk" style="left:14.366%;background:var(--success)"></i><i class="mk" style="left:14.366%;background:var(--text-2)"></i><i class="mk" style="left:1.505%;background:var(--text-2)"></i><i class="mk" style="left:1.505%;background:var(--text-2)"></i><i class="mk" style="left:1.491%;background:var(--text-2)"></i><i class="gap" style="left:calc(14.365% + 8px);width:calc(19.603% - 16px)"></i><span class="gl" style="left:24.167%">20m 35s quiet</span><i class="gap" style="left:calc(49.063% + 8px);width:calc(25.810% - 16px)"></i><span class="gl" style="left:61.968%">27m 06s quiet</span><span class="burst" style="left:74.921%">16 events in 9s</span></div>
+        <div class="filters" aria-label="Filters">
+          <span class="chip on"><span class="k">epic</span>ui-refine<button class="x" type="button" aria-label="Remove epic filter">&#215;</button></span>
+          <span class="chip add"><span class="k">item</span>any</span>
+          <span class="kinds" role="group" aria-label="Event kinds">
+            <button class="chip" type="button" aria-pressed="false">dispatch</button>
+            <button class="chip" type="button" aria-pressed="false">review</button>
+            <button class="chip" type="button" aria-pressed="false">publication</button>
+            <button class="chip" type="button" aria-pressed="false">epic</button>
+            <button class="chip" type="button" aria-pressed="false">evidence</button>
+            <button class="chip" type="button" aria-pressed="false">money</button>
+            <button class="chip morechip" type="button" aria-haspopup="menu">+2 kinds</button>
+          </span>
+        </div>
+        <div class="list"><ol><li><span class="tm">04:26:00</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">epic node status</span> <span class="t5">&#183;</span> ui-refine <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button> <span class="t5">&#183;</span> <span class="t3">remediating</span> <span class="arr">&#8594;</span> <span style="color:var(--accent-2)">in_review</span></span></li><li class="gaprow"><span></span><span class="rail dash"></span><span class="cap">5m 27s quiet</span></li><li><span class="tm">04:20:33</span><span class="rail"><i style="background:var(--success)"></i></span><span class="lb"><span style="color:var(--success)">adversarial review verdict</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button> <span class="t5">&#183;</span> PR #2238 <span class="t5">&#183;</span> round 2 <span class="t5">&#183;</span> <span style="color:var(--success);font-weight:500">READY</span></span></li><li><span class="tm">04:20:33</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">runner progress</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button></span></li><li class="gaprow"><span></span><span class="rail dash"></span><span class="cap">11m 21s quiet</span></li><li><span class="tm">04:09:12</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">dispatch owner recorded</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button></span></li><li class="gaprow"><span></span><span class="rail dash"></span><span class="cap">5m 26s quiet</span></li><li><span class="tm">04:03:46</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">epic node status</span> <span class="t5">&#183;</span> ui-refine <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2219">#2219</button> <span class="t5">&#183;</span> <span class="t3">adversarial_review</span> <span class="arr">&#8594;</span> <span style="color:var(--accent-2)">in_review</span></span></li><li><span class="tm">04:03:46</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">epic node status</span> <span class="t5">&#183;</span> ui-refine <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button> <span class="t5">&#183;</span> <span class="t3">adversarial_review</span> <span class="arr">&#8594;</span> <span style="color:var(--warn)">remediating</span></span></li><li><span class="tm">04:03:46</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">epic node status</span> <span class="t5">&#183;</span> ui-refine <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2208">#2208</button> <span class="t5">&#183;</span> <span class="t3">adversarial_review</span> <span class="arr">&#8594;</span> <span style="color:var(--accent-2)">in_review</span></span></li><li><span class="tm">04:03:44</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">review outcome</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button> <span class="t5">&#183;</span> completed</span></li><li><span class="tm">04:03:42</span><span class="rail"><i style="background:var(--text-2)"></i></span><span class="lb"><span class="t1">publication intent</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button> <span class="t5">&#183;</span> 90afb9f4</span></li><li><span class="tm">04:03:37</span><span class="rail"><i style="background:var(--warn)"></i></span><span class="lb"><span class="t1">runner usage</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button></span></li><li><span class="tm">04:03:37</span><span class="rail"><i style="background:var(--warn)"></i></span><span class="lb"><span class="t1">runner usage</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button></span></li><li><span class="tm">04:03:37</span><span class="rail"><i style="background:var(--warn)"></i></span><span class="lb"><span class="t1">runner usage</span> <span class="t5">&#183;</span> <button class="iref" type="button" title="Filter to #2210">#2210</button></span></li></ol><div class="fade" aria-hidden="true"></div></div>
+        <div class="more">
+          <span>Newest first &#183; all 31 in this window</span><span class="grow"></span>
+          <button class="btn" type="button" style="height:30px">Load older <span class="t3">before 02:45</span> <span aria-hidden="true">&#8595;</span></button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "billing": "metered",
+  "plan_label": "API (metered)",
+  "plan_monthly_usd": 0.0,
+  "version": "0.0.0+fixtures"
+}

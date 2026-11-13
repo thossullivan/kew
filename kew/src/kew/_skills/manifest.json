@@ -1,0 +1,111 @@
+{
+  "artifacts": [
+    {
+      "name": "plan-to-issues",
+      "kind": "skill",
+      "version": 5,
+      "source": "_skills/plan-to-issues/SKILL.md",
+      "target": ".claude/skills/plan-to-issues/SKILL.md",
+      "sha256": "9af3a46212de9a2b3388e6e9c5e943cb09e8857ce50afcdaad4d6ff6a06004b2",
+      "previous_sha256": [
+        "e6bb9969adfe38e433879c182762d53206824eb8fc92bb6d05787d83d3e26f6b",
+        "ee22816768ec963600ac19c50b005a497e43a4efbddabab17b86699e6568b358",
+        "d7f44fffda31b2d143a59d4253855aa99abdcf3251e20e505d1378f2c2ec69de",
+        "b365b83a533a8d08d294bec33c966be7df483318ee50e293d79245e2637f1df2"
+      ]
+    },
+    {
+      "name": "security-guard",
+      "kind": "hook",
+      "version": 23,
+      "source": "_templates/security-guard.sh",
+      "target": ".claude/hooks/security-guard.sh",
+      "sha256": "570052fa6946cb7d752d1b1eb26022e16c15f9b73198d80337f65e5308399f9d",
+      "previous_sha256": [
+        "41b52bda33730e8113c714eef9a60bec48d9b85be1514cfb422204b16eb4df52",
+        "41cbb7ca931584903a55e0801da3c42c0d1a7cda939466cb3b0eb668158371a8",
+        "daaf5ca7ecd898d9a042e839d7fcb64f0edd77dfcba3b0f20f41695ffebf6f30",
+        "8ab8070fce5f76254f12477e3c92699a976c8d883035fb2a847386918b327fb3",
+        "c97237ff7f08cd1ea3030157313b8a7219e91bae058a677ccafe74614ff06975",
+        "de1b7c473c63bc8371f3c61800f266d05719814e0795938805f445e9b091ce85",
+        "7e3fa1413ca659749aba9f24c36604eea99c84c11d9f74ddeb93a2efccf9dcb8",
+        "d1246d73e8e0b97304a8001649157339eea9a20705f199f38ec27e51afe178ea",
+        "35ce935d6a670b80866e6ed54c0fd57b1f897719e3b97a6f5f89bb6776bd84d2",
+        "87d9952ccf763d96d9c6faccfb1c400808a69832ff5a8b2f4060dcfd1138fd9b",
+        "f0ff57459ce46a867b0152e3cae9b94473183111b0d78a29249e23e01c619cad",
+        "375adcc5edc1914ce3f1192f32c17ce780848ac00dcbaf0e121d22a5e408df99",
+        "13c3c5196b32e8a09c577f92fc847b8b6b509a4f51965ad26db2d8a1fbaeddb7",
+        "089ccc5aebc1a18bcddffb4556bbc95eac5ef7a2aa75a8bdc721b557d82e1d02",
+        "98e2f922bd99242c0eb58d1b6035e58606957695e3e5da1f0e085d47534ab98c",
+        "0e4e05a8d6305bf7df07b978ccabd42e66b49cbe23162be0250f1f18b708c9d7",
+        "26c84f029f457b44f71bf6baa01448111918dec168642630433fe8f65156e613",
+        "c55fee9a3d84ff676525c3f0465476db9f748339d03888a4b105686bdc3c843e",
+        "1cd7c308989010f69ef89221a1025ae8cbf507ecafe8955c03f2ece8c6e0ba86",
+        "62cee649667beb6d8245cd3b5ad10894052b6abcdce1a97113e351f3ca5965bf",
+        "a214b8758ec64e64bb19cdfba636081dfb6d8c26d4baed8df1ec5e0864fd3878",
+        "71df00ec07b74002293a78ca83cd4a9715b6e930ee82c31e4beaff70db5df767",
+        "c4c19d04ee12efca0ec46f69d117ec5c5924f970d7b702aa90063301e4a38bc0"
+      ]
+    },
+    {
+      "name": "playbook-skill",
+      "kind": "skill",
+      "version": 1,
+      "source": "_skills/playbook-skill/SKILL.md",
+      "target": ".claude/skills/playbook-skill/SKILL.md",
+      "sha256": "d060f3e700622a9efa4345f8e90bc69cbd9a2997b2964f17676b0c6de9ccbd4c",
+      "previous_sha256": []
+    },
+    {
+      "name": "verify-parity",
+      "kind": "skill",
+      "version": 1,
+      "source": "_skills/verify-parity/SKILL.md",
+      "target": ".claude/skills/verify-parity/SKILL.md",
+      "sha256": "d2edbe52ebc59f4e0ebf665eaab6dc9927bc4a47a7e31dfca4ba441f25e273a3",
+      "previous_sha256": []
+    },
+    {
+      "name": "handoff",
+      "kind": "skill",
+      "version": 2,
+      "source": "_skills/handoff/SKILL.md",
+      "target": ".claude/skills/handoff/SKILL.md",
+      "sha256": "3df1e8e291b1b0f7187c2df7f51064c61b369577468b682702ccd85a3c857796",
+      "previous_sha256": [
+        "73866f08c83d770b27c5586ed83abb4742ca3bd71e8970d9ba5ccf2a7eea0e6f"
+      ]
+    },
+    {
+      "name": "operate-kew",
+      "kind": "skill",
+      "version": 1,
+      "source": "_skills/operate-kew/SKILL.md",
+      "target": ".claude/skills/operate-kew/SKILL.md",
+      "sha256": "5d8347443147f2d77048f8863e35b17dce9ead30c3b5ee0bb6722013b05f9eeb",
+      "previous_sha256": []
+    },
+    {
+      "name": "adversarial-reviewer",
+      "kind": "prompt",
+      "version": 13,
+      "source": "_skills/adversarial-reviewer/PROMPT.md",
+      "target": ".claude/kew/adversarial-reviewer.md",
+      "sha256": "b31068e99817f6dbb074651422c689181b6ea2fe2e957d142d8ab54dec462f9a",
+      "previous_sha256": [
+        "6bebe65ceedec6699b452bfebc651ca4f2eed1a830bcdf0f8f8950e2b30bb64e",
+        "043cbe9f272fb942ca38acfaa1d6d44f81746dcec7b9a7ba1fff481e37b3271f",
+        "ef12b956d9e8d6de1f50ebb11ed052dad75fc8980807de8d3e8dfc6600239063",
+        "841e1b4bb468d2e08da91255ff650274e4c414098ffe7da12f0f61ce6ad64ede",
+        "af55999dba7a3a2ba6491dde6d184695504e29933054c32e08e4a65917e2a18e",
+        "93b037051989705be5be2d593d47810144e3f7a12405dd80d36bd0a925e838dc",
+        "44e3b2217f0381d1fca3ca9d5624324fd1399d84d80f465974c6a23c0b18114a",
+        "4d49a613bcc7dcb491241726bd89f0df113aec034ed3214a2154f89e54e8ac53",
+        "2becd58928ea3f502f8ab867e65e350573cc8cd7dae39713df0a9274002a9902",
+        "53f4128cd6917381b38d9a53912d43cd0e14c42cd2669cece90a40180b8392a4",
+        "b178fcd3e52892aee71b08fb3207ec55ca37c3273eda8fde9210fc9533164527",
+        "01cbf5381cd7887cff105e7fe7f57e906d11a643f82b5469e84f1eb7fc3d055a"
+      ]
+    }
+  ]
+}

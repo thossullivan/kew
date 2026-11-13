@@ -1,0 +1,84 @@
+{
+  "run_id": "6690a7f4",
+  "attempt_number": 1,
+  "item_id": "102",
+  "issue_num": 102,
+  "source_tracker": "github",
+  "source_id": "102",
+  "sealed": true,
+  "through_seq": 3,
+  "chain_head": "6690a7f46690a7f46690a7f46690a7f46690a7f46690a7f46690a7f46690a7f4",
+  "chain_verified": true,
+  "artifact_node_id": "6690a7f4:3",
+  "runner_telemetry": "structured",
+  "events": [
+    {
+      "seq": 1,
+      "timestamp": "2026-10-19T23:00:00+00:00",
+      "kind": "evidence.dispatch",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "route": "claude-code/claude-opus-5"
+      }
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-10-19T23:00:00+00:00",
+      "kind": "evidence.receipt_fact",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "fact": "trusted_base_sha",
+        "value": "6690a7f46690a7f46690a7f46690a7f46690a7f4",
+        "source": "origin/main"
+      }
+    },
+    {
+      "seq": 3,
+      "timestamp": "2026-10-19T23:22:00+00:00",
+      "kind": "evidence.artifact",
+      "origin": "evidence",
+      "producer_kind": "host",
+      "producer_name": "kew.dispatch",
+      "producer_version": "0.9.0",
+      "attested_by_host": true,
+      "sealed": true,
+      "terminal": false,
+      "facts": {
+        "files": 5
+      }
+    }
+  ],
+  "gaps": [],
+  "availability": [
+    {
+      "dimension": "host_sequence",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "artifact_seal",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    }
+  ]
+}

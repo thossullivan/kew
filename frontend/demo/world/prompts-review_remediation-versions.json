@@ -1,0 +1,9 @@
+{
+  "role": "review_remediation",
+  "generation": 0,
+  "can_decide": true,
+  "decide_refusal": null,
+  "max_body_chars": 4000,
+  "active_version": null,
+  "versions": []
+}

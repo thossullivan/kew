@@ -1,0 +1,245 @@
+# Silence-on-failure debt ledger (A4 / W2.1) — NOT an approval list.
+#
+# Every line is an `except` handler that returns or assigns a clean default
+# while recording nothing about why it defaulted.
+# The convention is in CONTRIBUTING.md, "No silent clean defaults"; the gate is
+# tests/test_silence_on_failure.py.
+#
+# Ledger size at head: 210 handlers in 195 functions.
+# Burn-down work is tracked in #1764.
+# Legitimate-by-design entries include tolerant stream parsers such as analytics.py::_line_assistant_cache_read.
+# Also by construction, not debt: handlers that assign None and fail closed on it later
+# (graph/driver/tick.py verdict = None then `is not False`; orchestrator.py pgid = None after
+# proc.terminate(); canary_live.py:653). #1764 need not re-decide them.
+# Keys are per function, so a net-zero handler swap within one function can pass.
+#
+# Format: <file>::<qualname> <number of such handlers in that function>
+#
+# The gate is a ratchet in both directions: a new site fails until it is fixed
+# or added here deliberately, and a fixed site must be removed here — so this
+# file measures the remaining corpus rather than hiding it.
+#
+# The A2 site (`src/kew/cli/__init__.py::_status_queue_counts::_count`, a gh
+# failure rendering an all-zero healthy queue) is the first scheduled fix, W2.2.
+# Also by construction (#2569): publication_materialize.py treats a missing path as
+# the answer (_remove/_parents: nothing to remove; _write: nothing to replace) and
+# stops pruning at the first non-empty directory (_prune); every other OSError there
+# refuses the materialization. _disk_oid (#2591) answers None for a path it cannot
+# read as a plain file or link, which marks that path for a rewrite — the fail-safe
+# direction: the rewrite either repairs it or refuses.
+
+src/kew/analytics.py::_first_turn_cache_read_tokens 1
+src/kew/analytics.py::_line_assistant_cache_read 2
+src/kew/audit.py::_continuation_records_for_epic 1
+src/kew/audit.py::_parse_anchor_timestamp 1
+src/kew/audit.py::_recovery_event_exists 1
+src/kew/canary_live.py::_cleanup_passthrough 1
+src/kew/canary_live.py::_close_managed_switchyard 1
+src/kew/canary_live.py::_consume_fresh_line 1
+src/kew/canary_live.py::_proxy_observable 1
+src/kew/canary_live.py::delete_codex_session 1
+src/kew/certificate_ref.py::_payload_of 1
+src/kew/cli/__init__.py::_emit_stray_ledger_warnings 1
+src/kew/cli/__init__.py::_format_route_line 1
+src/kew/cli/__init__.py::_log_budget_banner 1
+src/kew/cli/__init__.py::_log_project_banner 1
+src/kew/cli/__init__.py::_observation_age 1
+src/kew/cli/config.py::_review_state 1
+src/kew/config.py::_is_literal_loopback 1
+src/kew/config.py::_is_loopback 1
+src/kew/delegate/claim.py::load_stranded_rollbacks 1
+src/kew/delegate/watch.py::DelegationWatcher::_locally_not_ours 1
+src/kew/delegate/watch.py::_event_item_id 1
+src/kew/delegate/watch.py::touches_assignee_or_labels 1
+src/kew/dependencies.py::check_dependencies_resolved 1
+src/kew/dependencies.py::find_blocked_dependents 1
+src/kew/dispatch_core.py::_check_existing_pr 1
+src/kew/dispatch_core.py::_check_github_connectivity 1
+src/kew/dispatch_core.py::_created_pr_identity 1
+src/kew/dispatch_core.py::_no_change_base_sha 1
+src/kew/dispatch_core.py::_normalized_publication_job 1
+src/kew/dispatch_core.py::_note_if_over_per_issue 1
+src/kew/dispatch_core.py::_profilable_runner 1
+src/kew/dispatch_core.py::_review_capacity_pressure 1
+src/kew/dispatch_core.py::_warn_if_cap_conflict 1
+src/kew/dispatch_core.py::check_pr_exists 1
+src/kew/dispatch_sandbox.py::_accumulate_stream_line 1
+src/kew/dispatch_sandbox.py::_sandbox_route_profile 1
+src/kew/dispatch_sandbox.py::_trusted_base_observation 1
+# drive_code.py read_refusal (#3331): a missing refusal record IS the answer —
+# no refusal was recorded — not a failed read; every other read error warns.
+src/kew/drive_code.py::read_refusal 1
+src/kew/graph/adapters/github_convention.py::GitHubConventionSource::status_of 1
+src/kew/graph/adapters/linear_facts.py::LinearFactsReader::_fetch_branch_prs 1
+src/kew/graph/adapters/linear_facts.py::LinearFactsReader::_ingest_pr_batch 1
+src/kew/graph/adapters/linear_facts.py::LinearFactsReader::_pr_number_from_url 1
+src/kew/graph/driver/ci_recovery.py::default_classify::_classify 1
+src/kew/graph/driver/facts.py::GitHubFactsReader::_fetch_branch_prs 1
+src/kew/graph/driver/facts.py::GitHubFactsReader::_persisted_pr_fact 1
+src/kew/graph/driver/facts.py::GitHubFactsReader::pr_number_from_url 1
+src/kew/graph/driver/facts.py::_hold_age_seconds 1
+src/kew/graph/driver/facts.py::_parse_json_object 1
+src/kew/graph/driver/facts.py::_persisted_review_observation 1
+src/kew/graph/driver/journal.py::_int_or_none 1
+src/kew/graph/driver/lock.py::LockHolder::is_alive 1
+src/kew/graph/driver/lock.py::_decode_holder::_parse_dt 1
+src/kew/graph/driver/lock.py::_try_flock 1
+src/kew/graph/driver/lock.py::lock_holder 1
+src/kew/graph/driver/lock.py::refresh_lock_heartbeat 1
+src/kew/graph/driver/merge.py::_approval_postdates 1
+src/kew/graph/driver/merge.py::_authorized_permission 1
+src/kew/graph/driver/tick.py::_container_alive 1
+src/kew/graph/driver/tick.py::_git_worktree_matches 2
+src/kew/graph/driver/tick.py::_is_stale 1
+src/kew/graph/driver/tick.py::_pending_implementation_owners 1
+src/kew/graph/driver/tick.py::_persisted_pr_facts 1
+src/kew/graph/driver/tick.py::_recorded_worktree_candidate 1
+src/kew/graph/plan_run.py::_warn_if_plan_uncommitted 1
+# Legitimate by design (#2811): ProcessLookupError IS the answer "not running".
+src/kew/hosts/gcp.py::_pid_running 1
+src/kew/inference_transport.py::_is_immutable_file 1
+src/kew/inference_transport.py::_pinned_binary_digest_matches 1
+src/kew/inference_transport.py::_reviewed_credentials_match 1
+src/kew/ingest/claude_code.py::_iso_from_nanos 1
+src/kew/ingest/otlp.py::_point_value 2
+src/kew/ingest/server.py::_Handler::_handle_linear_webhook 1
+src/kew/ingest/server.py::_Handler::_handle_metrics 1
+src/kew/ingest/server.py::_Handler::_maybe_decompress 1
+src/kew/ingest/server.py::_Handler::_read_raw_body 3
+src/kew/labels.py::_fetch_issue_labels 1
+src/kew/ledger_guard.py::_child_dirs 1
+src/kew/linear/tracker.py::LinearTracker::apply_no_change_outcome 1
+src/kew/loops/delegate.py::DelegateDriver::_should_pause 1
+src/kew/loops/delegate.py::_parse_step_line 1
+src/kew/no_change.py::_evidence_age_s 1
+# Legitimate by design (#2322 review): an indexed path with nothing on disk is
+# an agent deleting a tracked file with `rm`, which happens on healthy runs and
+# is not a mode the download lost. A log line per deleted file would be noise.
+src/kew/openshell_checkout.py::_index_entry 1
+src/kew/orchestrator.py::_collect_managed_evidence 1
+src/kew/orchestrator.py::_terminate_group 1
+src/kew/outcomes.py::_github_adapter 1
+src/kew/outcomes.py::_latest_implementation_status_by_branch 1
+src/kew/outcomes.py::_list_open_prs 1
+src/kew/outcomes.py::post_no_change_rejection 1
+src/kew/overlap.py::_run_gh_json 1
+# process_groups.py (#1936): None means unknown ownership and every caller fails closed on it;
+# False from _kew_entrypoint means 'not a kew leader' and the caller refuses to signal.
+src/kew/process_groups.py::_kew_entrypoint 1
+src/kew/process_groups.py::group_alive 2
+src/kew/progress.py::format_worker_status 1
+src/kew/progress.py::parse_stream_event 1
+src/kew/provenance.py::_git_dirty 1
+src/kew/provenance.py::_git_output 1
+src/kew/publication.py::append_publication_failure 1
+src/kew/publication.py::capture_detached_publication_token 1
+src/kew/publication.py::publication_git_env 1
+# readiness_key.py (#2499): FileNotFoundError from a passive read means the key
+# file does not exist yet, which is a definite answer, not a failed read; the
+# docstring says None means 'none yet', and every other error propagates.
+src/kew/publication_materialize.py::_disk_oid 1
+src/kew/publication_materialize.py::_parents 1
+src/kew/publication_materialize.py::_prune 1
+src/kew/publication_materialize.py::_remove 1
+src/kew/publication_materialize.py::_write 1
+src/kew/readiness_key.py::existing_readiness_hmac_key 1
+src/kew/repo_host.py::_origin_remote_url 1
+src/kew/repo_host.py::_repo_host_from_gh 1
+src/kew/repomap.py::_extract_python 1
+src/kew/repomap.py::extract_symbols 1
+src/kew/report.py::_parse_pr_states_payload 1
+src/kew/report.py::resolve_pr_states 1
+src/kew/report_export.py::_default_logo_data_uri 1
+src/kew/report_style.py::_face_css 1
+src/kew/resolve.py::_get_pr_metadata 1
+src/kew/review.py::_get_pr_metadata 1
+src/kew/review.py::_worktree_head_sha 1
+src/kew/review_contract.py::_load_sidecar_dict 1
+src/kew/review_outcome.py::_payload_to_outcome 1
+# #1931: unchanged tri-state probes moved from driver/tick to shared run_liveness.
+src/kew/run_store.py::SqliteRunStore::_apply_v39 1
+src/kew/run_store.py::SqliteRunStore::_check_schema_version 1
+src/kew/run_store.py::SqliteRunStore::get_fleet_stopped 1
+src/kew/run_store.py::_row_to_audit_event 1
+src/kew/run_store.py::_run_duration_seconds 1
+src/kew/run_store_reservations.py::EpicReservationStoreMixin::reserve_epic_node_item::_do_reserve 1
+src/kew/runners/claude_code.py::ClaudeCodeRunner::_parse_result_json 1
+src/kew/runners/codex.py::CodexRunner::parse_line 1
+src/kew/runners/hermes.py::HermesRunner::_read_usage 2
+src/kew/runners/lemonade.py::LemonadeRunner::_parse_final_message 1
+src/kew/runners/lemonade.py::LemonadeRunner::parse_line 1
+src/kew/runners/lemonade_agent.py::_handle_tool_calls 1
+src/kew/runners/opencode.py::OpenCodeRunner::_parse_last_event 1
+src/kew/runners/opencode.py::OpenCodeRunner::parse_line 1
+src/kew/runners/pi.py::PiRunner::_parse_final_message 1
+src/kew/runners/pi.py::PiRunner::parse_line 1
+# Round 7: unavailable startup probes withhold launch evidence and yield refusal,
+# never success. Container state no longer serves as workload startup evidence.
+# _argv_cidfile: `.index("--cidfile")` raising ValueError/IndexError means the
+# flag is ABSENT from the argv, which is a legitimate answer (an uncontained or
+# older argv), not a failed read. By construction, not debt. (#1767)
+src/kew/sandbox.py::_argv_cidfile 1
+src/kew/sandbox.py::_get_dockerfile_ts 2
+src/kew/sandbox.py::_get_image_created_ts 2
+src/kew/sandbox.py::_parse_docker_created 1
+src/kew/selector.py::empty_queue_message 1
+src/kew/selector.py::select_next_issue 1
+src/kew/sensitive_prompt.py::purge_prompt 1
+src/kew/serve/bundle.py::evaluate_bundle 1
+src/kew/serve/bundle.py::read_stamp 1
+src/kew/serve/security.py::_peer_is_loopback 1
+src/kew/serve/sse.py::_is_terminal 1
+src/kew/serve/sse.py::event_stream 1
+src/kew/serve/sse.py::journal_stream 1
+src/kew/serve/watch.py::epic_stream 1
+src/kew/service/audit.py::load_anchors 1
+# epics.py (#2566): a waiting heartbeat that cannot be read reads as NO
+# heartbeat, so the driver shows `gone` and counts as down: the louder state.
+# The default fails closed; it can never hide a stopped loop.
+src/kew/service/epics.py::read_driver_waiting 1
+src/kew/service/verbs.py::surfaced_candidates 1
+src/kew/service/work.py::_capacity_observation 1
+src/kew/service/work.py::_hold_age_seconds 1
+src/kew/service/work.py::_projected_view 1
+src/kew/staleness.py::_active_override_fields 1
+src/kew/staleness.py::_check_editable_branch 1
+src/kew/staleness.py::_extract_governance_fields 1
+src/kew/staleness.py::_fetch_latest_version 1
+src/kew/staleness.py::_get_direct_url 3
+src/kew/staleness.py::_git_branch_at 1
+src/kew/staleness.py::_git_commits_behind 2
+src/kew/staleness.py::_read_cache 1
+src/kew/staleness.py::_read_committed_config_text 2
+src/kew/staleness.py::_read_db_schema_version 1
+src/kew/staleness.py::_read_repo_kew_version 1
+src/kew/staleness.py::check_governance_config_drift 1
+src/kew/staleness.py::check_orchestrator_skew 1
+src/kew/staleness.py::check_staleness 1
+src/kew/subprocess_utils.py::_probe_claude_cli_auth 1
+src/kew/subprocess_utils.py::_probe_codex 2
+src/kew/subprocess_utils.py::_probe_runner_version 1
+src/kew/subprocess_utils.py::observe_runner_executable 1
+src/kew/switchyard_supervisor.py::ManagedSwitchyardSupervisor::is_healthy 1
+src/kew/switchyard_supervisor.py::_terminate_process_group 1
+src/kew/transcript_metrics.py::_parse_event 1
+src/kew/transcript_metrics.py::read_derived_evidence 1
+src/kew/tui/app.py::KewApp::_fetch_pr_detail 1
+src/kew/tui/screens/expanded.py::ExpandedScreen::_get_panel_listview 1
+src/kew/tui/screens/logs.py::LogsScreen::_load_selected_run 1
+src/kew/tui/screens/logs.py::LogsScreen::_tail_events 2
+src/kew/tui/screens/logs.py::LogsScreen::_update_run_list 1
+src/kew/tui/selection.py::get_selected_epic_hold 1
+src/kew/tui/selection.py::get_selected_issue 1
+src/kew/tui/selection.py::get_selected_orphan 1
+src/kew/tui/selection.py::get_selected_pr 1
+src/kew/tui/selection.py::get_selected_ready_issue 1
+src/kew/tui/selection.py::get_selected_run 1
+src/kew/tui/selection.py::get_selected_work_ref 1
+src/kew/tui/selection.py::is_selected_failed 1
+src/kew/tui/selection.py::is_selected_held 1
+src/kew/tui/selection.py::is_selected_ready 1
+src/kew/tui/state.py::TuiState::refresh_remote 1
+src/kew/tui/state.py::TuiState::refresh_work 1
+src/kew/tui/widgets/detail_pane.py::DetailPane::update_issue 1
+src/kew/tui/widgets/queue_panel.py::_relative_age 1
+src/kew/tui/widgets/reviews_panel.py::_age_str 1

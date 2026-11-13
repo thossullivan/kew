@@ -1,0 +1,33 @@
+{
+  "days": 30,
+  "rows": [
+    {
+      "model": "claude-opus-5",
+      "channel": "hosted",
+      "lifecycle_status": "ok",
+      "runs": 7,
+      "opened": 4,
+      "merged": 3,
+      "review_total": 4,
+      "review_n": 4,
+      "spend": 19.22,
+      "planned_spend": 0,
+      "paired_spend": 0,
+      "planned_n": 0,
+      "by_complexity": [
+        {
+          "complexity": "medium",
+          "runs": 7,
+          "opened": 4,
+          "merged": 3,
+          "review_total": 4,
+          "review_n": 4,
+          "spend": 19.22,
+          "planned_spend": 0,
+          "paired_spend": 0,
+          "planned_n": 0
+        }
+      ]
+    }
+  ]
+}

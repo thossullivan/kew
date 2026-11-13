@@ -1,0 +1,3 @@
+gateway:   https://127.0.0.1:8443
+driver:    docker
+sandboxes: 2 running, 0 stopped

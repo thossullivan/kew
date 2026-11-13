@@ -1,0 +1,13 @@
+{
+  "item_id": "106",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Reconcile against a bank statement",
+  "url": "https://github.com/acme/ledger/issues/106",
+  "description": "Match ledger entries to the lines of a bank statement and list what is left over.",
+  "expected": "the sample statement reconciles with nothing left.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

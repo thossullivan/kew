@@ -1,0 +1,279 @@
+name: Scheduled Audits
+
+# Every job here runs GitHub-hosted. `runner-liveness` always did — it reports a
+# dead self-hosted fleet, so it cannot depend on that fleet — and the rest moved
+# off the self-hosted machine with the PR gate (see ci.yml's header for why).
+#
+# MUTATION SAMPLING: dispatch_core.py (3.5k lines) generates thousands of mutants
+# against the full suite. To keep the weekly run bounded, a pre-mutmut step
+# randomly samples a subset of paths_to_mutate (seed = ISO week number, ~50% of
+# paths, min 3). Over successive Mondays every file is eventually tested.
+
+on:
+  schedule:
+    # Weekly on Mondays at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  # The audits run everywhere; filing their findings as issues runs only while
+  # this repository is private. A public copy reports a finding as a red run
+  # and opens no public issue about secrets or surviving mutants.
+  visibility:
+    # A schedule event's payload carries no repository object, so
+    # github.event.repository.visibility is empty on a scheduled run. Read the
+    # repository's visibility from the API instead. Hosted, checks out
+    # nothing, and runs no repository code. A failed read fails this job, and
+    # the jobs that need it do not run.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      visibility: ${{ steps.read.outputs.visibility }}
+    steps:
+      - name: Read repository visibility
+        id: read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "visibility=${visibility}" >> "$GITHUB_OUTPUT"
+
+  runner-liveness:
+    # This check must stay on GitHub-hosted infrastructure: its purpose is to
+    # report a dead self-hosted fleet even when that fleet cannot start jobs.
+    # The fleet still matters after the move to hosted CI — approval.yml,
+    # audit-anchor.yml and canary.yml all run on it.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Check self-hosted runner liveness
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const runners = await github.paginate(
+              github.rest.actions.listSelfHostedRunnersForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              }
+            );
+            const offline = runners.filter((runner) => runner.status === 'offline');
+            if (offline.length > 0) {
+              core.setFailed(
+                `Offline self-hosted runner(s): ${offline.map((runner) => runner.name).join(', ')}`
+              );
+            } else {
+              core.info(`All ${runners.length} registered self-hosted runner(s) are online.`);
+            }
+
+  mutation-testing:
+    needs: visibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          cache-local-path: ${{ runner.temp }}/kew-uv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: kew
+        run: uv sync
+
+      - name: Sample mutation paths (keep weekly run bounded)
+        shell: bash
+        working-directory: kew
+        run: uv run python scripts/mutmut-sampler.py
+
+      # mutmut 3 runs the tests from kew/mutants/, so tests (parents[2]) and
+      # sandbox.py (parents[3]) that find the repo root from their own file land
+      # on kew/. Link the repo-root entries they read there (#2479).
+      - name: Link repo-root files into the mutmut root
+        shell: bash
+        working-directory: kew
+        run: |
+          for entry in .claude docker docs kew.toml; do
+            ln -s "../$entry" "$entry"
+          done
+
+      - name: Run mutmut on critical modules
+        id: mutmut-check
+        working-directory: kew
+        run: |
+          uv run mutmut run 2>&1 | tee mutmut-output.txt
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -ne 0 ]; then
+            echo "::error::mutmut run failed with exit code $exit_code"
+            exit 1
+          fi
+          echo "--- Results ---"
+          uv run mutmut results > mutmut-results.txt
+          cat mutmut-results.txt
+          # mutmut 3 prints "<mutant>: survived" (lowercase); the sampler parses
+          # those lines so the count cannot silently read 0 (#2479).
+          survived=$(uv run python scripts/mutmut-sampler.py --count-survivors < mutmut-results.txt)
+          echo "survived=$survived" >> "$GITHUB_OUTPUT"
+          if [ "$survived" -gt 0 ]; then
+            echo "::warning::$survived mutants survived — tests may be weak"
+            exit 1
+          fi
+
+      - name: Create issue on surviving mutants
+        if: failure() && steps.mutmut-check.outcome == 'failure' && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const title = '[Audit] Mutation testing: surviving mutants in critical modules';
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security-audit',
+            });
+            const body = 'Weekly mutation testing found surviving mutants in a governance-core module (`selector.py`, `pricing.py`, `budget.py`, `orchestrator.py`, `audit_chain.py`, `sandbox.py`, `security.py`, or `dispatch_core.py`). This means some mutations were not caught by existing tests.\n\nCheck the [workflow run](' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + ') for details.\n\nRun locally:\n```bash\ncd kew && uv run mutmut run && uv run mutmut results\n```';
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              // Re-file as a comment rather than returning: a finding that is
+              // still true this week must say so with THIS week's run link. The
+              // previous `some(...) && return` left #1175/#1176 carrying bodies
+              // frozen at 2026-07-27 while every run since found the current set
+              // and said nothing — an issue that looks live with stale content.
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['security-audit'],
+                body,
+              });
+            }
+
+  gitleaks-history:
+    needs: visibility
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        # PINNED to the same build as the `secrets` gate in ci.yml, with no
+        # "use whatever is already installed" branch. This job kept the old
+        # prefer-PATH / brew / fall-back-to-an-older-build shape after ci.yml
+        # moved to the pin, so on a hosted runner it silently ran an older
+        # build that drops `.gitleaks.toml`'s `[[allowlists]]` without a
+        # warning: the weekly
+        # scan re-filed the two allowlisted false positives (a sanitizer test
+        # fixture and a SQL upsert clause) as "secrets in history" (#1869)
+        # while the pinned gate and the local 8.30.0 scan were clean over the
+        # same commits. Bumping the pin is a deliberate act: re-run the scan
+        # and confirm `.gitleaks.toml` is still honoured by the new version.
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          # The SHA-256 of each release archive is pinned and verified before
+          # extraction, the same way the trivy step verifies its scanner. The
+          # values are copied from gitleaks_<VER>_checksums.txt published with
+          # the same release. Advancing the pin: fetch
+          # https://github.com/gitleaks/gitleaks/releases/download/v<VER>/gitleaks_<VER>_checksums.txt
+          # and copy the four archive lines below.
+          case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)  asset="darwin_arm64"; sha="b251ab2bcd4cd8ba9e56ff37698c033ebf38582b477d21ebd86586d927cf87e7" ;;
+            Darwin-x86_64) asset="darwin_x64";   sha="ca221d012d247080c2f6f61f4b7a83bffa2453806b0c195c795bbe9a8c775ed5" ;;
+            Linux-x86_64)  asset="linux_x64";    sha="79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e" ;;
+            Linux-aarch64) asset="linux_arm64";  sha="b4cbbb6ddf7d1b2a603088cd03a4e3f7ce48ee7fd449b51f7de6ee2906f5fa2f" ;;
+            *) echo "::error::no pinned gitleaks build for $(uname -s)-$(uname -m)"; exit 1 ;;
+          esac
+          if command -v sha256sum >/dev/null 2>&1; then
+            checksum() { sha256sum -c -; }
+          elif command -v shasum >/dev/null 2>&1; then
+            checksum() { shasum -a 256 -c -; }
+          else
+            echo "::error::neither sha256sum nor shasum is available, so the gitleaks archive cannot be verified. Refusing to run an unverified scanner."
+            exit 1
+          fi
+          archive="${RUNNER_TEMP:-/tmp}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          trap 'rm -f "$archive"' EXIT
+          curl -sSfL -o "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${asset}.tar.gz"
+          if ! echo "${sha}  ${archive}" | checksum; then
+            echo "::error::the downloaded gitleaks archive does not match its pinned SHA-256. Refusing to run a scanner this workflow cannot identify."
+            exit 1
+          fi
+          mkdir -p "$HOME/.local/bin"
+          tar xzf "$archive" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/gitleaks" version
+
+      - name: Preflight — the pinned gitleaks is the one that will run
+        shell: bash
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          found=$(gitleaks version)
+          if [ "$found" != "$GITLEAKS_VERSION" ]; then
+            echo "::error::gitleaks on PATH is $found, not the pinned $GITLEAKS_VERSION. A different version is a different gate."
+            exit 1
+          fi
+          echo "gitleaks $found (pinned)"
+
+      - name: Gitleaks full history scan
+        run: gitleaks detect --source . --verbose --redact
+
+      - name: Create issue on failure
+        if: failure() && needs.visibility.outputs.visibility == 'private'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const title = '[Audit] Gitleaks: secrets detected in git history';
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security-audit',
+            });
+            const body = 'Weekly Gitleaks history scan found potential secrets. Check the [workflow run](' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + ') for details.';
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              // Re-file as a comment rather than returning: a finding that is
+              // still true this week must say so with THIS week's run link. The
+              // previous `some(...) && return` left #1175/#1176 carrying bodies
+              // frozen at 2026-07-27 while every run since found the current set
+              // and said nothing — an issue that looks live with stale content.
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['security-audit'],
+                body,
+              });
+            }

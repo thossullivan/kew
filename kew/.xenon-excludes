@@ -1,0 +1,9 @@
+*src/kew/ci_fix.py
+*src/kew/progress.py
+*src/kew/repomap.py
+*src/kew/review.py
+*src/kew/tui/actions.py
+*src/kew/tui/app.py
+*src/kew/tui/log_formatter.py
+*src/kew/tui/screens/logs.py
+*src/kew/runners/claude_code.py

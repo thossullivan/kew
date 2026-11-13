@@ -1,0 +1,68 @@
+[
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000000",
+    "idx": 0,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.31,
+    "tokens": 48210,
+    "run_id": null,
+    "started_at": "2026-10-03T13:53:02+00:00",
+    "finished_at": "2026-10-03T13:53:02+00:00"
+  },
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000001",
+    "idx": 1,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.18,
+    "tokens": 27904,
+    "run_id": null,
+    "started_at": "2026-10-03T14:01:47+00:00",
+    "finished_at": "2026-10-03T14:01:47+00:00"
+  },
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000002",
+    "idx": 2,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.27,
+    "tokens": 41377,
+    "run_id": null,
+    "started_at": "2026-10-03T14:10:15+00:00",
+    "finished_at": "2026-10-03T14:10:15+00:00"
+  },
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000003",
+    "idx": 3,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.22,
+    "tokens": 33980,
+    "run_id": null,
+    "started_at": "2026-10-03T14:19:40+00:00",
+    "finished_at": "2026-10-03T14:19:40+00:00"
+  },
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000004",
+    "idx": 4,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.19,
+    "tokens": 30122,
+    "run_id": null,
+    "started_at": "2026-10-03T14:30:06+00:00",
+    "finished_at": "2026-10-03T14:30:06+00:00"
+  },
+  {
+    "iteration_id": "9d2a4c1e-0f7b-4e3a-8c6d-000000000005",
+    "idx": 5,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.19,
+    "tokens": 29655,
+    "run_id": null,
+    "started_at": "2026-10-03T14:41:30+00:00",
+    "finished_at": "2026-10-03T14:41:30+00:00"
+  }
+]

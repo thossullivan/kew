@@ -1,0 +1,21 @@
+{
+  "role": "loop_continuation",
+  "run_kinds": [
+    "loop"
+  ],
+  "source": {
+    "kind": "code",
+    "name": "loops.delegate._build_continuation_prompt",
+    "version": null,
+    "sha256": null,
+    "pin_mismatch": false
+  },
+  "prompt_config_applies": false,
+  "profile_applies": false,
+  "preview": "Sample item\n\nA short sample body. It stands in for a real item so the preview shows the prompt's shape without carrying anyone's content.\n\n### Acceptance Criteria\n\n- [ ] The sample behaves as described.\n\n\n--- This loop was paused for human review and is now being resumed. ---\nWhy it stopped: sample stop reason\nHuman guidance for this continuation: Sample guidance.\nYour prior work is already present in this worktree; continue from its current state. The same verification gate still decides success.",
+  "preview_sha256": "cebec4df6e2b55ea335f21a124a3d848acba5d1674520f5c141e3edf5fc056b8",
+  "variant": {},
+  "addendum": null,
+  "profile_generation": null,
+  "prompt_config_rendered": false
+}

@@ -1,0 +1,72 @@
+name: ✨ Feature / enhancement
+description: Propose a new capability or improvement — scoped so kew (or a human) can pick it up.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A well-scoped issue is **dispatchable** — kew can implement it autonomously. The
+        clearer the scope and the acceptance criteria, the better the result (the gate
+        verifies exactly those criteria). A maintainer adds a complexity label
+        (`simple` / `medium` / `complex`) and `ready` when it's ready for pickup.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences — what should exist that doesn't?
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem / motivation
+      description: What pain or gap does this address, and who hits it?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: >-
+        A checklist of observable outcomes that mean "done". This is what a reviewer
+        (or kew's verification gate) checks the work against — be concrete.
+      placeholder: |
+        - [ ] <new behavior is X>
+        - [ ] tests cover <the new behavior + edge cases>
+        - [ ] docs updated (<which doc>)
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach (optional)
+      description: A sketch of how you'd implement it. Leave blank if you'd rather it be designed first.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / likely files
+      description: Which areas or files are in scope? Anything explicitly out of scope?
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Estimated complexity
+      description: >-
+        Your best guess — a maintainer confirms the label. It drives kew's token budget
+        and model routing.
+      options:
+        - "simple — ~1–2 files, a focused change"
+        - "medium — ~2–4 files, some integration"
+        - "complex — cross-cutting, multiple subsystems"
+        - "not sure"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: This is a single, focused change (split multi-part requests into separate issues).
+          required: true

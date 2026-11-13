@@ -1,0 +1,33 @@
+{
+  "spec": "model-eol/0.1",
+  "models": [
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "status": "scheduled",
+      "shutdown": "2027-04-01",
+      "replacement": "claude-sonnet-5-5",
+      "evidence": [
+        {
+          "kind": "provider-lifecycle-doc",
+          "url": "https://platform.claude.com/docs/en/about-claude/model-deprecations",
+          "checkedAt": "2026-10-10"
+        }
+      ]
+    },
+    {
+      "id": "claude-sonnet-6",
+      "provider": "anthropic",
+      "status": "ok",
+      "shutdown": null,
+      "replacement": null,
+      "evidence": [
+        {
+          "kind": "provider-catalog",
+          "url": "https://platform.claude.com/docs/en/about-claude/models/overview",
+          "checkedAt": "2026-10-10"
+        }
+      ]
+    }
+  ]
+}

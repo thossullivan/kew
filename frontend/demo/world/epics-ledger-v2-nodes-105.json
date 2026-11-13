@@ -1,0 +1,33 @@
+{
+  "id": "105",
+  "runs": [
+    {
+      "run_id": "ff3a322f",
+      "status": "success",
+      "model": "claude-opus-5",
+      "runner": "claude-code",
+      "cost_usd": 3.92,
+      "total_tokens": 3497954,
+      "cache_creation_tokens": 137839,
+      "cache_read_tokens": 3445965,
+      "pr_url": "https://github.com/acme/ledger/pull/205",
+      "started_at": "2026-10-20T19:00:00+00:00",
+      "finished_at": "2026-10-20T19:43:00+00:00"
+    },
+    {
+      "run_id": "9e5d7d74",
+      "status": "success",
+      "model": "claude-opus-5",
+      "runner": "claude-code",
+      "cost_usd": 1.11,
+      "total_tokens": 2936049,
+      "cache_creation_tokens": 116767,
+      "cache_read_tokens": 2919182,
+      "pr_url": null,
+      "started_at": "2026-10-20T19:49:00+00:00",
+      "finished_at": "2026-10-20T20:04:00+00:00"
+    }
+  ],
+  "lifetime_usd": 5.03,
+  "drain_usd": 5.03
+}

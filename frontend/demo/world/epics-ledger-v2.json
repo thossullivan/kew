@@ -1,0 +1,340 @@
+{
+  "epic_ref": "ledger-v2",
+  "snapshot": {
+    "epic_ref": "ledger-v2",
+    "tick_id": 2640,
+    "tick_ts": "",
+    "signal": "progressing",
+    "counts": {
+      "todo": 3,
+      "queued": 0,
+      "in_progress": 1,
+      "in_review": 2,
+      "done": 5,
+      "failed": 1,
+      "held": 0,
+      "blocked": 1,
+      "cancelled": 0
+    },
+    "frontier": [
+      "113"
+    ],
+    "nodes": [
+      {
+        "id": "101",
+        "title": "Parse ledger entries from a CSV export",
+        "status": "done",
+        "status_since": "2026-10-19T20:05:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/101",
+        "pr_url": "https://github.com/acme/ledger/pull/201",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "102",
+        "title": "Exact decimal amounts in every currency",
+        "status": "done",
+        "status_since": "2026-10-19T23:46:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/102",
+        "pr_url": "https://github.com/acme/ledger/pull/202",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "103",
+        "title": "Double-entry posting rule",
+        "status": "done",
+        "status_since": "2026-10-20T09:36:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/103",
+        "pr_url": "https://github.com/acme/ledger/pull/203",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "104",
+        "title": "Account balance query",
+        "status": "done",
+        "status_since": "2026-10-20T14:20:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/104",
+        "pr_url": "https://github.com/acme/ledger/pull/204",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "105",
+        "title": "Monthly statement export",
+        "status": "done",
+        "status_since": "2026-10-20T20:10:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/105",
+        "pr_url": "https://github.com/acme/ledger/pull/205",
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "settled",
+        "alive": false
+      },
+      {
+        "id": "106",
+        "title": "Reconcile against a bank statement",
+        "status": "in_progress",
+        "status_since": "2026-10-21T14:40:12+00:00",
+        "url": "https://github.com/acme/ledger/issues/106",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "executing",
+        "alive": true
+      },
+      {
+        "id": "107",
+        "title": "Idempotent import of a re-sent file",
+        "status": "in_review",
+        "status_since": "2026-10-21T10:28:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/107",
+        "pr_url": "https://github.com/acme/ledger/pull/207",
+        "external": false,
+        "stuck": null,
+        "attention": {
+          "kind": "merge_decision",
+          "reason": "PR open for #107 — awaiting review",
+          "url": "https://github.com/acme/ledger/pull/207",
+          "action": "",
+          "command": "",
+          "sentence": "Merge verify failed at 69566afe: 2 of main's tests fail on this PR — the merge decision is yours",
+          "link": {
+            "label": "Open PR #207 to merge",
+            "href": "https://github.com/acme/ledger/pull/207"
+          },
+          "verify_link": {
+            "label": "See the failed merge verify",
+            "href": "/work?item=107#merge-verify"
+          }
+        },
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "108",
+        "title": "Multi-currency trial balance",
+        "status": "in_review",
+        "status_since": "2026-10-21T03:26:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/108",
+        "pr_url": "https://github.com/acme/ledger/pull/208",
+        "external": false,
+        "stuck": null,
+        "attention": {
+          "kind": "merge_decision",
+          "reason": "PR open for #108 — awaiting review",
+          "url": "https://github.com/acme/ledger/pull/208",
+          "action": "",
+          "command": "",
+          "sentence": "PR #208 is open — the merge decision is yours",
+          "link": {
+            "label": "Open PR #208 to merge",
+            "href": "https://github.com/acme/ledger/pull/208"
+          }
+        },
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "109",
+        "title": "Close a period and lock its entries",
+        "status": "failed",
+        "status_since": "2026-10-21T07:40:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/109",
+        "pr_url": null,
+        "external": false,
+        "stuck": "failed-terminal (exit 137, host_restart_repeated)",
+        "attention": {
+          "kind": "host_restart_repeated",
+          "reason": "failed-terminal (exit 137, host_restart_repeated)",
+          "url": null,
+          "action": "check why the host keeps going down, then kew epic retry the node",
+          "command": "kew epic retry ledger-v2 109",
+          "sentence": "the host restarted under this node twice",
+          "link": null
+        },
+        "blocked_reason": null,
+        "recovery_command": "kew epic retry ledger-v2 109",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "110",
+        "title": "Audit trail for every posting",
+        "status": "blocked",
+        "status_since": "2026-10-20T09:41:00+00:00",
+        "url": "https://github.com/acme/ledger/issues/110",
+        "pr_url": null,
+        "external": false,
+        "stuck": "needs a product decision: how long a posting is kept",
+        "attention": null,
+        "blocked_reason": "needs a product decision: how long a posting is kept",
+        "recovery_command": "",
+        "motion": "waiting_human",
+        "alive": true
+      },
+      {
+        "id": "111",
+        "title": "Year-end rollover",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/acme/ledger/issues/111",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "112",
+        "title": "Ledger CLI help and examples",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/acme/ledger/issues/112",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      },
+      {
+        "id": "113",
+        "title": "Import from an OFX bank file",
+        "status": "todo",
+        "status_since": null,
+        "url": "https://github.com/acme/ledger/issues/113",
+        "pr_url": null,
+        "external": false,
+        "stuck": null,
+        "attention": null,
+        "blocked_reason": null,
+        "recovery_command": "",
+        "motion": "waiting_kew",
+        "alive": true
+      }
+    ],
+    "edges": [
+      [
+        "101",
+        "103"
+      ],
+      [
+        "102",
+        "103"
+      ],
+      [
+        "103",
+        "104"
+      ],
+      [
+        "104",
+        "105"
+      ],
+      [
+        "103",
+        "106"
+      ],
+      [
+        "101",
+        "107"
+      ],
+      [
+        "102",
+        "108"
+      ],
+      [
+        "104",
+        "108"
+      ],
+      [
+        "104",
+        "109"
+      ],
+      [
+        "103",
+        "110"
+      ],
+      [
+        "109",
+        "111"
+      ],
+      [
+        "106",
+        "112"
+      ],
+      [
+        "107",
+        "112"
+      ],
+      [
+        "102",
+        "113"
+      ]
+    ],
+    "unavailable": []
+  },
+  "economics": {
+    "window_start": null,
+    "drain_total_usd": 45.65,
+    "node_drain_usd": {
+      "101": 4.5,
+      "102": 5.69,
+      "103": 4.1,
+      "104": 7.44,
+      "105": 5.03,
+      "107": 9.43,
+      "108": 4.89,
+      "109": 4.57
+    },
+    "label": "since last tick"
+  },
+  "heartbeat": {
+    "last_tick_started_at": "2026-10-21T14:59:30+00:00",
+    "last_tick_ts": "2026-10-21T14:59:32+00:00",
+    "last_tick_duration_s": 2,
+    "tick_count": 2640,
+    "interval_s": 60,
+    "last_signal": "progressing",
+    "change_count": 28,
+    "tracker": "github",
+    "driver_status": "live",
+    "cadence_source": "recorded"
+  }
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "iteration_id": "5f3c9a1e-2b7d-4c80-9e14-000000000000",
+    "idx": 0,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.38,
+    "tokens": 51204,
+    "run_id": null,
+    "started_at": "2026-08-12T15:07:00+00:00",
+    "finished_at": "2026-08-12T15:07:00+00:00"
+  },
+  {
+    "iteration_id": "5f3c9a1e-2b7d-4c80-9e14-000000000001",
+    "idx": 1,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.27,
+    "tokens": 36880,
+    "run_id": null,
+    "started_at": "2026-08-12T15:16:00+00:00",
+    "finished_at": "2026-08-12T15:16:00+00:00"
+  },
+  {
+    "iteration_id": "5f3c9a1e-2b7d-4c80-9e14-000000000002",
+    "idx": 2,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.31,
+    "tokens": 42515,
+    "run_id": null,
+    "started_at": "2026-08-12T15:23:00+00:00",
+    "finished_at": "2026-08-12T15:23:00+00:00"
+  },
+  {
+    "iteration_id": "5f3c9a1e-2b7d-4c80-9e14-000000000003",
+    "idx": 3,
+    "kind": "assistant_turn",
+    "status": "pursuing",
+    "cost_usd": 0.19,
+    "tokens": 24090,
+    "run_id": null,
+    "started_at": "2026-08-12T15:28:00+00:00",
+    "finished_at": "2026-08-12T15:28:00+00:00"
+  }
+]

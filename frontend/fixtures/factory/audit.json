@@ -1,0 +1,65 @@
+{
+  "events": [
+    {
+      "id": 5,
+      "timestamp": "2026-10-03T14:46:40+00:00",
+      "event": "adversarial_review_verdict",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "9c41e2b7",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "{\"pr_number\":2059,\"item_id\":\"2055\",\"head_sha\":\"4e1c9a07b2d85f3361a0c7e9d4b2f81a6c05e3d9\",\"round\":1,\"verdict\":\"READY\",\"sidecar_digest\":\"sha256:9b0f6c2e41d7a8835f1e0c4b7a6d2e93f80c1b5a\",\"reviewer_model\u2026",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-10-03T14:33:14+00:00",
+      "event": "sandbox_resolved",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "9c41e2b7",
+      "actor_type": "host",
+      "actor_id": "kew",
+      "summary": "{\"phase\":\"issuance\",\"posture\":\"sandboxed\",\"runtime\":\"docker\",\"egress\":\"kew-allowlist\",\"credential_mode\":\"placeholder\",\"reason\":null}",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-10-03T14:33:12+00:00",
+      "event": "dispatch_owner_recorded",
+      "issue_num": 2055,
+      "item_id": null,
+      "run_id": "9c41e2b7",
+      "actor_type": "policy",
+      "actor_id": "kew",
+      "summary": "{\"owner_pid\":48213,\"owner_start_time\":1759502000.42,\"owner_start_token\":\"b7c1e2\",\"owner_ppid\":48190,\"owner_command\":\"kew dispatch 2055 --stage adversarial_review\",\"pgid\":48213}",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-10-03T14:26:11+00:00",
+      "event": "dispatch_checkout_bound",
+      "issue_num": 2033,
+      "item_id": null,
+      "run_id": "7d3f0a16",
+      "actor_type": "agent",
+      "actor_id": "claude-code",
+      "summary": "{\"branch\":\"agent/issue-2033\",\"checkout\":\"/home/kew/.kew/worktrees/issue-2033\",\"checkout_id\":\"c0a3f9e1\"}",
+      "epic_ref": "launch-fixes"
+    },
+    {
+      "id": 1,
+      "timestamp": "2026-10-03T14:26:09+00:00",
+      "event": "routing_decision",
+      "issue_num": 2033,
+      "item_id": null,
+      "run_id": "7d3f0a16",
+      "actor_type": "agent",
+      "actor_id": "claude-code",
+      "summary": "{\"complexity\":\"medium\",\"recommended_runner\":\"claude-code\",\"applied\":true,\"source\":\"routing.medium\"}",
+      "epic_ref": "launch-fixes"
+    }
+  ],
+  "next_after": null
+}

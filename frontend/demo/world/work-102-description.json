@@ -1,0 +1,13 @@
+{
+  "item_id": "102",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Exact decimal amounts in every currency",
+  "url": "https://github.com/acme/ledger/issues/102",
+  "description": "Store amounts as integer minor units with an ISO currency code, so no sum ever rounds.",
+  "expected": "adding 0.10 three times gives exactly 0.30.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

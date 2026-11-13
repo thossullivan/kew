@@ -1,0 +1,21 @@
+{
+  "role": "review_remediation",
+  "kind": "implementer",
+  "min_items": 10,
+  "versions": [
+    {
+      "version": null,
+      "label": "built-in",
+      "state": null,
+      "n": 6,
+      "comparable": false,
+      "round_one_items": 6,
+      "first_pass_rate": 0.5,
+      "ready_items": 5,
+      "mean_rounds_to_ready": 1.6,
+      "merged_items": 3,
+      "median_cost_usd": 1.57
+    }
+  ],
+  "generation": 0
+}

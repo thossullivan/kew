@@ -1,0 +1,43 @@
+{
+  "item_id": "SFD-229",
+  "rows": [
+    {
+      "n": 1,
+      "label": "Sandboxed",
+      "event": "sandbox_resolved",
+      "summary": "sandboxed",
+      "ts": "2026-09-29T07:20:24+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 2,
+      "label": "Canonical publication",
+      "event": "publication_posture",
+      "summary": "canonical",
+      "ts": "2026-09-29T08:51:46+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 3,
+      "label": "Scan clean",
+      "event": "publication_output_scan",
+      "summary": "published · no scan recorded",
+      "ts": "",
+      "state": "missing"
+    },
+    {
+      "n": 4,
+      "label": "Verdict",
+      "event": "adversarial_review_verdict",
+      "summary": "needs changes",
+      "ts": "2026-09-29T09:40:00+00:00",
+      "state": "attested"
+    }
+  ],
+  "attested_count": 3,
+  "total": 4,
+  "chain_verified": true,
+  "reason": "",
+  "unavailable": [],
+  "composed_at": "2026-09-29T10:08:00+00:00"
+}

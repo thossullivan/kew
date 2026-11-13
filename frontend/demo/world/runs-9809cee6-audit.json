@@ -1,0 +1,48 @@
+{
+  "events": [
+    {
+      "seq": 2223,
+      "ts": "2026-10-19T23:30:01+00:00",
+      "event": "dispatch_owner_recorded",
+      "actor_type": "policy",
+      "item_id": "102",
+      "payload": {
+        "owner_pid": 4202
+      }
+    },
+    {
+      "seq": 2224,
+      "ts": "2026-10-19T23:30:02+00:00",
+      "event": "routing_decision",
+      "actor_type": "agent",
+      "item_id": "102",
+      "payload": {
+        "recommended_runner": "claude-code",
+        "applied": false
+      }
+    },
+    {
+      "seq": 2225,
+      "ts": "2026-10-19T23:30:23+00:00",
+      "event": "sandbox_resolved",
+      "actor_type": "host",
+      "item_id": "102",
+      "payload": {
+        "posture": "sandboxed"
+      }
+    },
+    {
+      "seq": 2226,
+      "ts": "2026-10-19T23:43:00+00:00",
+      "event": "adversarial_review_verdict",
+      "actor_type": "host",
+      "item_id": "102",
+      "payload": {
+        "verdict": "READY",
+        "round": 1
+      }
+    }
+  ],
+  "run_id": "9809cee6",
+  "next_seq": 2227
+}

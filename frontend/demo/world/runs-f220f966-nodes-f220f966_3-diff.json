@@ -1,0 +1,47 @@
+{
+  "node_id": "f220f966:3",
+  "text": "artifact sha256:af220f9660000000000000000000000000000000000000000000000000000000\nbase f220f966f220f966f220f966f220f966f220f966\ntree 669f022f669f022f669f022f669f022f669f022f\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0ff220f966000000000000000000000000000000000000000000000000000000 83 src/ledger/multi_currency_trial_balance.py\nchanged 100644 sha256:1ff220f966000000000000000000000000000000000000000000000000000000 103 tests/test_multi_currency_trial_balance.py\n",
+  "run_id": "f220f966",
+  "attempt_number": 1,
+  "base_sha": "f220f966f220f966f220f966f220f966f220f966",
+  "tree_sha": "669f022f669f022f669f022f669f022f669f022f",
+  "package_digest": "sha256:af220f9660000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:rf220f9660000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/multi_currency_trial_balance.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0ff220f966000000000000000000000000000000000000000000000000000000",
+      "byte_length": 83,
+      "text": "\"\"\"A trial balance across currencies, converted at the rate of the closing day.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_multi_currency_trial_balance.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1ff220f966000000000000000000000000000000000000000000000000000000",
+      "byte_length": 103,
+      "text": "def test_multi_currency_trial_balance():\n    \"\"\"the trial balance of the sample books sums to zero.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

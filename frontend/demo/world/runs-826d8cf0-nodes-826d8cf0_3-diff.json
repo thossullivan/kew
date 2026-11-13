@@ -1,0 +1,47 @@
+{
+  "node_id": "826d8cf0:3",
+  "text": "artifact sha256:a826d8cf00000000000000000000000000000000000000000000000000000000\nbase 826d8cf0826d8cf0826d8cf0826d8cf0826d8cf0\ntree 0fc8d6280fc8d6280fc8d6280fc8d6280fc8d628\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0f826d8cf0000000000000000000000000000000000000000000000000000000 85 src/ledger/double_entry_posting_rule.py\nchanged 100644 sha256:1f826d8cf0000000000000000000000000000000000000000000000000000000 102 tests/test_double_entry_posting_rule.py\n",
+  "run_id": "826d8cf0",
+  "attempt_number": 1,
+  "base_sha": "826d8cf0826d8cf0826d8cf0826d8cf0826d8cf0",
+  "tree_sha": "0fc8d6280fc8d6280fc8d6280fc8d6280fc8d628",
+  "package_digest": "sha256:a826d8cf00000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:r826d8cf00000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/double_entry_posting_rule.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0f826d8cf0000000000000000000000000000000000000000000000000000000",
+      "byte_length": 85,
+      "text": "\"\"\"Refuse a posting whose debits and credits do not balance, and say by how much.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_double_entry_posting_rule.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1f826d8cf0000000000000000000000000000000000000000000000000000000",
+      "byte_length": 102,
+      "text": "def test_double_entry_posting_rule():\n    \"\"\"an unbalanced posting is refused with the difference.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

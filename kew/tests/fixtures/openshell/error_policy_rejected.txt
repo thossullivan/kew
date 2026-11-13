@@ -1,0 +1,1 @@
+Error: policy rejected: unknown rule "egress.allowAll" at policy.yaml:7

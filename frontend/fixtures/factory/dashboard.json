@@ -1,0 +1,181 @@
+{
+  "banner": {
+    "fleet_stopped": false,
+    "no_live_driver": false
+  },
+  "rows": [
+    {
+      "type": "pr_review",
+      "consequence": "review",
+      "age": "2026-09-24T15:46:58+00:00",
+      "reason": "merge decision on PR #2059",
+      "primary_action": "open",
+      "issue_num": 2055,
+      "item_id": "2055",
+      "estimate_usd": null,
+      "epic_ref": "launch-fixes",
+      "url": "https://github.com/thossullivan/kew/pull/2059",
+      "pr_number": 2059,
+      "attention_kind": "merge_decision",
+      "label": "",
+      "command": "",
+      "sentence": "Merge verify failed at 3670e43f: 2 of main's tests fail on this PR \u2014 the merge decision is yours",
+      "link": {
+        "label": "Open PR #2059 to merge",
+        "href": "https://github.com/thossullivan/kew/pull/2059"
+      },
+      "verify_link": {
+        "label": "See the failed merge verify",
+        "href": "/work?item=2055#merge-verify"
+      }
+    },
+    {
+      "type": "epic_wait",
+      "consequence": "wait",
+      "age": "2026-09-29T09:41:00+00:00",
+      "reason": "SFD-229 \u2014 review_rounds_exhausted: review pool $10.00 exhausted (spent $22.18)",
+      "primary_action": "kew epic unhold, which also restarts the review cycle",
+      "issue_num": null,
+      "item_id": "SFD-229",
+      "estimate_usd": null,
+      "epic_ref": "go-live-2026-09",
+      "url": "https://linear.app/kew/issue/SFD-229",
+      "pr_number": null,
+      "attention_kind": "held",
+      "label": "the review round cap was reached",
+      "command": "kew epic unhold go-live-2026-09 SFD-229",
+      "sentence": "the review round cap was reached: review pool $10.00 exhausted (spent $22.18)",
+      "title": "budget caps per epic, with a preflight refusal",
+      "link": null
+    }
+  ],
+  "glance": {
+    "fleet": {
+      "stopped": false,
+      "pending": 1
+    },
+    "caps": {
+      "daily": {
+        "window_days": 1,
+        "spent": 178.05,
+        "cap": 250.0,
+        "agentic": 178.05,
+        "interactive": 0.0
+      },
+      "weekly": {
+        "window_days": 7,
+        "spent": 915.05,
+        "cap": 1500.0,
+        "agentic": 915.05,
+        "interactive": 0.0
+      }
+    },
+    "routing": [
+      {
+        "complexity": "small",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "medium",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      },
+      {
+        "complexity": "large",
+        "route": "claude-code/claude-opus-5",
+        "provenance": "file"
+      }
+    ],
+    "ready_queue": [
+      {
+        "issue_num": 2060,
+        "item_id": "2060",
+        "title": "Changed-files inspection refuses on .venv",
+        "complexity": "small",
+        "route": "claude-code/claude-opus-5",
+        "estimate_usd": 2.0
+      },
+      {
+        "issue_num": 2058,
+        "item_id": "2058",
+        "title": "Dry run skips the ready and weekly checks",
+        "complexity": "small",
+        "route": "claude-code/claude-opus-5",
+        "estimate_usd": 2.0
+      },
+      {
+        "issue_num": 2054,
+        "item_id": "2054",
+        "title": "Key-shape cap counts blob pairs",
+        "complexity": "medium",
+        "route": "claude-code/claude-opus-5",
+        "estimate_usd": 5.0
+      },
+      {
+        "issue_num": 2050,
+        "item_id": "2050",
+        "title": "Run-state vocabulary and kew wait",
+        "complexity": "large",
+        "route": "claude-code/claude-opus-5",
+        "estimate_usd": 12.0
+      }
+    ],
+    "queue_candidates": [
+      {
+        "issue_num": 2062,
+        "item_id": "2062",
+        "title": "Doctor names the stale lock holder"
+      },
+      {
+        "issue_num": 2064,
+        "item_id": "2064",
+        "title": "Budget page reads the weekly window twice"
+      }
+    ],
+    "recent_completions": [
+      {
+        "run_id": "f5dcb6a5",
+        "issue_num": 2055,
+        "item_id": "2055",
+        "title": "Review gate lows: comment and hold-back",
+        "status": "success",
+        "cost_usd": 3.1,
+        "model": "claude-opus-5",
+        "finished_at": "2026-09-24T15:46:58+00:00"
+      }
+    ],
+    "pressure": {
+      "delivery_repo": "thossullivan/kew",
+      "engaged": true,
+      "countable": true,
+      "used": 1,
+      "total": 4,
+      "held": 1,
+      "oldest_hold_age_seconds": null,
+      "diff_burden_lines": 252,
+      "saturated": false,
+      "reasons": [],
+      "enforcement": "inactive",
+      "enforcement_detail": "the human-review policy is configured and reported, but not active",
+      "policy_generation": 3,
+      "observation": {
+        "dimension": "review_capacity",
+        "availability": "available",
+        "provenance": "observed",
+        "observed_at": "2026-10-03T14:33:02+00:00",
+        "detail": null
+      }
+    }
+  },
+  "as_of": {
+    "runs": "2026-10-03T14:33:02+00:00",
+    "tracker": "2026-10-03T14:33:02+00:00",
+    "forge": "2026-10-03T14:33:02+00:00"
+  },
+  "unavailable": [],
+  "needs_you_by_epic": {
+    "launch-fixes": 1,
+    "go-live-2026-09": 1
+  }
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": 908,
+    "timestamp": "2026-10-03T14:41:30+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 907,
+    "timestamp": "2026-10-03T14:30:06+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 906,
+    "timestamp": "2026-10-03T14:19:40+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 905,
+    "timestamp": "2026-10-03T14:10:15+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 904,
+    "timestamp": "2026-10-03T14:01:47+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 903,
+    "timestamp": "2026-10-03T13:53:02+00:00",
+    "event": "iteration_recorded",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 902,
+    "timestamp": "2026-10-03T13:52:41+00:00",
+    "event": "loop_checkout_bound",
+    "actor_type": "policy",
+    "actor_id": "kew",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  },
+  {
+    "id": 901,
+    "timestamp": "2026-10-03T13:52:10+00:00",
+    "event": "loop_started",
+    "actor_type": "human",
+    "actor_id": "thossullivan",
+    "loop_id": "3b8e1f27-6c4d-4a9e-b2f5-7d0c9e1a4b63",
+    "summary": ""
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "name": "kew-www",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run tokens && vite dev",
+    "build": "npm run tokens && vite build && node scripts/no-dashes.mjs && node scripts/page-claims.mjs",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "tokens": "node scripts/sync-tokens.mjs",
+    "tokens:check": "node scripts/sync-tokens.mjs --check",
+    "lifecycle:check": "node scripts/fetch-model-lifecycle.mjs --check",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:install": "node scripts/check-install.mjs",
+    "gates": "node scripts/run-gates.mjs",
+    "browser-check": "node scripts/browser-check.mjs",
+    "dist": "npm run build && node scripts/compose-dist.mjs && node scripts/llms-txt.mjs --site build/docs",
+    "deploy": "./deploy.sh",
+    "serve": "npm run dist && docker compose up -d && docker compose restart",
+    "serve:down": "docker compose down",
+    "lint:copy": "node scripts/no-dashes.mjs",
+    "stats": "node scripts/fetch-repo-stats.mjs",
+    "og": "node scripts/make-og.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/node": "^22.0.0",
+    "playwright-core": "1.63.0",
+    "svelte": "^5.56.1",
+    "svelte-check": "^4.6.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "by_run_kind": {
+    "adversarial_review": {
+      "cache_read_tokens": {
+        "median": 2100000,
+        "p90": 2900000
+      },
+      "cost_usd": {
+        "median": 1.2,
+        "p90": 2.0
+      },
+      "duration_minutes": {
+        "median": 19,
+        "p90": 29
+      },
+      "input_tokens": {
+        "median": 130,
+        "p90": 180
+      },
+      "output_tokens": {
+        "median": 14000,
+        "p90": 19000
+      },
+      "runs": 50,
+      "success_rate": 1.0
+    },
+    "dispatch": {
+      "cache_read_tokens": {
+        "median": 5300000,
+        "p90": 7400000
+      },
+      "cost_usd": {
+        "median": 3.3,
+        "p90": 4.5
+      },
+      "duration_minutes": {
+        "median": 28,
+        "p90": 39
+      },
+      "input_tokens": {
+        "median": 250,
+        "p90": 400
+      },
+      "output_tokens": {
+        "median": 45000,
+        "p90": 64000
+      },
+      "runs": 60,
+      "success_rate": 0.85
+    },
+    "review_remediation": {
+      "cache_read_tokens": {
+        "median": 2800000,
+        "p90": 4100000
+      },
+      "cost_usd": {
+        "median": 1.4,
+        "p90": 2.3
+      },
+      "duration_minutes": {
+        "median": 15,
+        "p90": 23
+      },
+      "input_tokens": {
+        "median": 190,
+        "p90": 220
+      },
+      "output_tokens": {
+        "median": 18000,
+        "p90": 28000
+      },
+      "runs": 20,
+      "success_rate": 0.95
+    }
+  },
+  "min_runs": 20,
+  "source": "fake"
+}

@@ -1,0 +1,277 @@
+{
+  "schema": 1,
+  "checks": [
+    {
+      "id": "project-config",
+      "status": "ok",
+      "summary": "config in force: /home/you/project/kew.toml",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "required-tools",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "containment",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "container-runtime",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "route-image",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "allowlist-network",
+      "status": "fail",
+      "summary": "'kew-allowlist' is not present",
+      "hint": "kew installs no firewall rules on it, so a plain bridge gives the container full egress until you restrict it yourself",
+      "fix": "docker network create --driver bridge kew-allowlist",
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-gateway",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-version",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-tls",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-telemetry",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-image-pins",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-providers",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-agent-authority",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-landlock",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "openshell-certification",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "model-eol",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "anchor-age",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "temporary-storage",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "editable-install",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "runner-liveness",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "host-local",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "host-gcloud",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "host-gcloud-auth",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "host-gcp-instance",
+      "status": "skip",
+      "summary": "not reported by its check",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "agent-image",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "retained-agent-tags",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "degraded-review",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "reservations",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "shadow-db",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    },
+    {
+      "id": "route-live",
+      "status": "ok",
+      "summary": "passed",
+      "hint": null,
+      "fix": null,
+      "details": [],
+      "warnings": []
+    }
+  ],
+  "ok": false,
+  "checked_at": "2026-10-03T14:47:00+00:00"
+}

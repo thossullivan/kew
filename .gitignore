@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+# Coverage-floor artifacts (#951): pytest --cov writes these on every CI/verify run
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node
+node_modules/
+# `svelte-kit sync` / `vite` output. frontend/.gitignore and www/.gitignore
+# exclude these one directory down; these entries are for the tree the same
+# commands write when they are run from the repo root instead — which is how
+# a generated .svelte-kit/ once reached a commit (kew/tests/test_tracked_tree.py).
+.svelte-kit/
+.vite/
+# `npm run build:demo` output (#3139): the static demo console, beside build/.
+build-demo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dispatch runtime
+logs/
+.worktrees/
+# Preserved work packages: owner-only evidence bytes, never committed
+.kew/private/
+# Internal docs directory (docs/skills.md): plans, handoff notes and audit
+# reports written by the skills. Internal working material, never published.
+.kew/docs/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# MkDocs build output
+site/
+
+# Brainstorm sessions
+.superpowers/
+
+# Generated web bundle (built into the wheel, never committed)
+kew/src/kew/serve/web/
+
+# Visual-check screenshots (frontend/scripts/shoot.mjs output)
+frontend/.shots/
+
+# demo capture working files (not committed)
+demo-assets/
+
+# Evidence packs, the usual `kew report export --output` folder. scripts/check-docs.sh
+# refuses them in the index; this keeps a fresh export out of `git add`.
+evidence-packs/
+
+# `kew setup` run from kew/ installs a second hook and skill set there. The
+# tracked copy is the root `.claude/`.
+kew/.claude/
+
+# Tooling and test-suite junk that must never reach a public tree
+.tokensave/
+MagicMock/
+**/MagicMock/
+
+# Eval run output (never committed)
+kew/evals/*/results/

@@ -1,0 +1,406 @@
+{
+  "schema": "kew/provenance@1",
+  "as_of": "2026-10-10T06:34:00+00:00",
+  "integrity_source": "corpus",
+  "features": [
+    {
+      "id": "epics-list",
+      "title": "Epics list",
+      "routes": [
+        "/epics"
+      ],
+      "epics": [
+        "epic:lumen-ledger-views"
+      ],
+      "issues": [
+        "7101",
+        "7102"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/41",
+          "landed_sha": "0000000000000000000000000000000000017b4d"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/42",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 3,
+        "dispatch": 2,
+        "review_remediation": 1
+      },
+      "list_cost_usd": 10.17,
+      "review_rounds": {
+        "NEEDS_CHANGES": 1,
+        "READY": 1,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 0,
+        "flags": {}
+      }
+    },
+    {
+      "id": "epic-graph",
+      "title": "Epic graph",
+      "routes": [
+        "/epics/[ref]"
+      ],
+      "epics": [
+        "epic:lumen-graph-canvas"
+      ],
+      "issues": [
+        "7103",
+        "7104",
+        "7105"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/43",
+          "landed_sha": "0000000000000000000000000000000000017b4f"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/44",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/45",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 5,
+        "dispatch": 3,
+        "review_remediation": 2
+      },
+      "list_cost_usd": 21.75,
+      "review_rounds": {
+        "NEEDS_CHANGES": 2,
+        "READY": 2,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 1,
+        "tests_failed": 1,
+        "tests_undeclared": 1
+      },
+      "integrity": {
+        "runs_flagged": 1,
+        "flags": {
+          "skip_added": 1
+        }
+      }
+    },
+    {
+      "id": "monitor",
+      "title": "Monitor",
+      "routes": [
+        "/monitor"
+      ],
+      "epics": [
+        "epic:lumen-live-stream"
+      ],
+      "issues": [
+        "7106",
+        "7107",
+        "7108",
+        "7109"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/46",
+          "landed_sha": "0000000000000000000000000000000000017b52"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/47",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/48",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/49",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 6,
+        "dispatch": 4,
+        "review_remediation": 2
+      },
+      "list_cost_usd": 21.0,
+      "review_rounds": {
+        "NEEDS_CHANGES": 2,
+        "READY": 2,
+        "READY_WITH_RESIDUALS": 2
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 2,
+        "flags": {
+          "skip_added": 2
+        }
+      }
+    },
+    {
+      "id": "needs-you",
+      "title": "Needs you",
+      "routes": [
+        "/work",
+        "/monitor"
+      ],
+      "epics": [
+        "epic:lumen-attention"
+      ],
+      "issues": [
+        "7110",
+        "7111"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/50",
+          "landed_sha": "0000000000000000000000000000000000017b56"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/51",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 3,
+        "dispatch": 2,
+        "review_remediation": 1
+      },
+      "list_cost_usd": 13.43,
+      "review_rounds": {
+        "NEEDS_CHANGES": 1,
+        "READY": 1,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 0,
+        "flags": {}
+      }
+    },
+    {
+      "id": "work",
+      "title": "Work",
+      "routes": [
+        "/work"
+      ],
+      "epics": [
+        "epic:lumen-work-queue"
+      ],
+      "issues": [
+        "7112",
+        "7113",
+        "7114"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/52",
+          "landed_sha": "0000000000000000000000000000000000017b58"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/53",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/54",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 4,
+        "dispatch": 3,
+        "review_remediation": 1
+      },
+      "list_cost_usd": 14.86,
+      "review_rounds": {
+        "NEEDS_CHANGES": 1,
+        "READY": 2,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 1,
+        "flags": {
+          "skip_added": 1
+        }
+      }
+    },
+    {
+      "id": "prompts",
+      "title": "Prompts",
+      "routes": [
+        "/prompts"
+      ],
+      "epics": [
+        "epic:lumen-prompt-ledger"
+      ],
+      "issues": [
+        "7115",
+        "7116",
+        "7117",
+        "7118"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/55",
+          "landed_sha": "0000000000000000000000000000000000017b5b"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/56",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/57",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/58",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 6,
+        "dispatch": 4,
+        "review_remediation": 2
+      },
+      "list_cost_usd": 21.74,
+      "review_rounds": {
+        "NEEDS_CHANGES": 2,
+        "READY": 2,
+        "READY_WITH_RESIDUALS": 2
+      },
+      "held_out": {
+        "items_failed": 1,
+        "tests_failed": 1,
+        "tests_undeclared": 1
+      },
+      "integrity": {
+        "runs_flagged": 2,
+        "flags": {
+          "skip_added": 2
+        }
+      }
+    },
+    {
+      "id": "budget",
+      "title": "Budget and spend",
+      "routes": [
+        "/budget"
+      ],
+      "epics": [
+        "epic:lumen-spend-caps"
+      ],
+      "issues": [
+        "7119",
+        "7120"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/59",
+          "landed_sha": "0000000000000000000000000000000000017b5f"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/60",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 3,
+        "dispatch": 2,
+        "review_remediation": 1
+      },
+      "list_cost_usd": 12.25,
+      "review_rounds": {
+        "NEEDS_CHANGES": 1,
+        "READY": 1,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 0,
+        "flags": {}
+      }
+    },
+    {
+      "id": "runs",
+      "title": "Runs",
+      "routes": [
+        "/runs",
+        "/runs/[id]"
+      ],
+      "epics": [
+        "epic:lumen-run-history"
+      ],
+      "issues": [
+        "7121",
+        "7122",
+        "7123"
+      ],
+      "prs": [
+        {
+          "url": "https://github.com/acme/kew/pull/61",
+          "landed_sha": "0000000000000000000000000000000000017b61"
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/62",
+          "landed_sha": null
+        },
+        {
+          "url": "https://github.com/acme/kew/pull/63",
+          "landed_sha": null
+        }
+      ],
+      "runs": {
+        "adversarial_review": 5,
+        "dispatch": 3,
+        "review_remediation": 2
+      },
+      "list_cost_usd": 20.05,
+      "review_rounds": {
+        "NEEDS_CHANGES": 2,
+        "READY": 2,
+        "READY_WITH_RESIDUALS": 1
+      },
+      "held_out": {
+        "items_failed": 0,
+        "tests_failed": 0,
+        "tests_undeclared": 0
+      },
+      "integrity": {
+        "runs_flagged": 1,
+        "flags": {
+          "skip_added": 1
+        }
+      }
+    }
+  ]
+}

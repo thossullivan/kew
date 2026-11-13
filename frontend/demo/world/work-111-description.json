@@ -1,0 +1,13 @@
+{
+  "item_id": "111",
+  "availability": "available",
+  "provenance": "observed",
+  "observed_at": "2026-10-21T15:00:00+00:00",
+  "title": "Year-end rollover",
+  "url": "https://github.com/acme/ledger/issues/111",
+  "description": "Carry closing balances into the new year as opening entries.",
+  "expected": "opening balances equal last year’s closing ones.",
+  "actual": "",
+  "reason": "",
+  "composed_at": "2026-10-21T15:00:00+00:00"
+}

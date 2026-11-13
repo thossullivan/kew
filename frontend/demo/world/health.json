@@ -1,0 +1,154 @@
+{
+  "checked_at": "2026-10-21T15:00:00+00:00",
+  "observed_window_days": 7,
+  "runtimes": [
+    {
+      "name": "docker",
+      "configured": true,
+      "backed": true,
+      "present": true
+    },
+    {
+      "name": "podman",
+      "configured": false,
+      "backed": true,
+      "present": false
+    }
+  ],
+  "images": [
+    {
+      "runner": "claude-code",
+      "ref": "kew-agent:0.9.0",
+      "source": "images.claude-code",
+      "routed": true,
+      "present": true
+    }
+  ],
+  "posture": [
+    {
+      "lane": "default",
+      "runner": "claude-code",
+      "runtime": "docker",
+      "contained": true,
+      "egress": "kew-allowlist",
+      "credential_mode": "real",
+      "dangerously_skip_containment": false,
+      "posture": "sandboxed",
+      "refusal": null
+    },
+    {
+      "lane": "review",
+      "runner": "claude-code",
+      "runtime": "docker",
+      "contained": true,
+      "egress": "kew-allowlist",
+      "credential_mode": "real",
+      "dangerously_skip_containment": false,
+      "posture": "sandboxed",
+      "refusal": null
+    }
+  ],
+  "observed_7d": {
+    "docker": 0
+  },
+  "runners": [
+    {
+      "name": "claude-code",
+      "binary": "claude",
+      "binary_present": true,
+      "version": "2.1.4",
+      "version_supported": true,
+      "credential_names": [
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "set": false
+        },
+        {
+          "name": "CLAUDE_CODE_OAUTH_TOKEN",
+          "set": true
+        }
+      ],
+      "routed_tiers": [
+        "default"
+      ],
+      "review_lane": true
+    }
+  ],
+  "trackers": {
+    "github": {
+      "reachable": true,
+      "auth_ok": true,
+      "scopes": [
+        "repo",
+        "workflow"
+      ],
+      "rate": {
+        "limit": 5000,
+        "remaining": 4870,
+        "reset_at": "2026-10-21T15:00:00+00:00"
+      },
+      "observed_at": "2026-10-21T14:59:20+00:00",
+      "observed_age_s": 40,
+      "reason": ""
+    },
+    "linear": {
+      "configured": false,
+      "credential_set": false,
+      "reachable": null,
+      "team": ""
+    }
+  },
+  "sweep": {
+    "present": true,
+    "heartbeat_at": "2026-10-21T14:59:20+00:00",
+    "heartbeat_age_s": 40,
+    "interval_s": 60,
+    "last_attempt_at": "2026-10-21T14:59:20+00:00",
+    "last_ok_at": "2026-10-21T14:59:20+00:00",
+    "last_sweep_at": "2026-10-21T14:59:20+00:00",
+    "last_result": "ok",
+    "query_failures": 0,
+    "last_ok_age_s": 40,
+    "last_attempt_age_s": 40
+  },
+  "drivers": [
+    {
+      "epic_ref": "ledger-v2",
+      "liveness": "live",
+      "tick_age_s": 30,
+      "interval_s": 60,
+      "last_tick_at": "2026-10-21T14:59:30+00:00",
+      "lock": {
+        "pid_alive": true,
+        "heartbeat_age_s": 10,
+        "observed_age_s": 40
+      }
+    }
+  ],
+  "watchers": [
+    {
+      "name": "delegation",
+      "enabled": false,
+      "running": null,
+      "detail": "kew delegate watch — assign-to-kew trigger",
+      "last_seen_at": null,
+      "last_seen_age_s": null
+    },
+    {
+      "name": "epic_stream",
+      "enabled": true,
+      "running": true,
+      "detail": "serve SSE fan-out, one poller per watched epic",
+      "pollers": 1
+    }
+  ],
+  "loops": {
+    "pursuing": 0,
+    "stale": 0
+  },
+  "fleet": {
+    "stopped": false,
+    "pending": 1,
+    "reason": ""
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "role": "readiness_probe",
+  "run_kinds": [
+    "readiness_probe"
+  ],
+  "source": {
+    "kind": "code",
+    "name": "probe_route.PROBE_PROMPT",
+    "version": null,
+    "sha256": null,
+    "pin_mismatch": false
+  },
+  "prompt_config_applies": false,
+  "profile_applies": false,
+  "preview": "Reply with exactly OK and nothing else. Do not use any tool, do not read or write any file, do not explain.",
+  "preview_sha256": "dc132de5f6f14733a621f95cec77f946e12ed27bc9d2b8e9e4bde8454313e662",
+  "variant": {},
+  "addendum": null,
+  "profile_generation": null,
+  "prompt_config_rendered": false
+}

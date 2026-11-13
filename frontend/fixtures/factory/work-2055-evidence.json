@@ -1,0 +1,43 @@
+{
+  "item_id": "2055",
+  "rows": [
+    {
+      "n": 1,
+      "label": "Sandboxed",
+      "event": "sandbox_resolved",
+      "summary": "sandboxed",
+      "ts": "2026-09-24T15:24:15+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 2,
+      "label": "Canonical publication",
+      "event": "publication_posture",
+      "summary": "canonical",
+      "ts": "2026-09-24T15:46:50+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 3,
+      "label": "Scan clean",
+      "event": "publication_output_scan",
+      "summary": "clean · 3670e43f",
+      "ts": "2026-09-24T15:46:54+00:00",
+      "state": "attested"
+    },
+    {
+      "n": 4,
+      "label": "Verdict",
+      "event": "adversarial_review_verdict",
+      "summary": "ready",
+      "ts": "2026-10-03T14:46:40+00:00",
+      "state": "attested"
+    }
+  ],
+  "attested_count": 4,
+  "total": 4,
+  "chain_verified": true,
+  "reason": "",
+  "unavailable": [],
+  "composed_at": "2026-10-03T14:47:40+00:00"
+}

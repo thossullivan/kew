@@ -1,0 +1,47 @@
+{
+  "node_id": "ff3a322f:3",
+  "text": "artifact sha256:aff3a322f0000000000000000000000000000000000000000000000000000000\nbase ff3a322fff3a322fff3a322fff3a322fff3a322f\ntree f223a3fff223a3fff223a3fff223a3fff223a3ff\nverification exact_tree\nsealed through audit sequence 3\nchanged 100644 sha256:0fff3a322f000000000000000000000000000000000000000000000000000000 65 src/ledger/monthly_statement_export.py\nchanged 100644 sha256:1fff3a322f000000000000000000000000000000000000000000000000000000 104 tests/test_monthly_statement_export.py\n",
+  "run_id": "ff3a322f",
+  "attempt_number": 1,
+  "base_sha": "ff3a322fff3a322fff3a322fff3a322fff3a322f",
+  "tree_sha": "f223a3fff223a3fff223a3fff223a3fff223a3ff",
+  "package_digest": "sha256:aff3a322f0000000000000000000000000000000000000000000000000000000",
+  "receipt_digest": "sha256:rff3a322f0000000000000000000000000000000000000000000000000000000",
+  "verification": "exact_tree",
+  "files": [
+    {
+      "path": "src/ledger/monthly_statement_export.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:0fff3a322f000000000000000000000000000000000000000000000000000000",
+      "byte_length": 65,
+      "text": "\"\"\"Write a month of postings per account as a statement file.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    },
+    {
+      "path": "tests/test_monthly_statement_export.py",
+      "change": "changed",
+      "mode": "100644",
+      "digest": "sha256:1fff3a322f000000000000000000000000000000000000000000000000000000",
+      "byte_length": 104,
+      "text": "def test_monthly_statement_export():\n    \"\"\"the statement for the sample month matches the bank one.\"\"\"\n",
+      "text_availability": "available",
+      "detail": ""
+    }
+  ],
+  "availability": [
+    {
+      "dimension": "artifact_diff",
+      "availability": "available",
+      "provenance": "observed",
+      "detail": ""
+    },
+    {
+      "dimension": "diff_line_counts",
+      "availability": "unavailable",
+      "provenance": "unobserved",
+      "detail": "the sealed package carries final content only; the base content the counts would be measured against is not part of this route"
+    }
+  ]
+}

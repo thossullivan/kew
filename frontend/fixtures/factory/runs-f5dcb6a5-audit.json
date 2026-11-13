@@ -1,0 +1,117 @@
+{
+  "run_id": "f5dcb6a5",
+  "events": [
+    {
+      "seq": 1041,
+      "ts": "2026-09-24T15:23:53+00:00",
+      "event": "dispatch_owner_recorded",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "owner_pid": 48213
+      }
+    },
+    {
+      "seq": 1042,
+      "ts": "2026-09-24T15:23:54+00:00",
+      "event": "routing_decision",
+      "actor_type": "agent",
+      "item_id": "2055",
+      "payload": {
+        "recommended_runner": "claude-code",
+        "applied": false
+      }
+    },
+    {
+      "seq": 1043,
+      "ts": "2026-09-24T15:23:58+00:00",
+      "event": "sandbox_resolved",
+      "actor_type": "agent",
+      "item_id": "2055",
+      "payload": {
+        "posture": "sandboxed",
+        "network_boundary": "proxied"
+      }
+    },
+    {
+      "seq": 1044,
+      "ts": "2026-09-24T15:26:11+00:00",
+      "event": "dispatch_checkout_bound",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "branch": "agent/issue-2055",
+        "checkout_id": "c0b7e1d4"
+      }
+    },
+    {
+      "seq": 1045,
+      "ts": "2026-09-24T15:33:40+00:00",
+      "event": "artifact_receipt_sealed",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "receipt_digest": "sha256:5f1c9a07e2b4",
+        "files": 6
+      }
+    },
+    {
+      "seq": 1046,
+      "ts": "2026-09-24T15:41:05+00:00",
+      "event": "publication_output_scan",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "attempt_number": 1,
+        "already_published": false,
+        "findings": 0
+      }
+    },
+    {
+      "seq": 1047,
+      "ts": "2026-09-24T15:44:02+00:00",
+      "event": "publication_intent",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "branch": "agent/issue-2055",
+        "scope": "item"
+      }
+    },
+    {
+      "seq": 1048,
+      "ts": "2026-09-24T15:44:20+00:00",
+      "event": "publication_deferred",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "category": "push",
+        "step": "push",
+        "error": "protected branch; base merge required"
+      }
+    },
+    {
+      "seq": 1049,
+      "ts": "2026-09-24T15:44:40+00:00",
+      "event": "publication_held",
+      "actor_type": "policy",
+      "item_id": "2055",
+      "payload": {
+        "reason": "base merge required before publication",
+        "publication_allowed": false
+      }
+    },
+    {
+      "seq": 1051,
+      "ts": "2026-09-24T15:46:58+00:00",
+      "event": "dispatch_completed",
+      "actor_type": "agent",
+      "item_id": "2055",
+      "payload": {
+        "status": "success",
+        "cost_usd": 3.1
+      }
+    }
+  ],
+  "next_seq": 1051
+}
