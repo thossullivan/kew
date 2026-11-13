@@ -10,6 +10,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://www.python.org)
 
+<img src="docs/img/demo-console.gif" alt="The kew web console: the items that need a person, an epic's dependency graph, one merged item with its proof, and one pull request whose merge verify failed" width="840">
+
+<sub>The web console, recorded on the public demo. Its data is synthetic.</sub>
+
 </div>
 
 ---
@@ -27,6 +31,12 @@ So: your backlog has 30 issues, you have time for 3. Label the well-scoped ones 
 **A change never defines its own proof.** kew treats the agent as an untrusted author. It does not publish from the agent's Git repository: it reads the files as data, rebuilds the commit on the host and scans it before the push. When an agent edits a test, the merge verify runs the base branch's copy of that test against the new code (wired to kew's own repository layout today). The reviewer's verdict comes from the reviewer's own output stream, never from a file the reviewed code could write. → [How kew decides a change is proven](https://kew.dev/docs/proof/).
 
 **Built with itself.** kew's agents opened 1,156 of the 1,615 pull requests merged into kew's development repository between 2026-03-17 and 2026-11-10 (bots excluded). In October and November they opened 485 of the 538 merged (90%). kew's reviewer, a fresh agent and not a person, judged 634 of the merged pull requests from 2026-07-23 on and sent back 351 of them at least once first. Every merge went through the maintainer's GitHub account.
+
+<p align="center">
+  <img src="docs/img/demo-cli.gif" alt="kew audit verify on the ledger of kew's own development: the chain of governance events is intact and every anchor matches" width="840">
+</p>
+
+<p align="center"><sub><code>kew audit verify</code> on the ledger of kew's own development, recorded on 2026-11-13.</sub></p>
 
 ## What it does
 
