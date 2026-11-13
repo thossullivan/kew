@@ -130,16 +130,16 @@ test('the claims check refuses a snapshot figure that is not the snapshot\'s own
     [`agentShare renders as "70%", the snapshot says "${REPO_SHOWN.agentShare}"`]
   );
 
-  const unmarked = page().replace(repoMark('agentPrs'), '<b>1,106</b>');
+  const unmarked = page().replace(repoMark('agentPrs'), `<b>${REPO_SHOWN.agentPrs}</b>`);
   assert.deepEqual(rules(unmarked), ['repo-figure']);
   assert.match(offenders(unmarked)[0].detail, /^agentPrs is marked 0 times, the page quotes it in 1 place/);
 });
 
 test('the snapshot figures are worked out from its counts, never typed', () => {
-  assert.equal(REPO_SHOWN.agentPrs, '1,106');
-  assert.equal(REPO_SHOWN.mergedPrs, '1,591');
-  assert.equal(REPO_SHOWN.agentShare, `${((1106 / 1591) * 100).toFixed(1)}%`);
-  assert.equal(REPO_SHOWN.captured, '2 Nov 2026');
+  assert.equal(REPO_SHOWN.agentPrs, '1,156');
+  assert.equal(REPO_SHOWN.mergedPrs, '1,664');
+  assert.equal(REPO_SHOWN.agentShare, `${((1156 / 1664) * 100).toFixed(1)}%`);
+  assert.equal(REPO_SHOWN.captured, '13 Nov 2026');
 });
 
 test('the run kinds\' spend sums to the pack\'s total, so the spend bar is the whole of it', () => {
