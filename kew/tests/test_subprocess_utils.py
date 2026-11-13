@@ -198,10 +198,17 @@ def test_bounded_process_preserves_both_streams_and_shared_deadline(monkeypatch)
         "hello\n",
         "error\n",
     )
+    # The bound tells a kill at the deadline from a sleep that ran to its own
+    # end, so it is half the sleep, not a guess at how fast the host reaps.
+    natural_end = 30
     start = time.monotonic()
     with pytest.raises(subprocess.TimeoutExpired):
-        capture(["sh", "-c", "exec sleep 5"], deadline=start + 0.15, output_limit=128)
-    assert time.monotonic() - start < 2
+        capture(
+            ["sh", "-c", f"exec sleep {natural_end}"],
+            deadline=start + 0.15,
+            output_limit=128,
+        )
+    assert time.monotonic() - start < natural_end / 2
 
 
 class TestResolveCmd:

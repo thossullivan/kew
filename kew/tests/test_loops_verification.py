@@ -1351,15 +1351,30 @@ def test_verification_preparation_disables_ambient_git(tmp_path, monkeypatch, at
 @pytest.mark.serial
 @pytest.mark.parametrize("stream", ["stdout", "stderr"])
 def test_contained_verification_stops_output_flood(tmp_path, monkeypatch, stream):
+    """A flood past the output budget is stopped by the budget rule, not by the
+    deadline and not by the command's own end, and leaves no process behind.
+
+    The producer writes four budgets, then marks that it ran to its end and
+    exits 0. A pipe holds far less than the three budgets left once the reader
+    stops at the first byte over, so the end marker can only appear if
+    something kept reading past the budget. The deadline is more than ten
+    times the slowest stop seen on a loaded runner, and reaching it gives a
+    timeout result, which the flags below refuse. One time bound stays, at
+    half the deadline: it refuses a stop that only lands late, with ten times
+    the margin the slowest loaded run needed."""
+    import os
     import sys
     import time
 
     from kew.loops import verification
 
-    # A throttled endless producer keeps the regression safe on the old code.
     # The fake runtime logs removal without starting Docker.
     runtime = tmp_path / "fake-runtime"
     removed = tmp_path / "removed"
+    launched = tmp_path / "launched-pid"
+    finished = tmp_path / "ran-to-its-end"
+    line = b"X sentinel-secret-value\n" * 160
+    writes = 4 * verification.VERIFICATION_OUTPUT_BYTES // len(line) + 1
     runtime.write_text(
         f"#!{sys.executable}\n"
         "import os, sys, time\n"
@@ -1367,11 +1382,13 @@ def test_contained_verification_stops_output_flood(tmp_path, monkeypatch, stream
         "    assert sys.argv[-1] == 'a' * 64\n"
         f"    open({str(removed)!r}, 'w').write(sys.argv[-1])\n"
         "    sys.exit(0)\n"
+        f"open({str(launched)!r}, 'w').write(str(os.getpid()))\n"
         "open(sys.argv[sys.argv.index('--cidfile') + 1], 'w').write('a' * 64)\n"
         f"fd = {1 if stream == 'stdout' else 2}\n"
-        "while True:\n"
-        "    os.write(fd, (b'X sentinel-secret-value\\n') * 160)\n"
+        f"for _ in range({writes}):\n"
+        f"    os.write(fd, {line!r})\n"
         "    time.sleep(0.001)\n"
+        f"open({str(finished)!r}, 'w').write('done')\n"
     )
     runtime.chmod(0o755)
     monkeypatch.setitem(subprocess_utils.TOOL_PATHS, "docker", str(runtime))
@@ -1386,7 +1403,8 @@ def test_contained_verification_stops_output_flood(tmp_path, monkeypatch, stream
             peaks.append((len(buffer.head), len(buffer.tail), buffer.total))
 
         monkeypatch.setattr(buffer_type, "append", observe)
-    condition = CommandCondition("yes X", timeout=3)
+    deadline = 30
+    condition = CommandCondition("yes X", timeout=deadline)
     admission = verification.HostVerificationAdmission(
         posture=verification.CONTAINED_VERIFICATION_POSTURE,
         refusal=None,
@@ -1397,9 +1415,17 @@ def test_contained_verification_stops_output_flood(tmp_path, monkeypatch, stream
     result = condition._check_contained(
         tmp_path, admission, timeout=condition._requested_timeout()
     )
+    stopped_after = time.monotonic() - start
     assert "output-budget refusal" in result.evidence
     assert not result.met
-    assert time.monotonic() - start < 2.5
+    # Stopped at the overflow, not held until near the deadline.
+    assert stopped_after < deadline / 2
+    # Stopped by the budget: not the deadline, and not the command's own exit.
+    assert result.output_overflowed and not result.timed_out
+    assert result.exit_code is None
+    assert not finished.exists(), "the producer ran to its end: nothing stopped it"
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(launched.read_text()), 0)
     assert removed.read_text() == "a" * 64
     assert "sentinel-secret-value" not in result.evidence
     assert "sentinel-" not in result.evidence

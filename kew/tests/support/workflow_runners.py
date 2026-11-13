@@ -245,6 +245,23 @@ def context_for(visibility: object) -> dict[str, Any]:
     }
 
 
+def resolve_minutes(value: object, visibility: object) -> int:
+    """A ``timeout-minutes`` value, literal or expression, for one visibility.
+
+    Anything that does not resolve to a whole number of minutes raises, so a
+    limit the evaluator cannot read is never taken as some default.
+    """
+    if isinstance(value, str) and "${{" in value:
+        value = evaluate(value, context_for(visibility))
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or value != int(value)
+    ):
+        raise UnsupportedExpression(f"timeout-minutes {value!r} is not whole minutes")
+    return int(value)
+
+
 def _labels(value: object, context: dict[str, Any]) -> frozenset[str]:
     if isinstance(value, str):
         if "${{" in value:

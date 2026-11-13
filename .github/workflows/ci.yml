@@ -349,12 +349,13 @@ jobs:
       # floor. A failing first command stops the block (bash -e), so the
       # job stays red.
       #
-      # 40 minutes: a 4-vCPU hosted VM was still in the parallel phase, at
-      # 94%, when 25 ran out (2026-11-12), with the serial phase still to
-      # run. 40 is also the most the runner lock's work budget allows
-      # (tests/test_verify_parity.py).
+      # The limit depends on visibility. Private (self-hosted): 40 minutes,
+      # the most the runner lock's work budget allows. Hosted: 60. A 4-vCPU
+      # hosted VM took 38m21s on one run and 21-22 minutes on others, and it
+      # holds no lock. tests/test_verify_parity.py holds the private value to
+      # the lock budget and the hosted one above it, inside the job limit.
       - name: Test (pytest)
-        timeout-minutes: 40
+        timeout-minutes: ${{ github.event.repository.visibility == 'private' && 40 || 60 }}
         working-directory: kew
         env:
           KEW_SWITCHYARD_SOURCE_ARCHIVE: ${{ env.KEW_SWITCHYARD_IMAGE == '1' && secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}

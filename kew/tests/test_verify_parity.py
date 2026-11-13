@@ -56,8 +56,10 @@ from support.tool_pins import (
     uvx_calls,
 )
 from support.workflow_runners import (
+    NON_PRIVATE_VISIBILITIES,
     RUNNER_BY_EVENT_VISIBILITY,
     can_use_self_hosted,
+    resolve_minutes,
 )
 
 try:
@@ -1981,9 +1983,14 @@ def test_self_hosted_docker_jobs_wait_on_runner_lock(
         assert "env" not in step, "both runners must use the same default lock path"
 
     # Step limits bound the entire critical section. Job time includes waiting.
+    # Only the private repository's self-hosted runner takes the lock, so each
+    # limit is read as it resolves there.
     work = steps[acquire_index + 1 : -1]
-    assert all(step.get("timeout-minutes", 0) > 0 for step in work)
-    work_minutes = sum(step["timeout-minutes"] for step in work)
+    limits = [
+        resolve_minutes(step.get("timeout-minutes", 0), "private") for step in work
+    ]
+    assert all(limit > 0 for limit in limits)
+    work_minutes = sum(limits)
     assert work_minutes <= 40
     # Successful release takes at most one second. Failed release may wait
     # 900 seconds, while the holder's existing deadline bounds draining.
@@ -1998,6 +2005,41 @@ def test_self_hosted_docker_jobs_wait_on_runner_lock(
     # step) frees the daemon before any waiter times out (review round 2).
     hold_max_seconds = 2700
     assert work_minutes * 60 < hold_max_seconds < 5400
+
+
+# The slowest whole `Test (pytest)` step seen on a 4-vCPU hosted VM: 38m21s
+# on 2026-11-13, against 21-22 minutes for the same suite on other runs.
+SLOWEST_HOSTED_TEST_STEP_MINUTES = 38 + 21 / 60
+
+
+def test_hosted_pytest_step_has_headroom_the_lock_budget_cannot_give() -> None:
+    """The lock budget caps the private runner's pytest limit (the test above).
+    A hosted VM holds no lock, and its speed varies by more than 1.6x, so its
+    limit is higher: at least 1.5x the slowest hosted step seen. It stays
+    bounded: with every other step a hosted job runs, it fits inside the job's
+    own limit, so a hung hosted run is stopped by this step, which names it."""
+    data = yaml.safe_load((WORKFLOWS_DIR / "ci.yml").read_text())
+    job = data["jobs"]["test"]
+    step = next(s for s in job["steps"] if s.get("name") == "Test (pytest)")
+    limit = step.get("timeout-minutes", 0)
+    private = resolve_minutes(limit, "private")
+    # Steps a hosted job skips: the runner lock and the self-hosted boundary.
+    hosted_skips = (
+        "runner.environment == 'self-hosted'",
+        "always() && runner.environment == 'self-hosted'",
+        "runner.environment != 'github-hosted' && "
+        "github.event.repository.visibility != 'private'",
+    )
+    for visibility in NON_PRIVATE_VISIBILITIES:
+        hosted = resolve_minutes(limit, visibility)
+        assert hosted > private
+        assert hosted >= 1.5 * SLOWEST_HOSTED_TEST_STEP_MINUTES
+        others = sum(
+            resolve_minutes(other.get("timeout-minutes", 0), visibility)
+            for other in job["steps"]
+            if other is not step and other.get("if") not in hosted_skips
+        )
+        assert hosted + others < job["timeout-minutes"]
 
 
 @pytest.mark.policy
