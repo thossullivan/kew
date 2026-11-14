@@ -9,9 +9,10 @@ secrets here are placeholders.
 from __future__ import annotations
 
 import json
-import time
+from collections.abc import Callable
 
 import pytest
+from support.cost_growth import FACTOR, LINEAR_CEILING, cost_growth
 
 from kew.credential_redaction import Form, redact, source_forms
 
@@ -110,10 +111,17 @@ def test_a_known_secret_right_after_a_bare_csi_introducer_is_redacted() -> None:
     assert _redact(text) == f"\x1b[{_MARKER} done"
 
 
-def _timed_redact(text: str, secret: str) -> tuple[str, float]:
-    started = time.perf_counter()
-    redacted = _redact(text, secret=secret)
-    return redacted, time.perf_counter() - started
+def _redaction_at(
+    text_at: Callable[[int], str], secret: str = _SECRET
+) -> Callable[[int], Callable[[], object]]:
+    """The redaction of ``text_at(size)``, its forms built before it is timed."""
+    forms = _forms(secret)
+
+    def work_at(size: int) -> Callable[[], object]:
+        text = text_at(size)
+        return lambda: redact(text, forms, {"TOKEN": _MARKER})
+
+    return work_at
 
 
 def test_a_secret_whose_plus_signs_decode_to_spaces_is_redacted_in_linear_time() -> (
@@ -123,23 +131,29 @@ def test_a_secret_whose_plus_signs_decode_to_spaces_is_redacted_in_linear_time()
     # those spaces backtracked polynomially on long whitespace runs.
     secret = "FAKEfakeFAKE+fake0123abcd+ABCDabcdABCD0123"
     first, second, _ = secret.split("+")
-    text = first + " " * 5000 + second + " " * 5000 + "!"
 
-    redacted, elapsed = _timed_redact(text, secret)
+    def text_at(spaces: int) -> str:
+        return first + " " * spaces + second + " " * spaces + "!"
 
-    assert elapsed < 0.5
-    assert redacted == text
+    growth = cost_growth(_redaction_at(text_at, secret), 100)
+
+    assert growth < LINEAR_CEILING, f"{FACTOR}x the run cost {growth:.0f}x"
+    assert _redact(text_at(5000), secret=secret) == text_at(5000)
 
 
 def test_a_secret_with_five_plus_signs_is_redacted_in_linear_time() -> None:
     secret = "FAKE+test+KEY0+1234+abcd+XYZW"
     parts = secret.split("+")
-    text = (" " * 2000).join(parts[:-1]) + " " * 2000 + "!"
 
-    redacted, elapsed = _timed_redact(text, secret)
+    def text_at(spaces: int) -> str:
+        return (" " * spaces).join(parts[:-1]) + " " * spaces + "!"
 
-    assert elapsed < 0.5
-    assert redacted == text
+    # Five gaps backtrack to a high power of their width: from 3 to 24 spaces
+    # a backtracking join grows over 10,000x; one that does not, under 3x.
+    growth = cost_growth(_redaction_at(text_at, secret), 3)
+
+    assert growth < LINEAR_CEILING, f"{FACTOR}x the gaps cost {growth:.0f}x"
+    assert _redact(text_at(2000), secret=secret) == text_at(2000)
 
 
 def test_a_plus_secret_wrapped_at_its_decoded_space_is_still_redacted() -> None:
@@ -177,10 +191,10 @@ def test_a_known_secret_interrupted_by_an_ecma_48_escape_is_redacted(
 def test_text_full_of_unterminated_string_introducers_is_scanned_in_linear_time() -> (
     None
 ):
-    text = "\x9d\x90\x1b]\x1bP" * 4000 + _SECRET
+    def text_at(introducers: int) -> str:
+        return "\x9d\x90\x1b]\x1bP" * introducers + _SECRET
 
-    started = time.perf_counter()
-    redacted = _redact(text)
+    growth = cost_growth(_redaction_at(text_at), 100)
 
-    assert time.perf_counter() - started < 0.5
-    assert redacted == "\x9d\x90\x1b]\x1bP" * 4000 + _MARKER
+    assert growth < LINEAR_CEILING, f"{FACTOR}x the text cost {growth:.0f}x"
+    assert _redact(text_at(4000)) == "\x9d\x90\x1b]\x1bP" * 4000 + _MARKER

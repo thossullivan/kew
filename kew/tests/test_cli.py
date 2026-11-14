@@ -5064,10 +5064,12 @@ def test_switchyard_diagnostics_collect_probe_and_metrics_concurrently(monkeypat
     from kew.switchyard import SwitchyardProbeResult
     from kew.switchyard_metrics import parse_switchyard_metrics
 
+    # Run one after the other, the first never meets the second and the wait
+    # breaks; run together, they meet at once, however slow the machine.
     rendezvous = Barrier(2)
 
     def probe(**kwargs):
-        rendezvous.wait(timeout=2.0)
+        rendezvous.wait(timeout=30.0)
         return SwitchyardProbeResult(
             admitted=True,
             reason="ready",
@@ -5076,7 +5078,7 @@ def test_switchyard_diagnostics_collect_probe_and_metrics_concurrently(monkeypat
         )
 
     def observe(**kwargs):
-        rendezvous.wait(timeout=2.0)
+        rendezvous.wait(timeout=30.0)
         return parse_switchyard_metrics("switchyard_requests_total 1\n")
 
     monkeypatch.setattr("kew.cli.probe_switchyard_endpoint", probe)

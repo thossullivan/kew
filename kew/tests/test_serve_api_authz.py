@@ -218,9 +218,17 @@ async def test_a_proxied_run_stream_closes_when_its_session_expires(
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_run_events_stream_ends_on_session_revocation(tmp_path: Path) -> None:
-    """Mid-stream session revocation terminates the SSE within one poll tick."""
+    """Mid-stream session revocation ends the SSE before its next poll tick.
+
+    The revoked reader is served nothing more, not even an event that was
+    already waiting, and the stream does not wait out a tick before it ends.
+    """
     events_file = tmp_path / "run.events.jsonl"
     events_file.write_text('{"ts":1.0,"type":"started","issue":1}\n')
+    # One tick is a hundred times the wait below, so no machine is slow enough
+    # to turn a tick into a pass: a stream that slept even once after the
+    # revocation is still asleep when the wait gives up.
+    tick = 3000.0
 
     authorized: dict[str, bool] = {"value": True}
 
@@ -233,14 +241,23 @@ async def test_run_events_stream_ends_on_session_revocation(tmp_path: Path) -> N
         async for frame in event_stream(
             events_file,
             replay=True,
-            poll_s=0.01,
+            poll_s=tick,
             is_authorized=_is_authorized,
         ):
             frames.append(frame)
-            # Revoke after first frame — next iteration must detect and stop.
+            if len(frames) > 1:
+                continue
+            # Revoke after the first frame, with a second event already
+            # waiting: the next iteration must stop, not read it.
             authorized["value"] = False
+            with events_file.open("a") as events:
+                events.write('{"ts":2.0,"type":"activity"}\n')
 
-    await asyncio.wait_for(_consume(), timeout=1.0)
+    # The stream swallows the cancellation a timeout sends, so a stream that
+    # hung would end "normally" here: ask the timeout whether it fired.
+    async with asyncio.timeout(tick / 100) as wait:
+        await _consume()
+    assert not wait.expired(), "the stream waited out a tick after the revocation"
     assert len(frames) == 1
     assert '"started"' in frames[0]
 
@@ -336,7 +353,8 @@ async def test_journal_stream_ends_on_session_revocation() -> None:
             served.append(frame)
             authorized["value"] = False
 
-    await asyncio.wait_for(_consume(), timeout=1.0)
+    # One frame proves it stopped at the next tick; the timeout bounds a hang.
+    await asyncio.wait_for(_consume(), timeout=30.0)
     assert len(served) == 1
 
 

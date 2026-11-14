@@ -1,8 +1,9 @@
 """Tests for overlap coordination module."""
 
-import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
+
+from support.cost_growth import FACTOR, LINEAR_CEILING, cost_growth
 
 from kew.config import DispatchConfig, OverlapAdvancedConfig, OverlapConfig
 from kew.overlap import (
@@ -186,12 +187,16 @@ class TestPredictFilesFromText:
     def test_path_scope_matcher_processes_slash_dense_issue_body_quickly(self):
         text = "a/" * 32_767 + "!"
 
-        started = time.perf_counter()
         matches = list(_PATH_SCOPE_RE.finditer(text))
-        elapsed = time.perf_counter() - started
 
         assert matches == []
-        assert elapsed < 1.0
+
+        def scan_at(slashes):
+            body = "a/" * slashes + "!"
+            return lambda: list(_PATH_SCOPE_RE.finditer(body))
+
+        growth = cost_growth(scan_at, 1000)
+        assert growth < LINEAR_CEILING, f"{FACTOR}x the slashes cost {growth:.0f}x"
 
 
 def _make_issue(num: int, title: str = "Test", body: str = "") -> dict:

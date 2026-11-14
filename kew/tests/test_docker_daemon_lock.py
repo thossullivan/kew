@@ -20,6 +20,12 @@ import pytest
 
 # Bind sleep before conftest patches selector.time.sleep on the shared time module.
 SCRIPT = Path(__file__).resolve().parents[2] / ".github/scripts/docker_daemon_lock.py"
+#: The default hold bound (``_acquire_args``).
+_HOLD_SECONDS = 30
+#: How long a wait gives the holder to reach a state its rules put about a
+#: second away, and each poll starts a Python process. Half the hold bound, so
+#: a holder that only lets go when that bound runs out still fails the wait.
+_PROMPT_SECONDS = _HOLD_SECONDS / 2
 
 
 def _run(
@@ -35,7 +41,7 @@ def _run(
 
 
 def _acquire_args(
-    lock: Path, marker: Path, *, timeout: float = 5, hold: float = 30
+    lock: Path, marker: Path, *, timeout: float = 5, hold: float = _HOLD_SECONDS
 ) -> list[str]:
     return [
         "acquire",
@@ -163,7 +169,7 @@ def worker() -> Iterator[subprocess.Popen]:
 
 
 def _wait_phase(marker: Path, phase: str) -> None:
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + _PROMPT_SECONDS
     while time.monotonic() < deadline:
         if marker.exists() and json.loads(marker.read_text()).get("phase") == phase:
             return
@@ -172,12 +178,12 @@ def _wait_phase(marker: Path, phase: str) -> None:
 
 
 def _wait_free(lock: Path) -> None:
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + _PROMPT_SECONDS
     while time.monotonic() < deadline:
         if _run("status", "--lock", str(lock)).stdout.strip() == "free":
             return
         sleep(0.02)
-    pytest.fail("holder did not free the lock within five seconds")
+    pytest.fail(f"holder did not free the lock within {_PROMPT_SECONDS:.0f} seconds")
 
 
 def _assert_phases(marker: Path, *phases: str) -> None:
@@ -342,8 +348,7 @@ def test_holder_expires_and_frees_lock(lock_files) -> None:
     lock, first, second = lock_files
     acquired = _run(*_acquire_args(lock, first, hold=1))
     assert acquired.returncode == 0, acquired.stderr
-    started = time.monotonic()
-    deadline = started + 5
+    deadline = time.monotonic() + _PROMPT_SECONDS
     while time.monotonic() < deadline:
         status = _run("status", "--lock", str(lock))
         if status.returncode == 0 and status.stdout.strip() == "free":
@@ -456,7 +461,7 @@ def _assert_watched_worker_death_frees_lock(lock_files) -> None:
         assert json.loads(first.read_text())["watch_pid"] == worker.pid
         worker.kill()
         worker.wait(timeout=5)
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + _PROMPT_SECONDS
         while time.monotonic() < deadline:
             status = _run("status", "--lock", str(lock))
             if status.stdout.strip() == "free":
@@ -567,7 +572,7 @@ def test_surviving_producer_blocks_quiet_and_grace(
         assert record["workspace"] == str(workspace)
         assert record["watch_pid"] == worker.pid
         log = marker.with_suffix(".marker.log")
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + _PROMPT_SECONDS
         while "surviving-producers=1" not in log.read_text():
             assert time.monotonic() < deadline, "producer count was not logged"
             sleep(0.02)
@@ -915,8 +920,12 @@ def test_following_job_acquire_is_not_a_producer(lock_files, fake_daemon, worker
     lock, first, second = lock_files
     _, _, env = fake_daemon
     workspace = Path(env["GITHUB_WORKSPACE"])
+    # The drain lets go after 0.4 s of quiet; the hold bound is 60 s. Half of
+    # it separates the two however slow the machine, and the follower waits
+    # longer than the bound so that it never gives up first.
+    hold = 60
     acquired = _run(
-        *_acquire_args(lock, first, hold=8),
+        *_acquire_args(lock, first, hold=hold),
         "--watch-pid",
         str(worker.pid),
         "--orphan-quiet-seconds",
@@ -931,13 +940,18 @@ def test_following_job_acquire_is_not_a_producer(lock_files, fake_daemon, worker
     _wait_phase(first, "draining")
     started = time.monotonic()
     follower = _tracked_process(
-        [sys.executable, str(SCRIPT), *_acquire_args(lock, second, timeout=10, hold=5)],
+        [
+            sys.executable,
+            str(SCRIPT),
+            *_acquire_args(lock, second, timeout=hold + 15, hold=5),
+        ],
         cwd=workspace,
     )
     try:
-        follower.wait(timeout=10)
+        follower.wait(timeout=hold + 30)
         assert follower.returncode == 0
-        assert time.monotonic() - started < 6, "the drain waited for the hold bound"
+        waited = time.monotonic() - started
+        assert waited < hold / 2, "the drain waited for the hold bound"
         _assert_phases(first, "holding", "draining", "released-on-quiet")
         assert json.loads(second.read_text())["phase"] == "holding"
     finally:

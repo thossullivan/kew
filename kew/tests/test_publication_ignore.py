@@ -7,12 +7,20 @@ repository so "faithful" is checked against git rather than asserted.
 
 from __future__ import annotations
 
+import itertools
 import shutil
 import subprocess
-import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from support.cost_growth import (
+    FACTOR,
+    LINEAR_CEILING,
+    RUNS,
+    cost_growth,
+    least_cpu_seconds,
+)
 
 from kew.publication_ignore import IgnoreRules, parse_gitignore
 
@@ -389,9 +397,26 @@ class TestTheLiteralPrefixKeepsOneCharacterLikeGit:
         assert _ignored(rules, "d/abY")
 
 
+_serial = itertools.count()
+
+
+def _never_seen() -> str:
+    """A name part no earlier match in this process has held.
+
+    The matcher keeps what it worked out for a name it has met, so a guard
+    that times one name twice times the lookup the second time. Each measured
+    run is given names with a new part instead: that is what a walk meets,
+    and it holds wherever the matcher keeps its memory. The part has a fixed
+    width, so two names built alike are as long as each other.
+    """
+    return f"{next(_serial):06d}"
+
+
 class TestNoBacktracking:
     """Names are agent-chosen; matching must stay polynomial (#2117 review)."""
 
+    # The run of 200 stars compiles to one star, which leaves nothing to
+    # backtrack over: that case would pass with a backtracking matcher.
     @pytest.mark.parametrize(
         "line",
         [
@@ -404,23 +429,67 @@ class TestNoBacktracking:
     )
     def test_a_hostile_name_is_matched_quickly(self, line: str) -> None:
         pattern = parse_gitignore(line.encode())[0]
-        name = "a" * 5000
-        subjects = [name, "x/" + name, "/".join(["a"] * 2500)]
-        started = time.perf_counter()
-        for subject in subjects:
+
+        def subjects(size: int, tail: str = "") -> list[str]:
+            name = "a" * size + tail
+            return [name, "x/" + name, "/".join(["a"] * (size // 2)) + tail]
+
+        def match_at(size: int) -> Callable[[], object]:
+            # One set of names per run, none met before: every run indexes
+            # its names and runs the pattern over them, as a walk does.
+            unmet = [subjects(size, _never_seen()) for _ in range(RUNS)]
+            return lambda: [pattern.matches(name, is_dir=False) for name in unmet.pop()]
+
+        # From 1 or 3 characters, a backtracking matcher grows thousands of
+        # times over before the input is long enough to hang the test; from
+        # 300, a quadratic one grows past the linear ceiling. The matcher
+        # grows 9 times at most, idle or under full load.
+        for size in (1, 3, 300):
+            growth = cost_growth(match_at, size)
+            assert growth < LINEAR_CEILING, f"{FACTOR}x from {size}: {growth:.0f}x"
+        for subject in subjects(5000):
             assert not pattern.matches(subject, is_dir=False)
-        assert time.perf_counter() - started < 1.0
 
     def test_a_deeply_nested_tree_is_decided_quickly(self) -> None:
-        rules = _rules(root="a*a*a*a*a*b\n**/x*x*x*y\n", a="*.tmp\n")
         # 200 levels of 40-character names: an 8 KB path, twice PATH_MAX.
         parts = ["a" * 40] * 200
-        started = time.perf_counter()
-        # The walker meets every directory on the way down, then the files.
-        for depth in range(1, len(parts) + 1):
-            assert not _ignored(rules, "/".join(parts[:depth]), is_dir=True)
-        assert not _ignored(rules, "/".join(parts) + "/" + "a" * 200)
-        assert time.perf_counter() - started < 1.0
+
+        def tree() -> tuple[list[str], str]:
+            """Every directory on the way down and one file, under a new root."""
+            root = _never_seen()
+            depths = range(1, len(parts) + 1)
+            directories = [
+                root,
+                *("/".join([root, *parts[:depth]]) for depth in depths),
+            ]
+            return directories, directories[-1] + "/" + "a" * 200
+
+        unmet = [tree() for _ in range(RUNS)]
+
+        def walk() -> None:
+            directories, leaf = unmet.pop()
+            rules = _rules(root="a*a*a*a*a*b\n**/x*x*x*y\n", a="*.tmp\n")
+            # The walker meets every directory on the way down, then the files.
+            for directory in directories:
+                assert not _ignored(rules, directory, is_dir=True)
+            assert not _ignored(rules, leaf)
+
+        directories, leaf = tree()
+
+        def read_every_character() -> None:
+            for path in (*directories, leaf):
+                for _character in path:
+                    pass
+
+        # The walk is measured against reading every path once, character by
+        # character, on the same machine, so the ratio does not depend on its
+        # speed or load. Each run walks a tree under a new root, so every
+        # path is indexed, not recalled: that costs 34 to 36 reads, idle or
+        # under full load, and the bound is ten times that. A step in the
+        # indexing that grows with the square of the path costs thousands,
+        # and a backtracking matcher never finishes.
+        reads = least_cpu_seconds(walk) / least_cpu_seconds(read_every_character)
+        assert reads < 350, f"the walk cost {reads:.0f} reads of its paths"
 
 
 class TestRuleSources:

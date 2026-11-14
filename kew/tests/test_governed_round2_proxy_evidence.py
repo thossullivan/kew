@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 import pytest
+from support.cost_growth import FACTOR, LINEAR_CEILING, cost_growth
 
 from kew import sandbox
 from kew.sandbox import (
@@ -121,17 +122,28 @@ def test_governed_round2_actions_record_the_four_always_blank_names(monkeypatch)
 
 def test_governed_round2_separator_free_prose_redacts_in_linear_time():
     """Round 2 (2026-09-21): 42,880 chars of prose took 12.4 s before the key
-    bound; the same text now takes well under a second."""
-    import time
-
+    bound: its cost grew with the square of the prose. It now grows linearly."""
     words = "the quick brown fox jumps over the lazy dog while the agent runs "
-    prose = (words * (42880 // len(words) + 1))[:42880]
-    for text in (prose, "Note: " + prose, prose + " password: hunter2-1933"):
-        started = time.perf_counter()
-        redacted = redact_credentials(text)
-        assert time.perf_counter() - started < 2.0
+
+    def prose(size):
+        return (words * (size // len(words) + 1))[:size]
+
+    shapes = (
+        lambda size: prose(size),
+        lambda size: "Note: " + prose(size),
+        lambda size: prose(size) + " password: hunter2-1933",
+    )
+    for shape in shapes:
+        redacted = redact_credentials(shape(42880))
         assert "hunter2-1933" not in redacted
         assert "quick brown fox" in redacted
+
+        def redaction_at(size, shape=shape):
+            text = shape(size)
+            return lambda: redact_credentials(text)
+
+        growth = cost_growth(redaction_at, 1000)
+        assert growth < LINEAR_CEILING, f"{FACTOR}x the prose cost {growth:.0f}x"
 
 
 def test_governed_round2_docs_name_the_ten_blanked_proxy_names():

@@ -142,6 +142,10 @@ def _write_stub(bin_dir: Path, tool: str, body: str) -> None:
 #: Where an instance's ``setsid`` and ``date`` are, and a developer's are not
 #: always the instance's.
 _SYSTEM_PATH = "/usr/bin:/bin"
+#: How long a test waits for a job it started to reach a step that must come.
+#: A late step still passes and a missing one still fails; only how long a
+#: missing one takes to fail depends on it.
+_STARTED_SECONDS = 60
 
 
 @functools.cache
@@ -2488,7 +2492,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
             env={"PATH": f"{bin_dir}:/usr/bin:/bin"},
             start_new_session=True,
         )
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + _STARTED_SECONDS
         while not (root / "contained").exists():
             assert time.monotonic() < deadline, "the job never contained itself"
             time.sleep(0.02)
@@ -2499,7 +2503,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
     def _escapee(root: Path) -> int:
         """The pid a job's ``setsid`` child wrote once it was running."""
         written = root / "escaped.pid"
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + _STARTED_SECONDS
         while not written.exists() or not written.read_text().strip():
             assert time.monotonic() < deadline, "the escapee never started"
             time.sleep(0.02)
@@ -2840,7 +2844,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
         )
         job = self._orphan(stub_root, "me-1-a", then=rewrite)
         try:
-            deadline = time.monotonic() + 5
+            deadline = time.monotonic() + _STARTED_SECONDS
             while "deadbeef" not in self._record(stub_root).read_text():
                 assert time.monotonic() < deadline, "the job never rewrote it"
                 time.sleep(0.02)
@@ -3062,7 +3066,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
         )
         job = self._orphan(stub_root, "me-1-a", then=tamper)
         try:
-            deadline = time.monotonic() + 5
+            deadline = time.monotonic() + _STARTED_SECONDS
             while not any((stub_root / f).exists() for f in ("tampered", "refused")):
                 assert time.monotonic() < deadline, "the job never tried the write"
                 time.sleep(0.02)
@@ -3372,7 +3376,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
             )
         )
         try:
-            deadline = time.monotonic() + 5
+            deadline = time.monotonic() + _STARTED_SECONDS
             while not (state / START_WAITING).exists():
                 assert time.monotonic() < deadline, "the scope start never blocked"
                 time.sleep(0.02)
@@ -3495,7 +3499,7 @@ class TestTheTakeoverCommandStopsTheOrphanedJob:
                 start_new_session=True,
             )
             try:
-                deadline = time.monotonic() + 5
+                deadline = time.monotonic() + _STARTED_SECONDS
                 while not (state / LOCK_WAITED).exists():
                     assert time.monotonic() < deadline, "the job never waited"
                     time.sleep(0.02)

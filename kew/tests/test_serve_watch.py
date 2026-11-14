@@ -384,8 +384,9 @@ async def test_fetch_exception_ends_streams_and_self_heals() -> None:
 
     task = asyncio.create_task(_consume())
     # The fetch raises on its second call (~poll_s in); the death sentinel
-    # must end the active stream promptly — well under the 30 min cap.
-    frames = await asyncio.wait_for(task, timeout=2.0)
+    # must end the active stream promptly — well under the 30 min cap, which
+    # a stream that missed the sentinel would run to.
+    frames = await asyncio.wait_for(task, timeout=60.0)
     assert frames == []  # stream ended cleanly, no frames, no exception
 
     # The dead poller deregistered itself (stream's unsubscribe is a no-op).
@@ -395,7 +396,7 @@ async def test_fetch_exception_ends_streams_and_self_heals() -> None:
     # poller from the factory — the self-heal path.
     q2, _latest = hub.subscribe("e1")
     assert hub.poller_count() == 1
-    item = await asyncio.wait_for(q2.get(), timeout=2.0)
+    item = await asyncio.wait_for(q2.get(), timeout=60.0)
     assert item == ("snapshot", {"healed": True})
     hub.unsubscribe("e1", q2)
 

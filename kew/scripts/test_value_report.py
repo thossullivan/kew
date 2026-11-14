@@ -370,6 +370,61 @@ def _stop_held(session: subprocess.Popen[Any]) -> Iterator[None]:
         raise failure
 
 
+#: The stop handlers in force: each holds its own signal (:func:`_stop_held`).
+_stop_handlers: list[Callable[[int, FrameType | None], None]] = []
+
+
+def _raise_again(held: list[int]) -> None:
+    """Raise each of *held* in the order it arrived, whatever a handler raises.
+
+    Every handler runs, and the last one that raises is the exception that
+    leaves, with each earlier one as its context: what Python does when the
+    signals land one after another with nothing holding them.
+    """
+    if held:
+        try:
+            signal.raise_signal(held[0])
+        finally:
+            _raise_again(held[1:])
+
+
+@contextlib.contextmanager
+def _interruptions_held() -> Iterator[None]:
+    """Hold every other signal a Python handler takes until the block ends.
+
+    Any handler can raise in the same window a stop could (a Ctrl-C's
+    ``KeyboardInterrupt``, an alarm), and the handler always runs in this
+    thread whichever thread the kernel picked. So each one is swapped for a
+    recorder while the session starts; once ``pid`` is stored the recorder
+    passes signals through, the handlers are given back, and each recorded
+    signal is raised again (:func:`_raise_again`). A signal that lands while
+    they are given back reaches its own handler either way. The stop handlers
+    keep their own hold, and with it the hard exit a second stop takes.
+    """
+    arrived: list[int] = []
+    holding = [True]
+    swapped: dict[int, Callable[[int, FrameType | None], Any]] = {}
+
+    def record(signum: int, frame: FrameType | None) -> None:
+        if holding:
+            arrived.append(signum)
+        else:
+            swapped[signum](signum, frame)
+
+    try:
+        for each in signal.valid_signals():
+            handler = signal.getsignal(each)
+            if callable(handler) and handler not in _stop_handlers:
+                swapped[each] = handler  # first: the recorder may need it at once
+                signal.signal(each, record)
+        yield
+    finally:
+        holding.clear()
+        for signum, own in swapped.items():
+            signal.signal(signum, own)
+        _raise_again(list(dict.fromkeys(arrived)))
+
+
 @contextlib.contextmanager
 def stop_on_signals() -> Iterator[None]:
     """Turn SIGTERM and SIGHUP into :class:`Terminated` for the life of the block.
@@ -393,9 +448,11 @@ def stop_on_signals() -> Iterator[None]:
         raise Terminated(signum)
 
     previous = {each: signal.signal(each, stop) for each in _STOP_SIGNALS}
+    _stop_handlers.append(stop)
     try:
         yield
     finally:
+        _stop_handlers.remove(stop)
         for each, handler in previous.items():
             signal.signal(each, handler)
 
@@ -779,12 +836,13 @@ class _Session(subprocess.Popen[Any]):
     starved parent still waits on the exec pipe while the child runs). The
     caller never gets the object then, so it takes it from *owner* to kill
     the session; ``pid`` stays ``None`` if the fork never happened. A stop
-    signal is held until ``pid`` is stored (:func:`_stop_held`).
+    signal, and any other a Python handler takes, is held until ``pid`` is
+    stored (:func:`_stop_held`, :func:`_interruptions_held`).
     """
 
     def __init__(self, owner: list[subprocess.Popen[Any]], *args: Any, **kw: Any):
         owner.append(self)
-        with _stop_held(self):
+        with _stop_held(self), _interruptions_held():
             super().__init__(*args, start_new_session=True, **kw)
 
 

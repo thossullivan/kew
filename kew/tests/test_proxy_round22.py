@@ -1,9 +1,9 @@
 """Round 22: preserve flooded reports and blank checkout proxy defaults."""
 
 import json
-import time
 
 import pytest
+from support.cost_growth import FACTOR, LINEAR_CEILING, cost_growth
 from test_docs_truthfulness import _assert_checkout_proxy_security_documentation
 from test_proxy_round20 import _agent_launch, _container_launch
 from test_proxy_round21 import _retain
@@ -48,14 +48,24 @@ def test_round22_long_form_flood_preserves_every_other_character(
 def test_round22_five_hundred_matches_finish_within_bound(monkeypatch):
     monkeypatch.setenv("HTTPS_PROXY", "https://proxy.invalid/timeout")
     report = CONTROLS + "retry: timeout\n" * 500 + "z" * 65_536
-    started = time.monotonic()
     with sandbox.proxy_redaction_scope("inherit"):
         retained = sandbox.redact_credentials(report)
-    elapsed = time.monotonic() - started
     assert retained == report.replace("timeout", MARKER)[:65_536]
     assert retained.count(MARKER) == 500
     assert len(retained) == sandbox.MAX_REDACTED_FIELD_CHARS == 65_536
-    assert elapsed < 2.0
+
+    def flood_at(count):
+        flood = CONTROLS + "retry: timeout\n" * count + "Done."
+
+        def redact():
+            with sandbox.proxy_redaction_scope("inherit"):
+                return sandbox.redact_credentials(flood)
+
+        return redact
+
+    # The bound is on how the cost grows with the matches, not on the clock.
+    growth = cost_growth(flood_at, 300)
+    assert growth < LINEAR_CEILING, f"{FACTOR}x the matches cost {growth:.0f}x"
 
 
 @pytest.mark.parametrize(

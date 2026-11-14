@@ -1672,8 +1672,18 @@ class TestSwitchyardArchivePreflight:
     ) -> None:
         script = _synthetic_scan_script(tmp_path)
         first_pass = tmp_path / "first-pass-complete"
+        replaced = tmp_path / "replaced"
         marker = (
             f"    first = source.stream()\n    open({str(first_pass)!r}, 'w').close()"
+        )
+        # The second pass waits for the replacement, so the leaf has changed
+        # between the passes on any machine, not only within a sleep's window.
+        handshake = (
+            f"    _until = __import__('time').monotonic() + 60\n"
+            f"    while not __import__('os').path.exists({str(replaced)!r}):\n"
+            f"        assert __import__('time').monotonic() < _until\n"
+            f"        __import__('time').sleep(0.01)\n"
+            f"    second = source.stream()"
         )
         instrumented = (
             script.read_text()
@@ -1681,10 +1691,7 @@ class TestSwitchyardArchivePreflight:
                 "    first = source.stream()",
                 marker,
             )
-            .replace(
-                "    second = source.stream()",
-                '    __import__("time").sleep(0.2)\n    second = source.stream()',
-            )
+            .replace("    second = source.stream()", handshake)
         )
         script.write_text(instrumented)
         archive = _private_archive(tmp_path)
@@ -1693,10 +1700,11 @@ class TestSwitchyardArchivePreflight:
         replacement.chmod(0o600)
 
         def replace_leaf() -> None:
-            deadline = time.monotonic() + 2
+            deadline = time.monotonic() + 60
             while not first_pass.exists() and time.monotonic() < deadline:
-                time.sleep(0.005)
+                threading.Event().wait(0.005)
             os.replace(replacement, archive)
+            replaced.touch()
 
         replacer = threading.Thread(target=replace_leaf)
         replacer.start()
@@ -1705,7 +1713,7 @@ class TestSwitchyardArchivePreflight:
                 script, binroot, archive, "--validate-switchyard-source"
             )
         finally:
-            replacer.join(timeout=2)
+            replacer.join(timeout=65)
 
         assert first_pass.exists()
         _assert_private_preflight_refused(result, archive)
@@ -5191,7 +5199,8 @@ while True: time.sleep(1)
     )
     observed = None
     try:
-        limit = time.monotonic() + 5
+        # The producer must reach fake Docker: late passes, never fails.
+        limit = time.monotonic() + 60
         while (
             not record.exists() and producer.poll() is None and time.monotonic() < limit
         ):

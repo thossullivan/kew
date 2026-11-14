@@ -236,7 +236,8 @@ def test_round15_tokens_execute_and_stop_then_refuse_loss(tmp_path, monkeypatch)
                 events,
                 partial(dispatch_core._record_retry_pgid, store, run.run_id),
             )
-            deadline = time.monotonic() + 5
+            # The child must run: a late marker passes, a missing one fails.
+            deadline = time.monotonic() + 60
             while not marker.exists() and time.monotonic() < deadline:
                 time.sleep(0.01)
             assert marker.exists(), "matching tokens must permit real execution"

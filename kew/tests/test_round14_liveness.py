@@ -264,7 +264,8 @@ def test_round14_real_detached_parent_exit(monkeypatch, contained):
                 "live contained work must survive cleanup"
             )
             os.kill(child, signal.SIGKILL)
-            deadline = time.monotonic() + 5
+            # SIGKILL always ends it; this only bounds how long a hang takes.
+            deadline = time.monotonic() + 60
             while (
                 not process_groups.process_exited(child) and time.monotonic() < deadline
             ):

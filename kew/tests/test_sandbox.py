@@ -118,6 +118,9 @@ SANDBOX_RUNNER = DEFAULT_IMAGE_RUNNER
 
 #: Test-pool sizes are -e assignments too (#2887), and never a credential.
 _WORKER_POOL_PREFIXES = tuple(f"{name}=" for name in TEST_WORKER_ENV_NAMES)
+#: How long a test waits for a thread step that must come. A late step still
+#: passes and a missing one still fails; only a hang's cost depends on it.
+_THREAD_SECONDS = 30.0
 
 
 @pytest.fixture(autouse=True)
@@ -3066,7 +3069,8 @@ class TestContainerHandle:
                     ResourceCapCode.CHECKOUT_BYTES, "checkout exceeded 1 bytes"
                 )
             )
-            deadline = time.monotonic() + 2.0
+            # The reaper must end: a late end passes, one that never comes fails.
+            deadline = time.monotonic() + 30.0
             while started() and time.monotonic() < deadline:
                 threading.Event().wait(0.01)
             assert started() == []
@@ -3100,9 +3104,11 @@ class TestContainerHandle:
                     "checkout exceeded 1 bytes",
                 )
             )
-            deadline = time.monotonic() + 1.0
+            # The third kill must land; the deadline only bounds a hang. The
+            # wait is not time.sleep, which tests/conftest.py makes a no-op.
+            deadline = time.monotonic() + 30.0
             while not handle._killed and time.monotonic() < deadline:
-                time.sleep(0.005)
+                threading.Event().wait(0.005)
         assert handle._killed
         assert run.call_count == 3
         assert handle.resource_cap_reason == "kew-late: checkout exceeded 1 bytes"
@@ -3154,11 +3160,11 @@ class TestContainerHandle:
                 current_call = call_count
             if current_call == 1:
                 first_kill_started.set()
-                assert accepted_bit_set.wait(timeout=1.0)
+                assert accepted_bit_set.wait(timeout=_THREAD_SECONDS)
                 return KillStatus.REFUSED
             handle._killed = True
             accepted_bit_set.set()
-            assert first_breach_finished.wait(timeout=1.0)
+            assert first_breach_finished.wait(timeout=_THREAD_SECONDS)
             return KillStatus.ACCEPTED
 
         def first_breach() -> None:
@@ -3169,13 +3175,13 @@ class TestContainerHandle:
         second = threading.Thread(target=handle._breach, args=(free_space,))
         with patch.object(handle, "kill", side_effect=competing_kill):
             first.start()
-            assert first_kill_started.wait(timeout=1.0)
+            assert first_kill_started.wait(timeout=_THREAD_SECONDS)
             second.start()
-            first.join(timeout=1.0)
-            second.join(timeout=1.0)
+            first.join(timeout=_THREAD_SECONDS)
+            second.join(timeout=_THREAD_SECONDS)
             proc.poll.return_value = 0
             if handle._reaper_thread is not None:
-                handle._reaper_thread.join(timeout=1.0)
+                handle._reaper_thread.join(timeout=_THREAD_SECONDS)
 
         assert not first.is_alive()
         assert not second.is_alive()
@@ -3213,7 +3219,7 @@ class TestContainerHandle:
             if argv[1] == "kill":
                 assert argv == ["docker", "kill", "a" * 64]
                 kill_started.set()
-                assert release_kill.wait(timeout=1.0)
+                assert release_kill.wait(timeout=_THREAD_SECONDS)
                 proc.poll.return_value = 137
                 raise subprocess.TimeoutExpired(
                     cmd=argv,
@@ -3246,7 +3252,7 @@ class TestContainerHandle:
             patch.object(handle, "note_oom_kill", return_value=None),
         ):
             breach_thread.start()
-            assert kill_started.wait(timeout=1.0)
+            assert kill_started.wait(timeout=_THREAD_SECONDS)
             finalizer = threading.Thread(target=finalize)
             finalizer.start()
             assert not finalized.wait(timeout=0.05), (
@@ -3254,8 +3260,8 @@ class TestContainerHandle:
             )
             assert handle.resource_cap_reason is None
             release_kill.set()
-            breach_thread.join(timeout=1.0)
-            finalizer.join(timeout=1.0)
+            breach_thread.join(timeout=_THREAD_SECONDS)
+            finalizer.join(timeout=_THREAD_SECONDS)
 
         assert not breach_thread.is_alive()
         assert not finalizer.is_alive()
@@ -3336,7 +3342,7 @@ class TestContainerHandle:
         ):
             handle.start_watchdog()
             assert handle._watchdog_thread is not None
-            handle._watchdog_thread.join(timeout=1)
+            handle._watchdog_thread.join(timeout=_THREAD_SECONDS)
         assert breached.call_count == 3
 
     def test_container_kill_uses_configured_runtime(self):
@@ -3715,10 +3721,10 @@ class TestContainerHandle:
             for thread in threads:
                 thread.start()
             for thread in threads:
-                thread.join(timeout=1.0)
+                thread.join(timeout=_THREAD_SECONDS)
             proc.poll.return_value = 0
             if handle._reaper_thread is not None:
-                handle._reaper_thread.join(timeout=1.0)
+                handle._reaper_thread.join(timeout=_THREAD_SECONDS)
 
         assert all(not thread.is_alive() for thread in threads)
         assert len(handle.resource_cap_observations) == MAX_RESOURCE_CAP_OBSERVATIONS

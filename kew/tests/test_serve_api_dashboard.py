@@ -235,7 +235,8 @@ def _expire_caches() -> None:
 
 
 def _wait_for(condition: Callable[[], bool]) -> None:
-    deadline = time.monotonic() + 5.0
+    # A refresh that must land: a late one passes, a missing one still fails.
+    deadline = time.monotonic() + 60.0
     while not condition():
         assert time.monotonic() < deadline, "the background refresh never landed"
         time.sleep(0.01)

@@ -942,6 +942,129 @@ def test_a_stop_signal_that_lands_before_popen_stores_the_pid_still_kills_mutmut
     assert not list(scratch.glob("run-*"))
 
 
+def _raise_interrupted(signum: int, frame: Any) -> None:
+    raise _Interrupted
+
+
+@pytest.mark.parametrize(
+    ("signum", "handler", "raised"),
+    [
+        (signal.SIGINT, signal.default_int_handler, KeyboardInterrupt),
+        (signal.SIGALRM, _raise_interrupted, _Interrupted),
+    ],
+    ids=["ctrl-c", "a-handler-that-raises"],
+)
+def test_an_interruption_that_lands_before_popen_stores_the_pid_still_kills_mutmut(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    signum: int,
+    handler: Callable[[int, Any], None],
+    raised: type[BaseException],
+) -> None:
+    """Any signal whose handler raises, not only a stop, waits for the pid.
+
+    A Ctrl-C, or any handler that raises, delivered inside the fork's own
+    return unwinds with mutmut running and ``pid`` still ``None`` unless the
+    start holds it until ``pid`` is stored, as it holds a stop signal.
+    """
+    project = _fixture_project(tmp_path / "fixture")
+    tool = _tool(project)
+    fake, pids = _sleeping_mutmut(tmp_path)
+    scratch = tmp_path / "scratch"
+    mutmut = tool.Mutmut(project, scratch, tool.head_sha(project), executable=fake)
+    fork_exec = subprocess._fork_exec  # type: ignore[attr-defined]
+
+    def interrupted_as_it_returns(args: Any, *rest: Any) -> int:
+        pid: int = fork_exec(args, *rest)
+        if args and os.fsdecode(args[0]) == str(fake):
+            _until("mutmut to start", pids.exists)
+            signal.raise_signal(signum)
+        return pid
+
+    previous = signal.signal(signum, handler)
+    try:
+        with monkeypatch.context() as patch, pytest.raises(raised):
+            patch.setattr(subprocess, "_fork_exec", interrupted_as_it_returns)
+            mutmut.run(CALC, ["tests"], [], timeout=600)
+        in_effect = signal.getsignal(signum)
+    finally:
+        signal.signal(signum, previous)
+
+    started = _started(pids)
+    assert len(started) == 2
+    try:
+        _until("mutmut to die", lambda: not any(map(_alive, started)), timeout=30)
+    except AssertionError:
+        for pid in started:
+            with contextlib.suppress(OSError):
+                os.kill(pid, signal.SIGKILL)
+        raise
+    assert not list(scratch.glob("run-*"))
+    assert in_effect is handler, "the start gave the signal its own handler back"
+
+
+def test_every_interruption_held_while_mutmut_starts_reaches_its_handler(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two signals land before ``pid`` is stored, and both handlers raise.
+
+    The first handler's exception does not cost the second signal its
+    delivery: both handlers run, in the order the signals arrived, and the
+    Ctrl-C that came last is what ends the run, with the earlier exception as
+    its context, as when the two land one after the other outside a start.
+    """
+    project = _fixture_project(tmp_path / "fixture")
+    tool = _tool(project)
+    fake, pids = _sleeping_mutmut(tmp_path)
+    scratch = tmp_path / "scratch"
+    mutmut = tool.Mutmut(project, scratch, tool.head_sha(project), executable=fake)
+    fork_exec = subprocess._fork_exec  # type: ignore[attr-defined]
+    handled: list[int] = []
+
+    def alarm(signum: int, frame: Any) -> None:
+        handled.append(signum)
+        raise _Interrupted
+
+    def ctrl_c(signum: int, frame: Any) -> None:
+        handled.append(signum)
+        raise KeyboardInterrupt
+
+    def interrupted_twice_as_it_returns(args: Any, *rest: Any) -> int:
+        pid: int = fork_exec(args, *rest)
+        if args and os.fsdecode(args[0]) == str(fake):
+            _until("mutmut to start", pids.exists)
+            signal.raise_signal(signal.SIGALRM)
+            signal.raise_signal(signal.SIGINT)
+        return pid
+
+    previous = {
+        signal.SIGALRM: signal.signal(signal.SIGALRM, alarm),
+        signal.SIGINT: signal.signal(signal.SIGINT, ctrl_c),
+    }
+    either = (KeyboardInterrupt, _Interrupted)
+    try:
+        with monkeypatch.context() as patch, pytest.raises(either) as ending:
+            patch.setattr(subprocess, "_fork_exec", interrupted_twice_as_it_returns)
+            mutmut.run(CALC, ["tests"], [], timeout=600)
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+    started = _started(pids)
+    assert len(started) == 2
+    try:
+        _until("mutmut to die", lambda: not any(map(_alive, started)), timeout=30)
+    except AssertionError:
+        for pid in started:
+            with contextlib.suppress(OSError):
+                os.kill(pid, signal.SIGKILL)
+        raise
+    assert not list(scratch.glob("run-*"))
+    assert handled == [signal.SIGALRM, signal.SIGINT]
+    assert isinstance(ending.value, KeyboardInterrupt)
+    assert isinstance(ending.value.__context__, _Interrupted)
+
+
 def test_a_stop_signal_held_while_mutmut_fails_to_start_still_stops_the_report(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
