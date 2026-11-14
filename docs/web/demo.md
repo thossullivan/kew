@@ -10,10 +10,11 @@ is built this way.
 
 - **Synthetic data.** The epics, work items, runs and costs in the demo are
   made up. No real epic, item, run, path or name appears in them.
-- **Build history.** The **Build history** line at the foot of a page is
-  there to read kew's own history: the pull requests, agent runs, review rounds and
-  list-price cost that built that page. Until that history is exported to the
-  published demo, the line reads sample data and is labelled so.
+- **Build history.** The **Build history** line at the foot of a page reads
+  kew's own history: the pull requests, agent runs, review rounds and
+  list-price cost that built that page. It is the one part of the demo that is
+  not made up. A demo build made without that history reads sample data and is
+  labelled so.
 - **Allowlisted fields.** Build history publishes only those counts and costs,
   each feature's id, title, routes, epics and issue numbers, its pull requests
   and the commits they landed, its held-out failure counts, its flagged-run

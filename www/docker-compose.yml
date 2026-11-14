@@ -14,6 +14,14 @@
 # `adapter-static` deletes and recreates build/, which orphans the bind mount
 # and 404s every request until the container restarts. `npm run serve` handles
 # that; if you run the build directly, follow it with `docker compose restart`.
+#
+# The tree is mounted at /srv/kew, the path the host's Caddy mounts it at
+# (DEPLOY.md), so the Caddyfile's root line is production's.
+#
+# Files under /_app/immutable/ are sent with a one-year cache lifetime, as in
+# production. Each is named by its content hash, so a rebuild that changes one
+# gives it a new name and no browser serves a stale one. The pages that name
+# them carry no such header.
 services:
   kew-www:
     image: caddy:2-alpine
@@ -22,5 +30,5 @@ services:
       - '${KEW_WWW_PORT:-8088}:80'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./build:/srv/site:ro
+      - ./build:/srv/kew:ro
     restart: unless-stopped

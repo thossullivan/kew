@@ -4,6 +4,11 @@
  * A demo module (`demo-*.mjs`): `scripts/ui-check.mjs` runs it only against
  * the standard-library static server for `build-demo/`, which does the SPA
  * fallback and sends the site's CSP — so a CSP break is a console error here.
+ * `npm run demo-check -- <base-url>` runs it against a deployed demo, where
+ * the one check that reads the server itself, not a page, is about the host's
+ * site block: a missing file under `/_app/` must answer 404 and never be sent
+ * as immutable (`www/DEPLOY.md`, "Caddy site block"). No page asks for a
+ * missing file, so a host without that rule passes every other check.
  * Nothing is read at import (`ui-check.test.ts` loads every module and calls
  * `checks()` with `visit` set to throw): the world's manifest is read when
  * `checks()` starts, for the refs the check names carry, and every page visit
@@ -18,6 +23,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEMO_BANNER, TAKE_A_TOUR, TOURS_DESKTOP_ONLY } from '../../src/lib/demo/banner.js';
+import { MISSING_ASSET, MISSING_ASSET_CHECK, assetAnswer, loadedScriptProblems, missingAssetProblems } from '../demo-check-lib.mjs';
 import { FRONTEND, assertPainted, squash, widestBox } from '../ui-check-lib.mjs';
 
 const ROUTES_DIR = fileURLToPath(new URL('src/routes/', FRONTEND));
@@ -98,6 +104,28 @@ export async function checks({ base, check, visit, expect }) {
       await nodes.first().waitFor({ state: 'visible', timeout: 10_000 });
       expect((await nodes.count()) > 0, 'the deep-linked epic drew no node');
       expect(problems.length === 0, `the deep link reported:\n${problems.join('\n')}`);
+    });
+  });
+
+  // The host's site block, on any base (never skipped on a remote one): the
+  // SPA fallback must not cover `/_app/`. With a fallback over every path, a
+  // chunk the last publish removed answers the page shell with status 200,
+  // and a header matched on the path alone sends it as immutable for a year.
+  await check(MISSING_ASSET_CHECK, async () => {
+    const missing = missingAssetProblems(await assetAnswer(base, MISSING_ASSET));
+    expect(missing.length === 0, missing.join('\n'));
+    await visit('/work', async (page) => {
+      const scripts = await page.evaluate(() =>
+        performance
+          .getEntriesByType('resource')
+          .map((entry) => new URL(entry.name))
+          .filter((url) => url.origin === location.origin && /^\/_app\/immutable\/.+\.js$/.test(url.pathname))
+          .map((url) => url.pathname)
+      );
+      expect(scripts.length > 0, 'the page loaded no script from /_app/immutable/, so no existing file was asked for');
+      const loaded = [];
+      for (const path of new Set(scripts)) loaded.push(...loadedScriptProblems(path, await assetAnswer(base, path)));
+      expect(loaded.length === 0, loaded.join('\n'));
     });
   });
 

@@ -378,8 +378,8 @@ waits on a person; your waits join the needs-you count.
 exports, per console feature, the epics, issues, pull requests and runs that
 built it, with their cost and how review and verification went. The demo
 console draws that export as a line at the foot of each page a feature names.
-The published demo does not yet bundle kew's own export: it draws invented
-sample figures there, and the line says "sample data".
+The published demo bundles kew's own export. A demo build made without it
+draws invented sample figures there, and the line says "sample data".
 
 ## Governed adversarial review
 

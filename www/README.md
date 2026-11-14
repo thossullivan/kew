@@ -104,7 +104,8 @@ machine, never on the host.
 `npm run dist` is the composition step on its own: the marketing build with the
 mkdocs output folded in at `build/docs/`. Local serving mounts that same single
 tree, so `Caddyfile` here and the production site block differ only in the
-address line — keep the two in step, especially the CSP.
+address line and the local log block — keep the two in step, especially the
+CSP. `tests/site-blocks.test.mjs` fails `npm test` when they drift.
 
 ## Before launch
 

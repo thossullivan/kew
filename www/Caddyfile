@@ -4,7 +4,9 @@
 # into build/, with the docs physically at build/docs/. That is the same
 # directory the box serves, so this file and the production site block differ
 # only in the address line (":80" here; "kew.dev" there, where Caddy also
-# provisions TLS).
+# provisions TLS) and in the log block, which is local. The tree is mounted
+# at the path production mounts it at, so the root line is the same too.
+# tests/site-blocks.test.mjs holds this block to the one in DEPLOY.md.
 #
 # This previously mounted two trees and stripped the prefix with handle_path.
 # It worked, but it meant the thing tested locally was not quite the thing
@@ -12,7 +14,7 @@
 # rather than because the paths matched. See DEPLOY.md.
 
 :80 {
-	root * /srv/site
+	root * /srv/kew
 	encode gzip zstd
 
 	# Bare /docs would otherwise 404 — mkdocs expects the trailing slash.
@@ -39,23 +41,55 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
+	# A file under /_app/immutable/ is named by its content hash, so a browser
+	# may keep it for a year: a rebuild that changes it gives it a new name.
+	# The `file` condition is there because the handler above answers a
+	# missing path with /index.html, which must never be kept under a
+	# script's URL.
+	@immutable {
+		path /_app/immutable/*
+		file
+	}
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
 	log {
 		output stdout
 		format console
 	}
 }
 #
-# demo.kew.dev: a commented EXAMPLE only, not served. The demo console
-# (frontend/build-demo/, staged by deploy-demo.sh as a dry run) goes public only
-# with the owner's approval. The production block is in DEPLOY.md; the CSP is
-# the one above, unchanged.
+# demo.kew.dev: the demo console's site block, as a reference. Every line is
+# commented out: this file serves kew.dev and nothing else. deploy-demo.sh
+# publishes the demo console (frontend/build-demo/) to the deploy host, and
+# each publish needs the owner's approval. The block belongs in the host's
+# Caddy and DEPLOY.md describes it; the CSP is the one above, unchanged.
+#
+# A missing file under /_app/ answers 404, never the page shell. /_app/ holds
+# only the build's own files, so the /index.html fallback is for page paths.
+# With a fallback over every path, a missing /_app/immutable/ chunk answers
+# 200 with the shell, and a header matched on the path alone lets a browser
+# keep that HTML under a script's URL for a year. deploy-demo.sh uploads with
+# rsync --delete, so each publish removes the previous build's chunks, and a
+# page loaded before the publish still asks for them. Hence the two
+# conditions: @missingAsset keeps /_app/ out of the fallback, and @immutable
+# sends the cache header only for a file that exists.
 #
 # demo.kew.dev {
 # 	root * /srv/kew-demo
 # 	encode gzip zstd
 #
-# 	try_files {path} /index.html
-# 	file_server
+# 	@missingAsset {
+# 		path /_app/*
+# 		not file {path}
+# 	}
+# 	handle @missingAsset {
+# 		respond 404
+# 	}
+#
+# 	handle {
+# 		try_files {path} /index.html
+# 		file_server
+# 	}
 #
 # 	header {
 # 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
@@ -63,5 +97,9 @@
 # 		Referrer-Policy "strict-origin-when-cross-origin"
 # 	}
 #
-# 	header /_app/immutable/* Cache-Control "public, max-age=31536000, immutable"
+# 	@immutable {
+# 		path /_app/immutable/*
+# 		file
+# 	}
+# 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 # }

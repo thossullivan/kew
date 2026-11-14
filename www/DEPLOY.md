@@ -14,7 +14,7 @@ It ships **two trees**: the marketing build (`www/build`, SvelteKit) and the doc
 That composition is also why `www/Caddyfile` no longer strips a `/docs` prefix
 with `handle_path`. The docs now live at the path they are served from, both
 locally and on the box, so the local Caddyfile and the production site block
-differ only in the address line.
+differ only in the address line and the local log block.
 
 ## Resource cost on the host
 
@@ -79,7 +79,11 @@ kew.dev {
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 
-    header /_app/immutable/* Cache-Control "public, max-age=31536000, immutable"
+    @immutable {
+        path /_app/immutable/*
+        file
+    }
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
 }
 
 www.kew.dev {
@@ -87,9 +91,18 @@ www.kew.dev {
 }
 ```
 
+The immutable header carries the `file` condition because the marketing
+handler answers a missing path with `/index.html`. A header matched on the
+path alone would send that page, for a missing `/_app/immutable/` file, with a
+cache lifetime of a year.
+
 Keep it in step with `www/Caddyfile`. That file is the local mirror, so a header
 that exists in only one of them means the thing you test is not the thing you
-ship. The CSP is the load-bearing one.
+ship. The CSP is the load-bearing one. `tests/site-blocks.test.mjs` fails
+`npm test` when this block and the `:80` block of `www/Caddyfile` differ in
+anything but the address line and the log block, and when the kew.dev and
+demo.kew.dev blocks of this file and their two copies in `www/Caddyfile` do
+not all send the same CSP. It reads those four blocks and no other.
 
 **c. Reload Caddy once** so it picks up the block. After that, content deploys
 never need it again — Caddy serves the mounted files live.
@@ -169,26 +182,39 @@ curl -s https://kew.dev | grep -o 'og:image[^>]*'     # social card wired
 Static and git-backed: check out the previous commit, `npm run dist`, deploy
 again. No state, no migrations.
 
-## demo.kew.dev (dry run only)
+## demo.kew.dev
 
-`deploy-demo.sh` stages a second site on the same host: the web console built
-as a static site on synthetic fixtures (`npm run build:demo` in `frontend/`,
-output `frontend/build-demo/`), with no backend. **Nothing publishes it yet.**
-demo.kew.dev goes public only with the owner's approval, after the repository
-is public; until then the script is run as a dry run, and no CI workflow runs
-it.
+`deploy-demo.sh` builds a second site for the same host: the web console as a
+static site on synthetic fixtures (`npm run build:demo` in `frontend/`, output
+`frontend/build-demo/`), with no backend. It is a dry run unless it is given
+`--publish`, and no CI workflow runs it.
+
+The owner approved publishing the demo, and the build was first published to
+the host's `kew-demo` directory on 2026-11-14. Every publish still needs the
+approval variable, `KEW_DEMO_PUBLISH_APPROVED`, and must pass every guard
+below.
+
+Publishing writes files to that directory and nothing else. demo.kew.dev
+answers only when the host's Caddy carries the bind mount and the site block
+described under [Directory and bind mount](#directory-and-bind-mount) and
+[Caddy site block](#caddy-site-block). That Caddy belongs to another compose
+project, so the mount and the block are a change in that project, not a step
+of this script.
 
 ```sh
 cd www
 ./deploy-demo.sh                          # guard, build, scan; print what it would publish
 ./deploy-demo.sh --provenance <dir>       # the same, with the real build history
-./deploy-demo.sh --publish --provenance <dir>   # publish (owner's approval only)
+./deploy-demo.sh --publish --provenance <dir>   # publish (needs KEW_DEMO_PUBLISH_APPROVED)
 ```
 
-Both the dry run and `--publish` end by printing the check to run once a real
-deploy is live, `cd frontend && npm run demo-check -- https://demo.kew.dev`
-(the demo's browser checks, the docs links into it and the tour gallery). The
-script runs nothing more itself, and no CI job runs that check.
+Both the dry run and `--publish` end by printing the check to run once the
+site answers, `cd frontend && npm run demo-check -- https://demo.kew.dev`
+(the demo's browser checks, the docs links into it and the tour gallery). One
+of those checks is about the host's site block, not the build: a missing file
+under `/_app/` must answer 404 and must not be sent as immutable (see
+[Caddy site block](#caddy-site-block)). The script runs nothing more itself,
+and no CI job runs that check.
 
 It takes `--publish` and `--provenance <dir>`, each at most once, in either
 order; anything else prints the usage and does nothing. Before it builds
@@ -253,8 +279,12 @@ it would send. A real publish needs `--publish`, `--provenance <dir>`,
 `DEPLOY_HOST`/`DEPLOY_USER`, AND `KEW_DEMO_PUBLISH_APPROVED=publish-demo.kew.dev`: the first two are
 `deploy.sh`'s too, so kew.dev's credentials alone never publish the demo. Set
 that variable only with the owner's approval. It prints the approval line
-before it touches the host. The setup below is what that approval would switch
-on.
+before it touches the host.
+
+The setup below is what the host needs before demo.kew.dev answers. The DNS
+record is set at the DNS provider, and the script creates the directory. The
+bind mount and the site block go into the compose project that owns the
+host's Caddy.
 
 ### DNS
 
@@ -280,18 +310,31 @@ Mount it into the caddy service:
 
 ### Caddy site block
 
-The demo is a single-page app, so every path falls back to `/index.html`. The
-CSP is kew.dev's, unchanged: the demo bundles everything it runs, driver.js
-included, and makes no request off its own origin. `www/Caddyfile` carries
-the same block, every line commented out, as the local reference.
+The demo is a single-page app, so a page path falls back to `/index.html`:
+that is what makes a deep link load. A missing file under `/_app/` answers
+404. The CSP is kew.dev's, unchanged: the demo bundles everything it runs,
+driver.js included, and makes no request off its own origin. `www/Caddyfile`
+carries the same block, every line commented out, as the local reference, and
+`frontend/scripts/static-server.mjs` answers the same way for the local
+checks.
 
 ```caddy
 demo.kew.dev {
     root * /srv/kew-demo
     encode gzip zstd
 
-    try_files {path} /index.html
-    file_server
+    @missingAsset {
+        path /_app/*
+        not file {path}
+    }
+    handle @missingAsset {
+        respond 404
+    }
+
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
 
     header {
         Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
@@ -299,9 +342,29 @@ demo.kew.dev {
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 
-    header /_app/immutable/* Cache-Control "public, max-age=31536000, immutable"
+    @immutable {
+        path /_app/immutable/*
+        file
+    }
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
 }
 ```
+
+The two matchers close one fault. A fallback over every path answers a
+missing `/_app/immutable/` chunk with `index.html` and status 200, and a
+header matched on the path alone sends it as immutable for a year.
+`deploy-demo.sh` uploads with `rsync --delete`, so each publish removes the
+previous build's chunks. A page loaded before the publish still asks for
+them, and the browser would keep the page shell under a script's URL.
+`@missingAsset` keeps `/_app/` out of the fallback, and `@immutable` sends the
+cache header only for a file that exists.
+
+Two checks hold this. `tests/site-blocks.test.mjs` fails `npm test` when the
+block above and the commented one in `www/Caddyfile` differ. `npm run
+demo-check -- https://demo.kew.dev` asks the host for a file under
+`/_app/immutable/` that no build writes, and fails unless the answer is 404
+with no `immutable` in its Cache-Control. A host that still runs a fallback
+over every path loads every page, so no other check sees it.
 
 ## Open decision: give Caddy its own edge project
 

@@ -18,7 +18,10 @@ npm run demo-check     # the demo's browser checks against build-demo/, or `-- <
 `scripts/ui-checks/demo-*.mjs` modules against a demo: the local `build-demo/`
 (run `npm run build:demo` first) when no URL is given, or a deployed one such
 as `https://demo.kew.dev`, where it skips, by name, each check that reads the
-local build. It also builds the docs (`mkdocs build --strict`, via `uvx`),
+local build. One check is about the host and is never skipped: a file under
+`/_app/immutable/` that no build writes must answer 404 with no `immutable` in
+its Cache-Control, and each script the page loads must answer 200. It also
+builds the docs (`mkdocs build --strict`, via `uvx`),
 clicks every "See it in the demo" link into the demo and checks the tour opens
 on that step, and writes every tour step at 1440x960, 1366x650 and 390x844 to
 `.shots/demo/<stamp>/` with a `manifest.json` for review. It needs a Chromium,
@@ -27,8 +30,10 @@ found as `npm run ui-check` finds one.
 ## `npm run build:demo` — the console with no backend
 
 `npm run build:demo` (`demo/vite.demo.config.ts`) writes a static,
-backend-free console to `build-demo/`, servable from the root of any host with
-an SPA fallback (`try_files {path} /index.html`). It is the same app: the
+backend-free console to `build-demo/`, servable from the root of any host that
+answers as the site block in `www/DEPLOY.md` ("Caddy site block") does: a
+page path that names no file falls back to `/index.html`, and a missing file
+under `/_app/` answers 404, never the fallback. It is the same app: the
 config defines `__KEW_DEMO__` as `true`, and `src/hooks.client.ts` then
 installs `src/lib/demo/` before the first `load` runs. Every `/api` read is
 answered in the browser out of the fixture set bundled at build time (one
@@ -225,8 +230,9 @@ The export also drops a run whose id is not a uuid and writes an empty item
 id as `null`. The checked
 `provenance.json` ships as `build-demo/demo-provenance.json`, read from the
 site itself, never through the `/api` shim, with the routes it names bundled
-beside it so a surface no feature names draws no foot at all. The real
-export ships only after the repository is public, with the owner's approval.
+beside it so a surface no feature names draws no foot at all. A publish
+needs the real export and the owner's approval (`www/deploy-demo.sh`); a build
+made without the export bundles the committed samples.
 
 The leak scan exempts no file whole: `exempt` in `demo/leak-scan.allow.json`
 names, per exact path and mode, the JSON key paths (or TOML keys) whose
@@ -269,7 +275,8 @@ fixture epic, `SETTLE_MS`, `widestBox`) is in `scripts/ui-check-lib.mjs`;
 
 A module named `demo-*.mjs` runs only against the static demo build, behind a
 standard-library server (`scripts/static-server.mjs`) that does the SPA
-fallback and sends `www/Caddyfile`'s Content-Security-Policy; every other
+fallback, answers 404 for a missing file under `/_app/` and sends
+`www/Caddyfile`'s Content-Security-Policy; every other
 module runs only against the dev server. The default run builds first, before
 any server or browser starts: `npm run build`, whose output must hold no demo
 sentinel, no driver.js class and no fixture run id, then `npm run build:demo`.

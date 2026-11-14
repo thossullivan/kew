@@ -4,6 +4,7 @@
  * build may not hold, and how the static server answers.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { request, type IncomingHttpHeaders } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -34,6 +35,24 @@ function tempDir(files: Record<string, string>): string {
     writeFileSync(join(dir, name), body);
   }
   return dir;
+}
+
+/**
+ * One GET whose request line carries `target` exactly as written. `fetch`
+ * parses its URL first, so it cannot send `//x`, `/\` or a bare `%`.
+ */
+function rawGet(base: string, target: string): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+  const { hostname, port } = new URL(base);
+  return new Promise((resolve, reject) => {
+    const sent = request({ hostname, port, path: target, method: 'GET', agent: false }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
+    });
+    sent.on('error', reject);
+    sent.end();
+  });
 }
 
 describe('the two phases', () => {
@@ -144,7 +163,7 @@ describe('the static demo server', () => {
     expect(() => cspIn('header Content-Security-Policy-Report-Only "x"')).toThrow(/sends no Content-Security-Policy/);
   });
 
-  it('answers a file it has, and index.html for anything else', () => {
+  it('answers a file it has, and index.html for any other path outside /_app/', () => {
     const root = tempDir({ 'index.html': 'shell', '_app/a.js': 'js' });
     expect(fileFor(root, '/_app/a.js')).toBe(join(root, '_app/a.js'));
     expect(fileFor(root, '/epics/launch-fixes')).toBe(join(root, 'index.html'));
@@ -164,6 +183,176 @@ describe('the static demo server', () => {
       expect(js.headers.get('content-type')).toMatch(/^text\/javascript/);
       expect(await js.text()).toBe('js');
       expect((await fetch(`${server.base}/x`, { method: 'POST' })).status).toBe(405);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('names no file for a missing path under /_app/, a directory there included', () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    expect(fileFor(root, '/_app/immutable/a.js')).toBe(join(root, '_app/immutable/a.js'));
+    expect(fileFor(root, '/_app/immutable/x.js')).toBeNull();
+    expect(fileFor(root, '/_app/version.json')).toBeNull();
+    expect(fileFor(root, '/_app/immutable')).toBeNull();
+    expect(fileFor(root, '/_app/')).toBeNull();
+    // `/_app` itself is not under `/_app/`: it is a page path like any other.
+    expect(fileFor(root, '/_app')).toBe(join(root, 'index.html'));
+    expect(fileFor(root, '/_application/x.js')).toBe(join(root, 'index.html'));
+  });
+
+  it('decides /_app/ on the path with its dot segments resolved, which never leaves the root', () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    // Resolved into /_app/: missing there, so no file.
+    expect(fileFor(root, '/../_app/immutable/x.js')).toBeNull();
+    expect(fileFor(root, '/epics/../_app/immutable/x.js')).toBeNull();
+    expect(fileFor(root, '/_app%2Fimmutable%2Fx.js')).toBeNull();
+    expect(fileFor(root, '/%2e%2e/_app/immutable/x.js')).toBeNull();
+    // Resolved into /_app/ and there: the file.
+    expect(fileFor(root, '/../../_app/immutable/a.js')).toBe(join(root, '_app/immutable/a.js'));
+    // Resolved out of /_app/: a page path, so the shell.
+    expect(fileFor(root, '/_app/../epics/launch-fixes')).toBe(join(root, 'index.html'));
+    expect(fileFor(root, '/_app/../../etc/passwd')).toBe(join(root, 'index.html'));
+    expect(fileFor(root, '/_app/%2e%2e/%2e%2e/etc/passwd')).toBe(join(root, 'index.html'));
+  });
+
+  it('answers 404 for a missing file under /_app/, never the shell', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      for (const path of ['/_app/immutable/x.js', '/_app/version.json', '/_app/immutable', '/_app%2Fimmutable%2Fx.js']) {
+        const missing = await fetch(`${server.base}${path}`);
+        expect(missing.status, path).toBe(404);
+        expect(await missing.text(), path).toBe('');
+        expect(missing.headers.get('content-security-policy'), path).toBe("default-src 'self'");
+        expect(missing.headers.get('x-content-type-options'), path).toBe('nosniff');
+        expect(missing.headers.get('cache-control'), path).toBe('no-store');
+      }
+      expect((await fetch(`${server.base}/_app/immutable/x.js`, { method: 'HEAD' })).status).toBe(404);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('still answers a file under /_app/ that exists, and the shell for a deep link', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      const chunk = await fetch(`${server.base}/_app/immutable/a.js`);
+      expect(chunk.status).toBe(200);
+      expect(chunk.headers.get('content-type')).toMatch(/^text\/javascript/);
+      expect(chunk.headers.get('content-security-policy')).toBe("default-src 'self'");
+      expect(chunk.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(await chunk.text()).toBe('js');
+      for (const path of ['/', '/runs/abc', '/_app', '/missing.js']) {
+        const page = await fetch(`${server.base}${path}`);
+        expect(page.status, path).toBe(200);
+        expect(page.headers.get('content-type'), path).toMatch(/^text\/html/);
+        expect(await page.text(), path).toBe('shell');
+      }
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('reads /_app/ in any case, as the host does', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    expect(fileFor(root, '/_APP/immutable/zz.js')).toBeNull();
+    expect(fileFor(root, '/_App/Version.json')).toBeNull();
+    expect(fileFor(root, '/_APPLICATION/zz.js')).toBe(join(root, 'index.html'));
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      const missing = await fetch(`${server.base}/_APP/immutable/zz.js`);
+      expect(missing.status).toBe(404);
+      expect(await missing.text()).toBe('');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('decides a path it cannot decode as it is written: 404 under /_app/, the shell elsewhere', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js', '_app/%zz.js': 'never served' });
+    for (const path of ['/_app/%ff.js', '/_app/%', '/_app/immutable/%zz.js', '/_APP/%', '/epics/../_app/%', '//_app/%ff.js']) {
+      expect(fileFor(root, path), path).toBeNull();
+    }
+    // The undecoded text is never looked up on the disk, even when a file has that name.
+    expect(fileFor(root, '/_app/%zz.js')).toBeNull();
+    for (const path of ['/%', '/epics/%zz', '/_app/../%ff']) {
+      expect(fileFor(root, path), path).toBe(join(root, 'index.html'));
+    }
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      for (const path of ['/_app/%ff.js', '/_app/%', '/_app/immutable/%zz.js']) {
+        const missing = await rawGet(server.base, path);
+        expect(missing.status, path).toBe(404);
+        expect(missing.body, path).toBe('');
+      }
+      const page = await rawGet(server.base, '/epics/%zz');
+      expect(page.status).toBe(200);
+      expect(page.body).toBe('shell');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('takes the path from the request target as written, so a leading // is a path and never a host', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      const missing = await rawGet(server.base, '//_app/immutable/zz.js');
+      expect(missing.status).toBe(404);
+      expect(missing.body).toBe('');
+      const chunk = await rawGet(server.base, '//_app/immutable/a.js');
+      expect(chunk.status).toBe(200);
+      expect(chunk.body).toBe('js');
+      const query = await rawGet(server.base, '/_app/immutable/a.js?v=1#top');
+      expect(query.status).toBe(200);
+      expect(query.body).toBe('js');
+      const tour = await rawGet(server.base, '/runs/abc?tour=refused-pr&step=1');
+      expect(tour.status).toBe(200);
+      expect(tour.body).toBe('shell');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('answers every request target, and 400 for one that is not a path', async () => {
+    const root = tempDir({ 'index.html': 'shell', '_app/immutable/a.js': 'js' });
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      // Each of these, read as a URL against a base, is an invalid one.
+      for (const target of ['//', '/\\', '//[', '//?x=1']) {
+        const page = await rawGet(server.base, target);
+        expect(page.status, target).toBe(200);
+        expect(page.body, target).toBe('shell');
+      }
+      for (const target of ['http://other.example/_app/immutable/a.js', '*']) {
+        const refused = await rawGet(server.base, target);
+        expect(refused.status, target).toBe(400);
+        expect(refused.body, target).toBe('');
+        expect(refused.headers['content-security-policy'], target).toBe("default-src 'self'");
+        expect(refused.headers['x-content-type-options'], target).toBe('nosniff');
+      }
+      // Node's own parser refuses these request lines before the server sees them.
+      for (const target of ['runs/abc', '?x=1']) {
+        expect((await rawGet(server.base, target)).status, target).toBe(400);
+      }
+      // The server is still there.
+      expect((await fetch(`${server.base}/_app/immutable/a.js`)).status).toBe(200);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('sends the CSP on a refused method too', async () => {
+    const root = tempDir({ 'index.html': 'shell' });
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      const refused = await fetch(`${server.base}/x`, { method: 'POST' });
+      expect(refused.status).toBe(405);
+      expect(refused.headers.get('allow')).toBe('GET, HEAD');
+      expect(refused.headers.get('content-security-policy')).toBe("default-src 'self'");
+      expect(refused.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(await refused.text()).toBe('');
     } finally {
       await server.close();
     }

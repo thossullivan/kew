@@ -1,7 +1,8 @@
 /**
  * What `npm run demo-check` (#3207) decides without a browser, so
  * `scripts/demo-check.test.ts` can read it: the base a run checks, the checks
- * a remote base cannot make, the "See it in the demo" links the docs sources
+ * a remote base cannot make, what a base must answer for a file under `/_app/`
+ * that is not there, the "See it in the demo" links the docs sources
  * declare and the ones a built docs page carries, whether a URL is on the
  * base, where such a link is pointed, the sentence a docs-to-demo failure
  * prints, and the walkthrough gallery's shots.
@@ -15,6 +16,14 @@ export const DOCS_ROOT = 'kew.dev/docs/';
 
 /** The words of every docs link into a tour step (`kew/tests/test_docs_demo_links.py`). */
 export const LINK_TEXT = 'See it in the demo';
+
+/**
+ * An anchor's whole text when it is such a link, the words spaced any way:
+ * what `demoLinks` keeps from a page's source, and what the browser check
+ * finds the anchor by. Not the anchor's accessible name, which also holds
+ * whatever a stylesheet draws after the words.
+ */
+export const LINK_TEXT_ALONE = new RegExp(`^\\s*${LINK_TEXT.split(' ').join('\\s+')}\\s*$`);
 
 /** The checks that read the local build from disk, each with why a remote base skips it. */
 export const LOCAL_BUILD_CHECKS = [
@@ -77,6 +86,66 @@ export function demoCheckTarget(env = process.env) {
 
 /** The checks a run skips: every local-build check against a remote base, none locally. */
 export const skippedChecks = ({ remote }) => (remote ? LOCAL_BUILD_CHECKS : []);
+
+/**
+ * The check of the host's site block itself, made against every base, a
+ * remote one included (`ui-checks/demo-static.mjs`). A host whose fallback
+ * covers `/_app/` loads every page and passes every other check, so this one
+ * asks for what no page asks for: a file under `/_app/` that is not there.
+ */
+export const MISSING_ASSET_CHECK =
+  'demo: a missing file under /_app/ answers 404 and is not sent as immutable, and each script the page loads answers 200';
+
+/** A path no build writes: SvelteKit names a chunk by its content hash, never by words. */
+export const MISSING_ASSET = '/_app/immutable/chunks/demo-check-no-such-chunk.js';
+
+/**
+ * What `base` answers for `path`: its status, Cache-Control and Content-Type,
+ * each header '' when it is not sent. One GET from this process, not the
+ * browser; a redirect is the answer, not followed.
+ */
+export async function assetAnswer(base, path) {
+  const response = await fetch(new URL(path, base), { redirect: 'manual' });
+  await response.body?.cancel();
+  return {
+    status: response.status,
+    cacheControl: response.headers.get('cache-control') ?? '',
+    contentType: response.headers.get('content-type') ?? ''
+  };
+}
+
+/** Where a host's operator finds the block these sentences are about. */
+const SITE_BLOCK = 'see www/DEPLOY.md, Caddy site block';
+
+/**
+ * What is wrong with a base's answer for `MISSING_ASSET`, a sentence each:
+ * anything but 404, and a Cache-Control that says `immutable`. None when the
+ * answer is right.
+ */
+export function missingAssetProblems({ status, cacheControl, contentType }) {
+  const problems = [];
+  if (status !== 404) {
+    const type = contentType ? ` (${contentType})` : '';
+    problems.push(
+      `the host's site block answers a missing /_app/ file with ${status}${type}, not 404: ` +
+        `a page that asks for a chunk the last publish removed gets this answer under a script's URL; ${SITE_BLOCK}`
+    );
+  }
+  if (/\bimmutable\b/i.test(cacheControl)) {
+    problems.push(
+      `the host's site block answers a missing /_app/ file with Cache-Control "${cacheControl}": ` +
+        `a browser keeps that answer for a year; ${SITE_BLOCK}`
+    );
+  }
+  return problems;
+}
+
+/** What is wrong with a base's answer for `path`, a script the page loaded: anything but 200. */
+export function loadedScriptProblems(path, { status }) {
+  return status === 200
+    ? []
+    : [`the host's site block answers ${path}, a script the page loads, with ${status}, not 200; ${SITE_BLOCK}`];
+}
 
 /** A built page's path under the site (`web/epics/index.html`) as a reader finds it. */
 export const docsPageName = (rel) => `${DOCS_ROOT}${rel.replace(/(^|\/)index\.html$/, '$1')}`;

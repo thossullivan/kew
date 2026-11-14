@@ -12,7 +12,14 @@
  * and no CI job runs it against the live site.
  *
  * Three parts, one browser, one summary:
- *   1. every `ui-checks/demo-*.mjs` module, against the base;
+ *   1. every `ui-checks/demo-*.mjs` module, against the base. One check in
+ *      `demo-static.mjs` is about the host, not the build, and is made
+ *      against a remote base too: a file under `/_app/immutable/` that no
+ *      build writes must answer 404 with no `immutable` in its Cache-Control,
+ *      and each script the page loads must answer 200
+ *      (`missingAssetProblems`). A host whose fallback covers `/_app/` fails
+ *      it, with a sentence that points at `www/DEPLOY.md`, "Caddy site
+ *      block";
  *   2. the docs-to-demo check: the docs built as `www/deploy.sh` builds them
  *      (`mkdocs build --strict`, the same pins) into a temp folder, whose
  *      "See it in the demo" links must be exactly the ones the Markdown
@@ -44,6 +51,7 @@ import {
   DOCS_PHONE,
   DOCS_SIZES,
   LINK_TEXT,
+  LINK_TEXT_ALONE,
   declaredDemoLinks,
   demoCheckEnv,
   demoLinks,
@@ -120,10 +128,15 @@ async function inWindow(browser, size, body) {
  * Open the built docs page, point its `index`-th demo link at `base`, click it,
  * and return the demo page once its `main` is up. The docs are opened from
  * disk: the click is a real one on the page a reader sees.
+ *
+ * The link is found by its text, as `demoLinks` reads it from the page's
+ * source, so the two count the same anchors. Its accessible name is not that
+ * text: the docs stylesheet draws "↗" after every link that leaves the docs,
+ * and generated content is part of the name.
  */
 async function followLink(page, site, rel, index, link, base) {
   await page.goto(pathToFileURL(join(site, rel)).href, { waitUntil: 'load' });
-  const anchor = page.getByRole('link', { name: LINK_TEXT, exact: true }).nth(index);
+  const anchor = page.locator('a').filter({ hasText: LINK_TEXT_ALONE }).nth(index);
   const href = await anchor.getAttribute('href');
   if (href === null || new URL(href).href !== link.href) {
     throw new Error(`the page's link ${index + 1} reads ${href}, not ${link.href}`);

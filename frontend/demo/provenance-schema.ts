@@ -33,8 +33,8 @@ export const RUNS_SCHEMA = 'kew/provenance-runs@1';
  * The repository every PR link of the REAL build history is on: kew itself,
  * since the demo shows how kew was built. Committed (`public-repo.json`), so
  * no export can widen it: a link to any other repository, a private client's
- * included, fails the schema. The real export is bundled only after this
- * repository is public, and only with the owner's approval.
+ * included, fails the schema. A publish needs the real export and the
+ * owner's approval; a build made without it bundles the committed samples.
  */
 export const PUBLIC_REPO: string = publicRepo.repo;
 

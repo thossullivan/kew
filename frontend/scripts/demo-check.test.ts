@@ -5,15 +5,22 @@
  * pointed, the sentence a docs-to-demo failure prints, and the gallery's shots.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   DEMO_ORIGIN,
   DOCS_PHONE,
   DOCS_SIZES,
   GALLERY_SIZES,
+  LINK_TEXT_ALONE,
   LOCAL_BUILD_CHECKS,
+  MISSING_ASSET,
+  MISSING_ASSET_CHECK,
+  assetAnswer,
   demoCheckEnv,
   demoCheckTarget,
   declaredDemoLinks,
@@ -23,6 +30,8 @@ import {
   galleryProblems,
   linkFailure,
   linkSetProblems,
+  loadedScriptProblems,
+  missingAssetProblems,
   onBase,
   onSite,
   parseDemoArgs,
@@ -32,6 +41,7 @@ import {
   sourcePageName,
   stepUrl
 } from './demo-check-lib.mjs';
+import { serveStatic } from './static-server.mjs';
 
 const TOURS = new URL('../demo/tours/', import.meta.url);
 const tours = () =>
@@ -114,6 +124,17 @@ describe('the docs links into the demo', () => {
     const [link] = demoLinks('<a href="https://demo.kew.dev/work?tour=needs-you">See it in the demo</a>', 'web/index.html');
     expect(link.tour).toBe('needs-you');
     expect(link.step).toBe(0);
+  });
+
+  it('finds an anchor in the browser by the text it keeps from the source, the words spaced any way', () => {
+    for (const text of ['See it in the demo', '  See it in the demo\n', 'See it\n    in the  demo']) {
+      expect(LINK_TEXT_ALONE.test(text), JSON.stringify(text)).toBe(true);
+      expect(demoLinks(`<a href="https://demo.kew.dev/work?tour=needs-you&amp;step=1">${text}</a>`, 'index.html')).toHaveLength(1);
+    }
+    // A stylesheet's mark after the words is in the accessible name, not in the text.
+    for (const text of ['See it in the demo ↗', 'See it in the demo site', 'Now see it in the demo', 'the demo', '']) {
+      expect(LINK_TEXT_ALONE.test(text), JSON.stringify(text)).toBe(false);
+    }
   });
 
   it('points a demo.kew.dev link at the base being checked', () => {
@@ -346,5 +367,94 @@ describe('the walkthrough gallery', () => {
       'needs-you.1.1366x650.png: no screenshot was written'
     ]);
     expect(galleryProblems(plan, entries.slice(1), () => true)).toEqual(['the manifest lists 2 shots, the plan 3']);
+  });
+});
+
+/**
+ * A host under the fault the check is for: every missing path answers the
+ * page shell with status 200, and a header matched on the path alone marks
+ * everything under /_app/immutable/ immutable for a year. `chunk` is the one
+ * file it has.
+ */
+function faultyHost(chunk: string): Promise<{ base: string; close: () => Promise<void> }> {
+  const server = createServer((req, res) => {
+    const path = (req.url ?? '/').split('?')[0];
+    const immutable = path.startsWith('/_app/immutable/') ? { 'Cache-Control': 'public, max-age=31536000, immutable' } : {};
+    if (path === chunk) res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', ...immutable }).end('js');
+    else res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...immutable }).end('shell');
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve({ base: `http://127.0.0.1:${port}`, close: () => new Promise((done) => server.close(() => done())) });
+    });
+  });
+}
+
+describe('what a base answers for a file under /_app/ that is not there', () => {
+  const CHUNK = '/_app/immutable/chunks/a.js';
+
+  it('asks for a name no build writes, under /_app/immutable/', () => {
+    // SvelteKit names a chunk by its content hash, never by words.
+    expect(MISSING_ASSET).toBe('/_app/immutable/chunks/demo-check-no-such-chunk.js');
+  });
+
+  it('is made against a remote base too', () => {
+    expect(skippedChecks({ remote: true }).map((c) => c.name)).not.toContain(MISSING_ASSET_CHECK);
+  });
+
+  it('passes the static server: 404, not immutable, and the chunk it has answers 200', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'demo-check-'));
+    mkdirSync(join(root, '_app/immutable/chunks'), { recursive: true });
+    writeFileSync(join(root, 'index.html'), 'shell');
+    writeFileSync(join(root, CHUNK), 'js');
+    const server = await serveStatic(pathToFileURL(`${root}/`), 0, "default-src 'self'");
+    try {
+      const missing = await assetAnswer(server.base, MISSING_ASSET);
+      expect(missing).toEqual({ status: 404, cacheControl: 'no-store', contentType: '' });
+      expect(missingAssetProblems(missing)).toEqual([]);
+      expect(loadedScriptProblems(CHUNK, await assetAnswer(server.base, CHUNK))).toEqual([]);
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails a host that answers the page shell, and fails its immutable header, each in a sentence for the host', async () => {
+    const host = await faultyHost(CHUNK);
+    try {
+      const missing = await assetAnswer(host.base, MISSING_ASSET);
+      expect(missing.status).toBe(200);
+      expect(missingAssetProblems(missing)).toEqual([
+        "the host's site block answers a missing /_app/ file with 200 (text/html; charset=utf-8), not 404: " +
+          "a page that asks for a chunk the last publish removed gets this answer under a script's URL; " +
+          'see www/DEPLOY.md, Caddy site block',
+        'the host\'s site block answers a missing /_app/ file with Cache-Control "public, max-age=31536000, immutable": ' +
+          'a browser keeps that answer for a year; see www/DEPLOY.md, Caddy site block'
+      ]);
+      expect(loadedScriptProblems(CHUNK, await assetAnswer(host.base, CHUNK))).toEqual([]);
+    } finally {
+      await host.close();
+    }
+  });
+
+  it('fails each half alone, whatever the letter case of the header', () => {
+    expect(missingAssetProblems({ status: 404, cacheControl: '', contentType: '' })).toEqual([]);
+    expect(missingAssetProblems({ status: 404, cacheControl: 'public, max-age=600', contentType: '' })).toEqual([]);
+    const shell = missingAssetProblems({ status: 200, cacheControl: 'no-store', contentType: 'text/html' });
+    expect(shell).toHaveLength(1);
+    expect(shell[0]).toMatch(/^the host's site block answers a missing \/_app\/ file with 200 \(text\/html\), not 404: /);
+    const kept = missingAssetProblems({ status: 404, cacheControl: 'Public, Max-Age=31536000, IMMUTABLE', contentType: '' });
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatch(/^the host's site block answers a missing \/_app\/ file with Cache-Control "Public, Max-Age=31536000, IMMUTABLE": /);
+    // A redirect is not followed: it is the answer.
+    expect(missingAssetProblems({ status: 302, cacheControl: '', contentType: '' })[0]).toMatch(/ with 302, not 404: /);
+  });
+
+  it('fails a script the page loads that the base does not answer 200 for', () => {
+    expect(loadedScriptProblems(CHUNK, { status: 200, cacheControl: '', contentType: 'text/javascript' })).toEqual([]);
+    expect(loadedScriptProblems(CHUNK, { status: 404, cacheControl: '', contentType: '' })).toEqual([
+      `the host's site block answers ${CHUNK}, a script the page loads, with 404, not 200; see www/DEPLOY.md, Caddy site block`
+    ]);
   });
 });

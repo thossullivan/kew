@@ -10,9 +10,10 @@
 #   - It is a DRY RUN by default. Publishing needs `--publish`, DEPLOY_HOST/
 #     DEPLOY_USER AND KEW_DEMO_PUBLISH_APPROVED=publish-demo.kew.dev, a
 #     demo-only approval, so the kew.dev credentials alone never publish it.
-#     demo.kew.dev goes public only with the owner's approval, after the
-#     repository is public (#3138); until then nobody runs `--publish`, and no
-#     CI workflow runs this script.
+#     Every publish needs the owner's approval (#3138), and no CI workflow
+#     runs this script. A publish writes files and nothing else: the site
+#     answers when the host's Caddy carries the mount and the site block
+#     (DEPLOY.md), and that Caddy belongs to another compose project.
 #   - It builds from `git archive HEAD` in a temp directory, never from the
 #     checkout: `git status` hides gitignored files, and the demo build bundles
 #     every *.json under frontend/demo/world/ and all of frontend/static/,
@@ -35,7 +36,7 @@
 #   ./deploy-demo.sh                    guard, build, scan; print what it would publish
 #   ./deploy-demo.sh --provenance <dir> the same, with the real build history
 #   ./deploy-demo.sh --publish --provenance <dir>
-#                                       guard, build, scan, publish (owner's approval only)
+#                                       guard, build, scan, publish (needs KEW_DEMO_PUBLISH_APPROVED)
 set -euo pipefail
 
 usage() { echo "usage: $0 [--publish] [--provenance <dir>]" >&2; exit 2; }
@@ -304,6 +305,6 @@ echo "==> Publishing frontend/build-demo/ → ${SSH_USER}@${SSH_HOST}:${REMOTE_D
 # kew-demo dir checked above — it cannot reach kew.dev's files or the other sites'.
 rsync -avz --delete -e "${RSYNC_SSH}" -- "${OUT}/" "${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/"
 
-echo "✓ Deployed. Caddy serves it live (auto-TLS); no restart needed."
+echo "✓ Published. The host's Caddy serves these files when it carries the mount and the site block (DEPLOY.md); no restart is needed."
 echo "  Verify: curl -sI https://demo.kew.dev | head -1"
 echo "  Then check it: ${DEMO_CHECK}"
