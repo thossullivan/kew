@@ -562,9 +562,10 @@ export function startTour(id: string, step = 1, from: HTMLElement | null = null)
 /**
  * End the open tour, if any: overlay gone, link out of the address bar, focus
  * back. A tour still on its way to a step (no popover yet) ends too, and its
- * link comes out all the same.
+ * link comes out all the same. `fallback` takes focus when the press that
+ * opened the tour cannot: gone, or not drawn at this width.
  */
-export function endTour(): void {
+export function endTour(fallback: HTMLElement | null = null): void {
   generation++;
   followSize(null);
   watchWindow(false);
@@ -582,7 +583,17 @@ export function endTour(): void {
   // so the opener is focused after it returns.
   d?.destroy();
   writeLink(null);
-  if (d && back?.isConnected) back.focus();
+  if (d) focusBack(back, fallback);
+}
+
+/**
+ * Focus `back`, the press that opened the tour; when it takes no focus (gone,
+ * or not drawn: the banner's "Take a tour" below 1024px), `fallback`, so focus
+ * does not drop to `<body>`.
+ */
+function focusBack(back: HTMLElement | null, fallback: HTMLElement | null): void {
+  if (back?.isConnected) back.focus();
+  if (document.activeElement !== back && fallback?.isConnected) fallback.focus();
 }
 
 /**
@@ -613,11 +624,15 @@ export function navigated(from: HTMLElement | null = null): void {
   else if (link.step !== open.step && !startTour(link.tour, link.step, opener)) endTour();
 }
 
-/** End an open tour when the window narrows below `lg`. Returns the unsubscribe. */
-export function endBelowDesktop(): () => void {
+/**
+ * End an open tour when the window narrows below `lg`, with `fallback()` to
+ * take focus if the tour's opener is not drawn at the new width. Returns the
+ * unsubscribe.
+ */
+export function endBelowDesktop(fallback: () => HTMLElement | null = () => null): () => void {
   const query = window.matchMedia(DESKTOP);
   const onChange = () => {
-    if (!query.matches) endTour();
+    if (!query.matches) endTour(fallback());
   };
   query.addEventListener('change', onChange);
   return () => query.removeEventListener('change', onChange);

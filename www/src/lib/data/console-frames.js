@@ -22,7 +22,11 @@
  * @typedef {{ file: string; path: string; elapsed: number; time: string; moment: string; alt: string; header: string }} Frame
  */
 
-/** The desktop capture: a 1440x900 window, without the demo banner (41 px) and the foot (28 px). */
+/**
+ * The desktop capture: a 1440x900 window, without the demo banner (41 px)
+ * and the foot (28 px). shoot-console.mjs refuses a clip whose y is not where
+ * the banner ends.
+ */
 export const VIEWPORT = { width: 1440, height: 900 };
 /** @type {Clip} */
 export const CLIP = { x: 0, y: 41, width: 1440, height: 831 };
@@ -75,14 +79,19 @@ export const FRAMES = [
 /** The frame shown first, and the one shown without script: the live view. */
 export const DEFAULT_FRAME = 3;
 
-/** The phone capture: the live view at 390x844, device scale 2, without banner and foot. */
+/**
+ * The phone capture: the live view at 390x844, device scale 2, without the
+ * demo banner (56 px: its sentence on two lines, no tour row below 1024 px)
+ * and the foot. shoot-console.mjs refuses a clip whose y is not where the
+ * banner ends.
+ */
 export const PHONE = {
   file: 'epic-live-phone.png',
   path: '/epics/ledger-v2',
   viewport: { width: 390, height: 844 },
   scale: 2,
   /** @type {Clip} */
-  clip: { x: 0, y: 88, width: 390, height: 715 },
+  clip: { x: 0, y: 56, width: 390, height: 715 },
   alt: 'kew’s web console on a phone, on the epic ledger-v2 as it stands: 5 of 13 issues done, three that need a person, and #107 in magenta, in review, needs you'
 };
 

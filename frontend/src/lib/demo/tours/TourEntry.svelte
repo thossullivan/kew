@@ -19,6 +19,9 @@
    * press that opened it, and ending it would drop focus on `<body>`; it goes
    * here instead, where a tour started from the menu returns: a control that
    * takes focus as it is, and the place the tours are started from again.
+   * For the same reason it takes focus when the window narrows below 1024 and
+   * ends a tour whose opener is not drawn there (the banner's "Take a tour"):
+   * `More` is drawn at every width.
    */
   function morePress(): HTMLElement | null {
     return entry?.closest('details')?.querySelector('summary') ?? null;
@@ -27,7 +30,7 @@
   afterNavigate(() => navigated(morePress()));
 
   $effect(() => {
-    const stop = endBelowDesktop();
+    const stop = endBelowDesktop(morePress);
     return () => {
       stop();
       endTour();

@@ -4,12 +4,13 @@
   // below it and lose its height, so it covers nothing at any width, and its
   // sentence wraps rather than scrolling sideways at 390px.
   //
-  // It says what kew is and offers the tours (design review c9, D17): on a
-  // phone a visitor never opens the header's More menu, so the banner is the
-  // one way in. "Take a tour" opens the tour list in the banner's own row,
-  // below the sentence; from 1024px up each tour starts from it, and below,
-  // where tours do not run, the list says where they do.
-  import { DEMO_BANNER, TAKE_A_TOUR, TOURS_DESKTOP_ONLY } from './banner.js';
+  // It says what kew is and, from 1024px up, offers the tours (design review
+  // c9, D17): "Take a tour" opens the tour list in the banner's own row, below
+  // the sentence, and each tour starts from it. Below 1024px tours do not run,
+  // so the banner draws its sentence only: no entry, and no list of titles
+  // that do nothing. A list left open is not drawn there either, and is drawn
+  // again, still open, when the window widens.
+  import { DEMO_BANNER, TAKE_A_TOUR } from './banner.js';
   import { startTour, TOURS } from './tours/controller';
 
   /** The list the toggle controls; one banner per page, so one id. */
@@ -34,12 +35,12 @@
       aria-expanded={open}
       aria-controls={LIST}
       onclick={() => (open = !open)}
-      class="inline-flex min-h-8 items-center gap-1.5 font-sans text-13 text-text-1 underline underline-offset-2 hover:text-text-1"
+      class="hidden min-h-8 items-center gap-1.5 font-sans text-13 text-text-1 underline underline-offset-2 hover:text-text-1 lg:inline-flex"
     >
       {TAKE_A_TOUR}<span aria-hidden="true" class="inline-block w-2 no-underline">{open ? '▾' : '▸'}</span>
     </button>
   </p>
-  <div id={LIST} hidden={!open} data-demo-tour-list class="pb-2">
+  <div id={LIST} hidden={!open} data-demo-tour-list class="pb-2 max-lg:hidden">
     <ul class="flex flex-col">
       {#each TOURS as tour (tour.id)}
         <li>
@@ -47,13 +48,11 @@
             type="button"
             data-banner-tour-start={tour.id}
             onclick={() => start(tour.id)}
-            class="hidden min-h-8 items-center text-left font-sans text-13 text-text-2 hover:text-text-1 lg:flex"
+            class="flex min-h-8 items-center text-left font-sans text-13 text-text-2 hover:text-text-1"
             >{tour.title}</button
           >
-          <span class="flex min-h-8 items-center font-sans text-13 text-text-2 lg:hidden">{tour.title}</span>
         </li>
       {/each}
     </ul>
-    <p data-demo-tour-note class="font-sans text-13 text-text-3 lg:hidden">{TOURS_DESKTOP_ONLY}</p>
   </div>
 </div>

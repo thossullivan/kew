@@ -11,10 +11,10 @@
  */
 export const DEMO_BANNER = 'Demo: synthetic data. kew runs coding agents headless; you make the merge calls.';
 
-/** The banner's way into the tours, at every width. */
+/** The banner's way into the tours, drawn where they run: from 1024px up. */
 export const TAKE_A_TOUR = 'Take a tour';
 
-/** What the tours' entries say where the tours do not run, below 1024px. */
+/** What the More menu's Tours entry says where the tours do not run, below 1024px. */
 export const TOURS_DESKTOP_ONLY = 'Guided tours run on a desktop screen.';
 
 /** How every refused write's sentence starts (`writes.ts`). */

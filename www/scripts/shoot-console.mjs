@@ -19,9 +19,10 @@
  * A frame whose path selects a node opens that node's popover; Escape closes
  * it and keeps the selection.
  *
- * A capture is written only when the page threw no error and no tour is
- * open; otherwise the script names it, leaves the committed file as it is,
- * and exits 1. The PNGs are committed, like static/og.png: the build never
+ * A capture is written only when the page threw no error, no tour is open
+ * and, for a fixed clip, the clip's y is where the demo banner ends at that
+ * width (its bottom edge, measured); otherwise the script names it, leaves
+ * the committed file as it is, and exits 1. The PNGs are committed, like static/og.png: the build never
  * runs this. After a capture, read every frame again before keeping its label
  * in console-frames.js.
  *
@@ -79,6 +80,23 @@ async function blockClip(page) {
   return found;
 }
 
+/**
+ * Why `clip` does not start where the demo's banner ends, or null. The clip
+ * leaves the banner out by its `y` alone, so a banner of another height at
+ * this width (a sentence that wraps differently, a row added or taken away)
+ * would leave a strip of it in the picture or cut the console's header.
+ */
+async function bannerRefusal(page, clip) {
+  const bottom = await page.evaluate(
+    () => document.querySelector('[data-demo-banner]')?.getBoundingClientRect().bottom ?? null
+  );
+  if (bottom === null) return 'the page draws no demo banner, so the clip cannot be checked against it';
+  if (Math.round(bottom) !== clip.y) {
+    return `the demo banner ends at y=${bottom}, console-frames.js clips from y=${clip.y}; set the clip's y to the banner's bottom`;
+  }
+  return null;
+}
+
 /** Why a page may not be captured, or null: a page error, a tour, a dialog left open. */
 async function refusal(page, errors) {
   if (errors.length > 0) return `${errors.length} page error(s): ${errors[0]}`;
@@ -133,6 +151,8 @@ async function main() {
         const found = await blockClip(page);
         why = found.why ?? null;
         clip = found.clip;
+      } else if (why === null) {
+        why = await bannerRefusal(page, clip);
       }
       if (why !== null) {
         failed++;

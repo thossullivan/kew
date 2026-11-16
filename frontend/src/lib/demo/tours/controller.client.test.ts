@@ -124,7 +124,7 @@ const TOUR_SET: BundledTour[] = [
 ];
 vi.mock('./bundle', () => ({ TOURS: TOUR_SET }));
 
-const { clearSpot, endTour, startTour } = await import('./controller');
+const { clearSpot, DESKTOP, endTour, startTour } = await import('./controller');
 const { readTourLink } = await import('./deep-link');
 const { goto, replaceState } = await import('$app/navigation');
 const { default: TourEntry } = await import('./TourEntry.svelte');
@@ -235,6 +235,64 @@ describe('a tour opened by a deep link', () => {
     expect(kit.state.workSearch).toBe('?item=7');
     expect(readTourLink(kit.state, kit.url)).toBeNull();
     expect(document.activeElement).toBe(summary);
+  });
+});
+
+describe('a tour the window ends by narrowing below 1024', () => {
+  /** A window whose width the test sets: narrowing it tells every listener, as a resize does. */
+  function resizableWindow(): (wide: boolean) => void {
+    let wide = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return query === DESKTOP ? wide : true;
+      },
+      media: query,
+      addEventListener: (_: string, listener: () => void) => query === DESKTOP && listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener)
+    }));
+    return (next) => {
+      wide = next;
+      for (const listener of listeners) listener();
+    };
+  }
+
+  /** A press outside the menu, as the banner's "Take a tour" is. */
+  function press(): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.textContent = 'Take a tour';
+    document.body.prepend(button);
+    return button;
+  }
+
+  // jsdom draws nothing, so it cannot hide a press the way a breakpoint does;
+  // a disabled press and a removed one take no focus in jsdom as in a browser.
+  it.each([
+    ['a press that takes no focus', (opener: HTMLButtonElement) => (opener.disabled = true)],
+    ['a press gone from the page', (opener: HTMLButtonElement) => opener.remove()]
+  ])('gives focus to More, not <body>, when it was opened from %s', async (_, unfocusable) => {
+    const resize = resizableWindow();
+    land('/work');
+    mountEntry();
+    const opener = press();
+    startTour('t', 1, opener);
+    await waitForStep('t/1');
+    unfocusable(opener);
+    resize(false);
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(summary);
+  });
+
+  it('gives focus back to the press that opened it when that press still takes focus', async () => {
+    const resize = resizableWindow();
+    land('/work');
+    mountEntry();
+    const opener = press();
+    startTour('t', 1, opener);
+    await waitForStep('t/1');
+    resize(false);
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(opener);
   });
 });
 

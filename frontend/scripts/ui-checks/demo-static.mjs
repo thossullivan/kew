@@ -22,7 +22,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEMO_BANNER, TAKE_A_TOUR, TOURS_DESKTOP_ONLY } from '../../src/lib/demo/banner.js';
+import { DEMO_BANNER, TAKE_A_TOUR } from '../../src/lib/demo/banner.js';
 import { MISSING_ASSET, MISSING_ASSET_CHECK, assetAnswer, loadedScriptProblems, missingAssetProblems } from '../demo-check-lib.mjs';
 import { FRONTEND, assertPainted, squash, widestBox } from '../ui-check-lib.mjs';
 
@@ -242,30 +242,37 @@ export async function checks({ base, check, visit, expect }) {
     });
   }
 
-  // D17: on a phone the banner says what kew is and is the way into the
-  // tours: "Take a tour" opens the list, which says tours run on a desktop
-  // screen; and the sticky foot is one line.
-  await check('demo: at 390px "Take a tour" opens the tour list, which says tours run on a desktop screen, and the foot is one line', async () => {
+  // D17: on a phone the banner says what kew is, and nothing else. Tours do
+  // not run below 1024px, so the banner draws no "Take a tour" and no tour
+  // title there; and the sticky foot is one line.
+  await check('demo: at 390px the banner shows its sentence only, with no "Take a tour" and no tour title, and the foot is one line', async () => {
     await visit(
       '/work',
       async (page) => {
-        const toggle = page.locator('[data-demo-tours-toggle]');
-        await toggle.waitFor({ state: 'visible', timeout: 5_000 });
-        expect(((await toggle.textContent()) ?? '').includes(TAKE_A_TOUR), 'the banner offers no "Take a tour"');
-        const box = await toggle.boundingBox();
-        expect(box !== null && box.height >= 32, `"Take a tour" is ${box?.height}px tall, under 32`);
-        await toggle.click();
-        expect((await toggle.getAttribute('aria-expanded')) === 'true', '"Take a tour" did not open');
-        const list = page.locator('[data-demo-tour-list]');
-        await list.waitFor({ state: 'visible', timeout: 5_000 });
-        const titles = squash((await list.textContent()) ?? '');
-        for (const tour of readTours()) expect(titles.includes(tour.title), `the tour list does not name "${tour.title}"`);
-        const note = list.locator('[data-demo-tour-note]');
-        expect(await note.isVisible(), 'the tour list does not say where tours run');
-        expect(squash((await note.textContent()) ?? '') === TOURS_DESKTOP_ONLY, `the note says "${await note.textContent()}"`);
-        await assertPainted(page, note, 'the desktop-only note');
+        const banner = page.locator('[data-demo-banner]');
+        await banner.waitFor({ state: 'visible', timeout: 5_000 });
+        expect(!(await page.locator('[data-demo-tours-toggle]').isVisible()), 'the banner shows "Take a tour" at 390px');
+        // What the banner draws, as a reader sees it: text that is not drawn is not in it.
+        const drawn = squash(await banner.innerText());
+        expect(!drawn.includes(TAKE_A_TOUR), `the banner reads "${drawn}" at 390px`);
+        for (const tour of readTours()) expect(!drawn.includes(tour.title), `the banner names the tour "${tour.title}" at 390px`);
+        expect(drawn === DEMO_BANNER, `the banner reads "${drawn}" at 390px, not its sentence alone`);
+        // Its height is the sentence's box and its own frame, nothing more: a
+        // row kept for something not drawn (a `visibility: hidden` toggle
+        // still takes its 32px) is height the text above does not show.
+        const fit = await banner.evaluate((el) => {
+          const style = getComputedStyle(el);
+          const frame = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, key) => sum + parseFloat(style[key]), 0);
+          const text = el.querySelector('[data-demo-banner-text]')?.getBoundingClientRect().height ?? 0;
+          return { height: el.getBoundingClientRect().height, text, frame };
+        });
+        expect(
+          Math.abs(fit.height - (fit.text + fit.frame)) <= 1,
+          `the banner is ${fit.height}px tall at 390px, not its sentence's ${fit.text}px and its ${fit.frame}px of padding and border`
+        );
+        await assertPainted(page, banner.locator('[data-demo-banner-text]'), "the banner's sentence");
         const wide = await widestBox(page);
-        expect(wide.w <= wide.c, `the open tour list scrolls sideways: ${wide.culprit}`);
+        expect(wide.w <= wide.c, `390px scrolls sideways: ${wide.culprit}`);
         const foot = page.locator('[data-build-history="ready"] > div').first();
         await foot.waitFor({ state: 'visible', timeout: 10_000 });
         // One line is the 32px toggle and its padding; a wrapped line was ~100px.
@@ -273,6 +280,33 @@ export async function checks({ base, check, visit, expect }) {
         expect(height <= 48, `the foot's line is ${Math.round(height)}px tall at 390px, more than one line`);
       },
       { width: 390, height: 844 }
+    );
+  });
+
+  // The banner's entry and the tours share one breakpoint: a list left open
+  // is not drawn one pixel below it, and comes back open at it.
+  await check('demo: a tour list open in the banner is not drawn at 1023px, and is drawn again, still open, at 1024px', async () => {
+    await visit(
+      '/work',
+      async (page) => {
+        const toggle = page.locator('[data-demo-tours-toggle]');
+        const list = page.locator('[data-demo-tour-list]');
+        await toggle.click();
+        await list.waitFor({ state: 'visible', timeout: 5_000 });
+        await page.setViewportSize({ width: 1023, height: 800 });
+        await list.waitFor({ state: 'hidden', timeout: 5_000 });
+        expect(!(await toggle.isVisible()), 'the banner shows "Take a tour" at 1023px');
+        const drawn = squash(await page.locator('[data-demo-banner]').innerText());
+        expect(drawn === DEMO_BANNER, `the banner reads "${drawn}" at 1023px, not its sentence alone`);
+        await page.setViewportSize({ width: 1024, height: 800 });
+        await list.waitFor({ state: 'visible', timeout: 5_000 });
+        expect(await toggle.isVisible(), 'the banner shows no "Take a tour" at 1024px');
+        expect((await toggle.getAttribute('aria-expanded')) === 'true', 'the list came back shut at 1024px');
+        for (const tour of readTours()) {
+          expect(await list.locator(`[data-banner-tour-start="${tour.id}"]`).isVisible(), `the list does not offer "${tour.title}" at 1024px`);
+        }
+      },
+      { width: 1440, height: 960 }
     );
   });
 
@@ -284,7 +318,6 @@ export async function checks({ base, check, visit, expect }) {
         await page.locator('[data-demo-tours-toggle]').click();
         const start = page.locator(`[data-banner-tour-start="${tour.id}"]`);
         await start.waitFor({ state: 'visible', timeout: 5_000 });
-        expect(!(await page.locator('[data-demo-tour-note]').isVisible()), 'the desktop-only note shows at 1440px');
         await start.click();
         await page.waitForFunction(
           ([sel, want]) => document.querySelector(sel)?.getAttribute('data-tour-step') === want,
@@ -295,6 +328,36 @@ export async function checks({ base, check, visit, expect }) {
         await page.locator('.driver-popover.kew-tour').waitFor({ state: 'detached', timeout: 5_000 });
         const focused = await page.evaluate(() => document.activeElement?.hasAttribute('data-demo-tours-toggle') ?? false);
         expect(focused, 'focus did not come back to "Take a tour"');
+        expect(problems.length === 0, `the tour reported:\n${problems.join('\n')}`);
+      },
+      { width: 1440, height: 960 }
+    );
+  });
+
+  // Below 1024px "Take a tour" is not drawn, so it cannot take focus back: a
+  // tour the narrowing window ends gives it to More, drawn at every width.
+  await check('demo: a tour started from the banner and ended by the window narrowing to 900px leaves focus on More, not on <body>', async () => {
+    const [tour] = readTours();
+    await visit(
+      '/work',
+      async (page, problems) => {
+        await page.locator('[data-demo-tours-toggle]').click();
+        const start = page.locator(`[data-banner-tour-start="${tour.id}"]`);
+        await start.waitFor({ state: 'visible', timeout: 5_000 });
+        await start.click();
+        await page.waitForFunction(
+          ([sel, want]) => document.querySelector(sel)?.getAttribute('data-tour-step') === want,
+          ['.driver-popover.kew-tour', `${tour.id}/1`],
+          { timeout: 15_000 }
+        );
+        await page.setViewportSize({ width: 900, height: 800 });
+        await page.locator('.driver-popover.kew-tour').waitFor({ state: 'detached', timeout: 5_000 });
+        const focused = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!el || el === document.body) return '<body>';
+          return el.matches('summary[aria-label="More destinations"]') ? 'More' : el.outerHTML.slice(0, 120);
+        });
+        expect(focused === 'More', `the tour ended with focus on ${focused}, not on More`);
         expect(problems.length === 0, `the tour reported:\n${problems.join('\n')}`);
       },
       { width: 1440, height: 960 }
