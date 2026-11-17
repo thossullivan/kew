@@ -1,6 +1,9 @@
 # kew publication
 
-Operator evidence about heads published outside kew.
+`kew publication attest` records that a branch head you pushed by hand is the
+published output of the run its parent commit already belongs to. Use it when a review round,
+`kew resolve` or `kew ci-fix` refuses a branch because its head carries no
+producer claim.
 
 ```text
 Usage: kew publication [OPTIONS] COMMAND [ARGS]...

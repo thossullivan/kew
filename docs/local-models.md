@@ -1,6 +1,9 @@
 # Choosing a Local Model
 
-Running local models with kew's Lemonade runner offers several advantages:
+This page helps you choose a local model for kew's Lemonade runner: what fits
+your RAM, which models handle tool calls well, and why the context window needs
+raising. Running local models offers several advantages:
+
 - **$0 per run** — no API costs
 - **Nothing leaves the machine** — complete data privacy
 - **Wall-clock and watts, not dollars** — the honest cost axis

@@ -4,8 +4,15 @@ description: One path from installing kew to its first dispatch, run from inside
 
 # Getting Started
 
-One path, from install to the first dispatch. Run every step from inside the
-git repository you want kew to work on. No kew source checkout is needed.
+**Bottom line up front:** one path takes you from install to your first
+dispatch in five steps. Run every step from inside the git repository you want
+kew to work on; no kew source checkout is needed. You check the setup before
+anything is spent: `kew doctor` names each failing check and, where one
+command fixes it, prints that command as `fix:`; and `kew run --dry-run` shows which issue would go first.
+
+I made the `ready` label the queue on purpose. `kew run` takes only the issues
+labeled `ready`, so the first decision, what is worth an agent's time, stays
+with whoever applies the label: you.
 
 Driving kew from a script or another agent? [Agents](agents.md) covers the
 same path without a terminal: `kew init --yes`, the `kew doctor --json` loop,
@@ -39,17 +46,13 @@ kew supports these:
 
 1. **Install the CLI.**
 
-    <!-- INTERIM-INSTALL:START — replace this step's command with `uv tool install kew-cli` once packages publish (PUBLISH_RELEASE flipped) -->
-    Until `kew-cli` publishes to PyPI, install it from git:
-
     ```bash
-    uv tool install "kew-cli[serve] @ git+https://github.com/thossullivan/kew.git#subdirectory=kew"
+    uv tool install "kew-cli[serve]"
     ```
 
-    That gives you the `kew` command and the `serve` dependencies. A git
-    install does not include the web UI bundle, so `kew serve` shows a "web UI
-    is not built" page.
-    <!-- INTERIM-INSTALL:END -->
+    That gives you the `kew` command and, through the `serve` extra, the web
+    console. Or run `npx create-kew`: it installs the same package with uv,
+    then runs `kew init` (step 2). It needs Node.js 18 or later and uv.
 
     Install kew as a tool. Do not add it to your application's dependency
     manifest.
@@ -76,8 +79,8 @@ kew supports these:
     ```
 
     [`kew doctor`](cli/doctor.md) checks the runtime, the runner image, the
-    allowlist network, the runner credential and the `gh` login. Every
-    failing check prints a `fix:` command. Run it, then run `kew doctor`
+    allowlist network, the runner credential and the `gh` login. A
+    failing check prints a `fix:` command where one command fixes it. Run it, then run `kew doctor`
     again until it exits `0`.
 
 4. **Preview the first dispatch.**
@@ -136,11 +139,20 @@ see [Configuration](configuration.md) for every key.
 
 ## What happens next
 
-1. kew picks the highest-priority `ready` issue from your GitHub queue
-2. It creates a standalone clone with its own `.git` on a branch like `agent/issue-42`
-3. If an [approval gate](configuration.md#approval) is configured and the estimated cost meets your threshold, the issue is parked under `needs-approval` before the agent runs — release it with `kew approve N`, the TUI `A` key, or via the web inbox (`kew serve`)
-4. Your configured runner runs with your CI, budget, and security guardrails
-5. On success, a PR is created and labeled `pr-pending-review`
-6. You review the PR like any other
+1. kew picks the highest-priority `ready` issue from your GitHub queue.
+2. It creates a standalone clone with its own `.git` on a branch like `agent/issue-42`.
+3. If an [approval gate](configuration.md#approval) is configured and the estimated cost meets your threshold, the issue is parked under `needs-approval` before the agent runs. Release it with `kew approve N`, the TUI `A` key, or the web inbox (`kew serve`).
+4. Your configured runner works the issue inside your CI, budget and security guardrails.
+5. On success, kew opens a PR and labels it `pr-pending-review`.
+6. You review the PR like any other. The merge is your call.
 
 See [How It Works](how-it-works.md) for the full dispatch loop.
+
+A pull request is only as good as the issue behind it. Before you label an
+issue `ready`, I would ask:
+
+- Does the body say what done looks like? When it has an acceptance section,
+  kew records it and puts it in the agent's prompt.
+- Is it small enough that you can review the pull request in one sitting?
+- Does it wait on another open issue that should land first?
+- Who will review the pull request when it opens?

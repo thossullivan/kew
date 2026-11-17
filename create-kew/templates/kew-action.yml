@@ -3,7 +3,7 @@
 #
 # Requires:
 #   - Self-hosted runner with claude CLI installed and authenticated
-#   - Python 3.13+ and kew-cli installed (pip install kew-cli)
+#   - Python 3.13+ and kew-cli installed (uv tool install kew-cli)
 #   - A container runtime, the image from "kew sandbox build", and the
 #     kew-allowlist network; "kew doctor" checks all three
 #

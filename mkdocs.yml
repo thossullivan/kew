@@ -42,7 +42,7 @@ extra_css:
   - stylesheets/extra.css
 
 # The stock footer becomes one hairline row: no "Made with Material".
-copyright: 'kew · <a href="https://github.com/thossullivan/kew">GitHub</a> · <a href="https://kew.dev/">kew.dev</a>'
+copyright: 'kew · <a href="https://github.com/thossullivan/kew">GitHub</a> · <a href="https://demo.kew.dev/">Demo</a> · <a href="https://kew.dev/">kew.dev</a>'
 extra:
   generator: false
 

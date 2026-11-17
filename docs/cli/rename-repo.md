@@ -1,6 +1,7 @@
 # kew rename-repo
 
-Move the ledger's rows from an old repository slug to the configured `project.repo`, after GitHub renamed the repository.
+After GitHub renames the repository, `kew rename-repo` moves the ledger's rows
+from the old repository slug to the configured `project.repo`.
 
 ```text
 Usage: kew rename-repo [OPTIONS]

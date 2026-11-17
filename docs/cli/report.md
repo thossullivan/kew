@@ -1,6 +1,8 @@
 # kew report
 
-Generate an outcome-linked spend report in markdown: what the fleet did, what it cost, what shipped. Headline metric: **cost per merged PR**.
+`kew report` generates an outcome-linked spend report in Markdown: what the
+fleet did, what it cost and what shipped. Its headline metric is **cost per
+merged PR**.
 
 ```text
 Usage: kew report [OPTIONS]

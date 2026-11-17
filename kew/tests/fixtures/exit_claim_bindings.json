@@ -1716,7 +1716,7 @@
   },
   {
     "page": "getting-started.md",
-    "claim": "[`kew doctor`](cli/doctor.md) checks the runtime, the runner image, the allowlist network, the runner credential and the `gh` login. Every failing check prints a `fix:` command. Run it, then run `kew doctor` again until it exits `<code>`.",
+    "claim": "[`kew doctor`](cli/doctor.md) checks the runtime, the runner image, the allowlist network, the runner credential and the `gh` login. A failing check prints a `fix:` command where one command fixes it. Run it, then run `kew doctor` again until it exits `<code>`.",
     "bindings": [
       "doctor::Checks passed or skipped"
     ]

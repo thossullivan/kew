@@ -1,6 +1,7 @@
 # TUI Dashboard
 
-kew's terminal dashboard provides a live view of your dispatch queue, active workers, PR reviews, and cost analytics — all from a single screen.
+`kew tui` opens a terminal dashboard with a live view of your dispatch queue,
+active workers, PR reviews, and cost analytics on one screen.
 
 ```text
 Usage: kew tui

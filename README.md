@@ -107,12 +107,13 @@ The [Getting Started](https://kew.dev/docs/getting-started/) guide has the full
 path; [Agents](https://kew.dev/docs/agents/) has the same path for a script or
 an agent (`kew init --yes`, `kew doctor --json`).
 
-<!-- INTERIM-INSTALL:START — replace the install line with `uv tool install kew-cli` once packages publish (PUBLISH_RELEASE flipped) -->
 ```bash
-# 1. Install the CLI (from git until kew-cli publishes to PyPI)
-uv tool install "kew-cli[serve] @ git+https://github.com/thossullivan/kew.git@main#subdirectory=kew"
+# 1. Install the CLI; the serve extra carries the web console
+uv tool install "kew-cli[serve]"
 ```
-<!-- INTERIM-INSTALL:END -->
+
+Or run `npx create-kew`: it installs the same package with uv, then runs `kew init` (step 2).
+It needs Node.js 18 or later and uv.
 
 ```bash
 # 2. Write kew.toml from what kew detects; init also runs `kew setup`
@@ -126,9 +127,8 @@ kew run --dry-run
 kew run
 ```
 
-A git install does not include the web UI bundle, so `kew serve` shows a "web UI
-is not built" page. Install kew as a tool; do not add it to your application's
-dependency manifest. Docker, OrbStack, Podman and OpenShell are agent runtimes —
+Install kew as a tool; do not add it to your application's dependency
+manifest. Docker, OrbStack, Podman and OpenShell are agent runtimes —
 where kew runs the coding agent — not ways to install kew.
 
 ### Before the first dispatch

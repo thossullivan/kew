@@ -1,10 +1,11 @@
 # kew plan
 
+`kew plan show` reads back the acceptance criteria kew recorded for a work item
+when it was dispatched, so you see exactly what the item was dispatched against.
+
 ```text
 Usage: kew plan COMMAND [ARGS]...
 ```
-
-Read the acceptance criteria kew recorded for a work item.
 
 kew records an item's plan as the dispatch launches, before the prompt is
 built: it reads the issue body it already fetched, extracts the body's own

@@ -54,16 +54,21 @@ def test_guard_scans_python_sources():
 
 
 def test_public_links_name_pypi_and_kew_dev():
-    assert UPGRADE_COMMAND == "uv tool install --upgrade kew-cli"
+    # The upgrade names the `serve` extra (without it, `uv tool install
+    # --upgrade` removes the web console) and replaces the requirement (`uv
+    # tool upgrade` keeps a create-kew install's `<2` limit forever).
+    assert UPGRADE_COMMAND == 'uv tool install --upgrade "kew-cli[serve]"'
+    assert '"kew-cli[serve]"' in UPGRADE_COMMAND
+    assert "uv tool upgrade" not in UPGRADE_COMMAND
     assert DOCS_BASE_URL == "https://kew.dev/docs"
     assert docs_url("authentication") == "https://kew.dev/docs/authentication/"
 
 
 def test_upgrade_hint_names_pypi_and_a_source_reinstall_without_a_git_url():
-    # kew-cli is not on PyPI until launch; a source install must still get a
-    # true instruction, and the development repo's git URL 404s publicly.
+    # A source install must still get a true instruction, and the development
+    # repo's git URL 404s publicly.
     assert UPGRADE_HINT == (
-        "uv tool install --upgrade kew-cli "
+        'uv tool install --upgrade "kew-cli[serve]" '
         "(if you installed kew from a source checkout, reinstall it from that checkout)"
     )
     assert UPGRADE_HINT.startswith(UPGRADE_COMMAND)

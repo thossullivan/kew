@@ -1,28 +1,32 @@
 # Container entrypoint contract
 
+This page specifies the fixed interface between kew and an agent container
+image. Read it if you build or change an image: an image that meets it can be
+contained by kew whatever runner it wraps.
+
 **Status:** normative. This page is the canonical text; `kew/src/kew/sandbox.py`,
 `kew/src/kew/dispatch_sandbox.py` and `docker/agent-entrypoint.sh` point *here*
 rather than restating the contract.
 
 When `[sandbox] enabled = true`, kew does not run a coding agent as a host
-subprocess — it runs a **container image** and talks to it across a narrow,
-fixed interface. This page specifies that interface.
+subprocess. It runs a **container image** and talks to it across a narrow,
+fixed interface.
 
-The organising invariant:
+The organizing invariant:
 
 > **Per-runner variation lives inside the image. kew's host-side contract never
 > changes.**
 
 kew builds the same `docker run` argv, hands over the prompt the same way, and
 reads the same two channels back, whether the image wraps `claude`, `opencode`,
-or something that does not exist yet. The five elements below are what an image
+or something that does not exist yet. The six elements below are what an image
 must satisfy to be *containable by kew* — there is no per-image special-casing
 on the host side, and there will not be one.
 
-Why this matters: the sandbox path grew up claude-only, and the coupling was
-live-proven expensive — a contained dispatch routed to a non-claude runner
-handed an OpenRouter model string to the `claude` CLI inside the kew-agent image
-and 404'd in 1.3s (#779). The fix is a contract, not a second code path.
+Why this matters: the sandbox path grew up claude-only, and that coupling
+proved expensive in a live run. A contained dispatch routed to a non-claude
+runner handed an OpenRouter model string to the `claude` CLI inside the
+kew-agent image and 404'd in 1.3s (#779). The fix is a contract, not a second code path.
 
 ## What is built today
 
@@ -43,7 +47,7 @@ exactly this reason.
 
 ---
 
-## The five elements
+## The six elements
 
 ### 1. Mounted checkout
 
@@ -516,7 +520,7 @@ Consequences an image **MUST** be built for:
 
 `docker/agent.Dockerfile` + `docker/agent-entrypoint.sh` are the reference
 implementation of this contract, and the image every claude route currently
-runs on. A future opencode (or other) image is built against the same five
+runs on. A future opencode (or other) image is built against the same six
 elements.
 
 **Image layout** (`docker/agent.Dockerfile`):

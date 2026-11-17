@@ -1,7 +1,9 @@
 # Keys and the palette
 
-The console is keyboard-first. Every shortcut a page answers is held in one
-key layer, the registry in `frontend/src/lib/keys/registry.ts`. A page registers
+The console is keyboard-first. This page lists the two keys that work
+everywhere, the shortcuts on each surface, and the command palette.
+
+Every shortcut a page answers is held in one key layer, the registry in `frontend/src/lib/keys/registry.ts`. A page registers
 its shortcuts there, and the page's key legend and the <kbd>?</kbd> overlay are
 drawn from that same table. So the keys you are told about are the keys the page
 answers to.

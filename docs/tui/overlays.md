@@ -1,6 +1,8 @@
 # Overlays
 
-The TUI has four overlay modals that float above the current screen.
+The TUI has four overlays that float above the current screen: budget (`b`),
+filter (`/`), help (`?`) and the approval dialog (`A` on a held queue row).
+Each section says what the overlay shows and how to dismiss it.
 
 ## Budget overlay
 

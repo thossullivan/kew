@@ -1,6 +1,8 @@
 # kew resolve
 
-Dispatch an agent to resolve merge conflicts on a PR branch.
+`kew resolve <PR>` dispatches an agent to resolve merge conflicts on a pull
+request's branch that no longer merges cleanly; with `--dry-run` it only checks
+for conflicts.
 
 The checkout is pinned to the selected SHA before Kew integrates the base branch.
 Kew confirms the checkout and remote branch heads before integration and before launching an agent.

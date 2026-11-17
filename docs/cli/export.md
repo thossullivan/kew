@@ -1,7 +1,7 @@
 # kew export
 
-Export run history to JSON or CSV for backup or analysis, or emit a governed
-model-eol inventory of the model identities found in the run ledger.
+`kew export` exports run history to JSON or CSV for backup or analysis, or emits
+a governed model-eol inventory of the model identities found in the run ledger.
 
 ```text
 Usage: kew export [OPTIONS]

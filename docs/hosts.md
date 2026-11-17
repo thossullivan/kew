@@ -1,9 +1,10 @@
 # Hosts
 
-A **host** is a machine kew ships a git bundle to and runs *one* job on — a
-verification run for a merge candidate, for example. `local` is the default and
-needs no cloud account at all; `gcp` is a Compute Engine instance driven through
-the `gcloud` CLI. The settings live in [`[hosts]`](configuration.md#hosts).
+A **host** is a machine kew ships a git bundle to and runs *one* job on, such
+as a verification run for a merge candidate. `local` is the default and needs
+no cloud account at all; `gcp` is a Compute Engine instance driven through the
+`gcloud` CLI. The settings live in
+[`[hosts]`](configuration.md#hosts).
 
 `kew hosts provision gcp` and `kew verify --host gcp` (sharded with `--shards`
 or not) are experimental: they work on a fresh Ubuntu 24.04 instance, but expect

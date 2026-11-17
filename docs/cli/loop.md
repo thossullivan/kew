@@ -1,5 +1,9 @@
 # `kew loop` — Loop management subcommands
 
+`kew loop` manages first-class loops, the single-issue loops that
+`kew dispatch <issue> --loop` starts: `kew loop pause` stops a running loop, and
+`kew loop resume` continues a paused one with new guidance or a larger budget.
+
 ```text
 Usage: kew loop COMMAND [ARGS]...
 ```

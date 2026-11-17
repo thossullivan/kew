@@ -1,13 +1,14 @@
 # `kew delegate` — Assign-to-kew delegation watcher
 
+`kew delegate` lets you hand a Linear issue to kew by assigning it to the kew
+seat (or adding a configured label). `kew delegate watch` runs a foreground loop
+that detects the assignment, claims the issue, and dispatches it as a one-node
+ephemeral epic, reusing the same claim → dispatch → close path as
+`kew epic run`.
+
 ```text
 Usage: kew delegate COMMAND [ARGS]...
 ```
-
-`kew delegate` lets a human hand off a Linear issue to kew by assigning it to the kew
-seat (or adding a configured label). `kew delegate watch` runs a foreground loop that
-detects the assignment, claims the issue, and dispatches it as a one-node ephemeral epic
-— reusing the same claim → dispatch → close path as `kew epic run`.
 
 > **Status — foreground supervised loop.**
 > Run `kew delegate watch` in the foreground under human supervision.

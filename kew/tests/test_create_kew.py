@@ -264,10 +264,12 @@ def test_the_tarballs_license_files_are_the_repositorys(name: str) -> None:
     assert _same_bytes(name), f"create-kew/{name} differs from the root {name}"
 
 
-def test_onboarding_docs_do_not_send_users_to_the_unpublished_wizard() -> None:
-    # #2508: the one onboarding path is `kew init`; `npx create-kew` cannot
-    # run until publication, so neither page may recommend it.
+def test_onboarding_docs_offer_the_launcher_as_a_way_into_kew_init() -> None:
+    # #2508: the one onboarding path is `kew init`. create-kew is published
+    # beside kew-cli, so both pages offer `npx create-kew` once, as the second
+    # way, and say that it runs `kew init`.
     for path in (REPO_ROOT / "README.md", REPO_ROOT / "docs/getting-started.md"):
-        text = path.read_text()
-        assert "npx create-kew" not in text, path
-        assert "kew init" in text, path
+        text = " ".join(path.read_text().split())
+        assert text.count("npx create-kew") == 1, path
+        line = text.split("npx create-kew", 1)[1].split(".", 1)[0]
+        assert "kew init" in line, path

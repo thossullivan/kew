@@ -1,6 +1,10 @@
 # kew cleanup
 
-Find and fix orphaned label states left after a crash or interrupted dispatch.
+`kew cleanup` finds orphaned label states left after a crash or an interrupted
+dispatch, such as an issue stuck under a label that no live run owns, and
+repairs them when you pass `--reset-to`. Without `--dry-run` it also sweeps
+stale pending runs and removes work trees past retention that no live run
+references.
 
 ```text
 Usage: kew cleanup [OPTIONS]

@@ -1,5 +1,9 @@
 # kew merge
 
+`kew merge` holds the commands around merging a pull request: checking a hand
+merge, queuing READY heads to merge one at a time, and holding a head while you
+verify it.
+
 `kew merge check` applies the merge verdict rule to a hand merge
 ([below](#checking-a-hand-merge)). `kew merge queue` is the project's merge
 queue: one line of READY PR heads, described in most of this page.

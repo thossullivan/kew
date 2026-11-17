@@ -1,6 +1,8 @@
 # kew approve / kew deny
 
-Release or deny a `needs-approval` hold — including **remotely, without a terminal**.
+`kew approve` releases a `needs-approval` hold so the issue can run, and
+`kew deny` removes the hold and parks the issue. You can also decide **remotely,
+without a terminal**.
 
 ```text
 Usage: kew approve [OPTIONS] ISSUE

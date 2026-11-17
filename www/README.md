@@ -107,12 +107,17 @@ tree, so `Caddyfile` here and the production site block differ only in the
 address line and the local log block — keep the two in step, especially the
 CSP. `tests/site-blocks.test.mjs` fails `npm test` when they drift.
 
-## Before launch
+## Install commands
 
-- The source installation in `src/lib/data/install.js` remains until PyPI publication.
-  `Hero.svelte` and `Install.svelte` import that shared value. The deployment gate
-  verifies its public repository, explicit ref, source subdirectory, and README entry.
-  It checks PyPI after the command changes to a plain PyPI install.
+- `src/lib/data/install.js` holds the two commands the Get kew section shows and
+  copies: `INSTALL` (`uv tool install "kew-cli[serve]"`, from PyPI) and
+  `CREATE_KEW` (`npx create-kew`, the npm launcher that installs the same package
+  and runs `kew init`). `Install.svelte` renders both; `Hero.svelte` only links to
+  the section. Keep the `[serve]` extra: without it there is no web console.
+- The deployment gate (`scripts/check-install.mjs`) checks both before anything is
+  published: PyPI holds the project and it declares the extra the command names,
+  and `create-kew` is on npm with a `latest` of the same major version as the
+  project's latest on PyPI.
 - `REPO_SLUG` in the same file is the one place the site names its GitHub
-  repository. The install command, the GitHub links and the install gate read it,
-  so moving to another repository changes that line (and the README command).
+  repository. The GitHub links read it, so moving to another repository changes
+  that line.

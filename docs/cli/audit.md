@@ -1,6 +1,10 @@
 # kew audit
 
-Inspect the audit trail. Every governance action — dispatches, approval decisions, fleet stop/resume, CI fixes — lands as one row in the `audit_events` table of `dispatch.db`, carrying the full envelope: **who** (`actor_type`/`actor_id`), **which repo**, **which endpoint**, with `policy_hash`/`prev_hash` slots reserved for policy binding and hash chaining.
+`kew audit` exports, verifies and anchors kew's hash-chained record of
+governance actions. Use it to show who did what, or to check the chain for
+after-the-fact edits.
+
+Every governance action — dispatches, approval decisions, fleet stop/resume, CI fixes — lands as one row in the `audit_events` table of `dispatch.db`, carrying the full envelope: **who** (`actor_type`/`actor_id`), **which repo**, **which endpoint**, with `policy_hash`/`prev_hash` slots reserved for policy binding and hash chaining.
 
 ```text
 Usage: kew audit COMMAND [ARGS]...

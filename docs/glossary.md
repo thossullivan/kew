@@ -1,5 +1,9 @@
 # Glossary
 
+This page defines the terms the rest of the docs use, from agent PR to
+runner. Look a word up here when a page uses it without explaining it. Each
+term has its own heading, so other pages link straight to its definition.
+
 ## agent PR
 
 A pull request kew opened for an agent's work. Its branch is named `agent/issue-<number>` by default.

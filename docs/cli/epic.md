@@ -1,12 +1,13 @@
 # `kew epic` — Epic dependency-graph build, validate, and drive
 
+`kew epic` turns a set of work items into a dependency graph, then **drives**
+that graph: dispatching ready nodes in dependency order and mechanically merging
+PRs a human has already approved. This is for work too big for one issue, whose
+parts must land in order.
+
 ```text
 Usage: kew epic COMMAND [ARGS]...
 ```
-
-`kew epic` turns a set of work items into a dependency graph, then
-**drives** that graph: dispatching ready nodes in dependency order and
-mechanically merging PRs a human has already approved.
 
 Where the epic lives depends on the configured tracker
 (see [`[tracker]` configuration](../configuration.md#tracker)):

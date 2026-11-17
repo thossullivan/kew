@@ -4,6 +4,16 @@ description: What kew's security hook blocks, where it runs, and how each runner
 
 # Security
 
+**Bottom line up front:** containment is kew's security boundary, and the guard
+hook is not. The hook catches casual and accidental damage from a Claude Code
+agent. The isolation boundary is the container, or a runner's own native
+containment; a run outside it executes as you, on your machine. This page says
+what each layer blocks, where it runs, and what it leaves open.
+
+I treat every agent as an untrusted author, and that includes what it might do
+on your machine while it works. So I would rather tell you which shapes
+the hook misses than let a pattern list pass for a wall.
+
 The security hook runs as a Claude Code `PreToolUse` handler on the **Bash**, **Write**, and **Edit** tools. In a Claude Code session it runs before each of those tool calls, even with `--dangerously-skip-permissions` enabled. It runs for Claude Code only. Other runners do not load it.
 
 **This is defense-in-depth, not a security boundary.** The hook is a pattern match against known-destructive shell commands; it *catches* casual and accidental damage, it does not *prevent* a sufficiently motivated or prompt-injected agent from working around it. The actual isolation boundary is [container or runner-native containment](#sandboxed-dispatch-credential-posture) — run the guard alongside containment, not instead of it.

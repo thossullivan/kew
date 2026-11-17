@@ -1,15 +1,20 @@
 <script lang="ts">
-  import { INSTALL, INSTALL_PARTS, REPO_URL } from './data/install';
+  import { CREATE_KEW, INSTALL, REPO_URL } from './data/install';
   import { RUNNERS } from './data/runners';
 
   /**
-   * Get kew: the install command and Copy, the page's primary action, then
-   * what it needs and works with, the six runners by name, and the docs to
-   * read next. The runner names come from data/runners.ts, which a kew test
-   * holds equal to the shipped registry.
+   * Get kew: the install command and Copy, the page's primary action; the
+   * npm launcher as the second way, with a quiet Copy; then what it needs and
+   * works with, the six runners by name, and the docs to read next. The
+   * runner names come from data/runners.ts, which a kew test holds equal to
+   * the shipped registry.
    */
 
-  let copied = $state(false);
+  /* Which command Copy last put on the clipboard, for the button's label and
+     the screen reader's status. */
+  type Copied = 'install' | 'create-kew' | null;
+  let copied: Copied = $state(null);
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   /* The command scrolls sideways in its block on a narrow screen. The fade at
      the right edge says so, and goes once the block is scrolled to its end
@@ -27,11 +32,12 @@
     return () => ro.disconnect();
   });
 
-  async function copy() {
+  async function copy(command: string, which: Exclude<Copied, null>) {
     try {
-      await navigator.clipboard.writeText(INSTALL);
-      copied = true;
-      setTimeout(() => (copied = false), 1600);
+      await navigator.clipboard.writeText(command);
+      copied = which;
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => (copied = null), 1600);
     } catch {
       // Clipboard blocked — the command is selectable on screen regardless.
     }
@@ -49,7 +55,7 @@
   <h2 id="install-h">Get kew</h2>
 
   <div class="get">
-    <p class="eyebrow">Install from source</p>
+    <p class="eyebrow">Install from PyPI</p>
     <!-- The command scrolls sideways inside its block and never breaks inside
          a token (L20); Copy is the page's primary action, in magenta (L2). -->
     <div class="cmdline">
@@ -63,11 +69,35 @@
         bind:this={scroller}
         onscroll={measure}
       >
-        <code>{#each INSTALL_PARTS as part, i}{#if i > 0}<wbr />{/if}{part}{/each}</code>
+        <code>{INSTALL}</code>
       </div>
-      <button type="button" class="btn-primary" onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+      <button
+        type="button"
+        class="btn-primary"
+        aria-label={copied === 'install' ? 'Copied' : 'Copy install command'}
+        onclick={() => copy(INSTALL, 'install')}
+      >
+        {copied === 'install' ? 'Copied' : 'Copy'}
+      </button>
     </div>
-    <p class="sr-only" role="status" aria-live="polite">{copied ? 'Install command copied' : ''}</p>
+    <!-- The second way, quiet: magenta stays on the one primary action. -->
+    <div class="alt">
+      <span class="alt-label">Or, inside your repository, with npm</span>
+      <span class="altline">
+        <code>{CREATE_KEW}</code>
+        <button
+          type="button"
+          class="btn-quiet"
+          aria-label={copied === 'create-kew' ? 'Copied' : `Copy ${CREATE_KEW}`}
+          onclick={() => copy(CREATE_KEW, 'create-kew')}
+        >
+          {copied === 'create-kew' ? 'Copied' : 'Copy'}
+        </button>
+      </span>
+    </div>
+    <p class="sr-only" role="status" aria-live="polite">
+      {copied === 'install' ? 'Install command copied' : copied === 'create-kew' ? 'npm command copied' : ''}
+    </p>
     <p class="req">
       Python 3.13. Requires <code>git</code>, <code>gh</code>, a container runtime and a runner.
       Works with GitHub Issues, and with Linear
@@ -154,6 +184,38 @@
     min-height: 44px;
     height: auto;
     padding-inline: 16px;
+  }
+  /* The npm row: a label, then the command and a quiet Copy joined into one
+     box; on a phone the label sits above the box. */
+  .alt {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    min-width: 0;
+  }
+  .alt-label {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .altline {
+    display: inline-flex;
+    align-items: stretch;
+  }
+  .altline code {
+    font-family: var(--mono);
+    font-size: 15px;
+    white-space: pre;
+    color: var(--fg);
+    padding: 10px 16px;
+    border: 1px solid var(--border-strong);
+  }
+  .altline button {
+    min-height: 44px;
+    height: auto;
+    padding-inline: 16px;
+    margin-left: -1px;
   }
   .req {
     font-size: 13px;

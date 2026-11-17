@@ -1,8 +1,10 @@
 # Official Codex runner
 
 kew supports the official OpenAI Codex CLI as an explicit host runner for
-standard issue dispatch. Install version 0.145.0 or newer and authenticate the
-CLI itself:
+standard issue dispatch. You install and log in to the CLI yourself, and kew
+checks both before launch.
+
+Install version 0.145.0 or newer and authenticate the CLI itself:
 
 ```bash
 npm install -g @openai/codex

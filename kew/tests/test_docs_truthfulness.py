@@ -5399,10 +5399,8 @@ class TestMigrationDocumentationDrift:
 
 
 class TestFrontDoorTruthfulness:
-    INSTALL = (
-        'uv tool install "kew-cli[serve] @ '
-        'git+https://github.com/thossullivan/kew.git@main#subdirectory=kew"'
-    )
+    INSTALL = 'uv tool install "kew-cli[serve]"'
+    CREATE_KEW = "npx create-kew"
 
     def test_evidence_follows_the_hero_and_quotes_consistent_pack_numbers(
         self,
@@ -5433,44 +5431,47 @@ class TestFrontDoorTruthfulness:
         assert number("costPerMergedPr") == pytest.approx(calculated)
         assert f"${calculated:.2f}" == "$6.70"
 
-    def test_install_copy_uses_the_source_command(self) -> None:
+    def test_install_copy_uses_the_pypi_command(self) -> None:
         hero = _read("www/src/lib/Hero.svelte")
         install = _read("www/src/lib/Install.svelte")
         command_source = _read("www/src/lib/data/install.js")
-        # The install section prints the command in INSTALL_PARTS, its
-        # line-break pieces, which are split from INSTALL and so join back to
-        # it exactly. The hero prints no copy of it: its primary action links
-        # to that section (#3354, W4).
+        # The install section prints INSTALL, the PyPI command with the
+        # `serve` extra, and CREATE_KEW as the second way; Copy copies each.
+        # The hero prints no copy of either: its primary action links to that
+        # section (#3354, W4).
         install_import = (
-            "import { INSTALL, INSTALL_PARTS, REPO_URL } from './data/install';"
+            "import { CREATE_KEW, INSTALL, REPO_URL } from './data/install';"
         )
-        # The slug is written once; the command is built from it.
+        # The slug is written once; the links are built from it.
         assert "export const REPO_SLUG = 'thossullivan/kew';" in command_source
         assert "export const REPO_URL = `https://github.com/${REPO_SLUG}`;" in (
             command_source
         )
-        template = self.INSTALL.replace(
-            "https://github.com/thossullivan/kew", "${REPO_URL}"
-        )
-        assert f"export const INSTALL = `{template}`;" in command_source
-        assert (
-            "export const INSTALL_PARTS = INSTALL.split(/(?<=@)|(?=#subdirectory)/);"
-            in command_source
-        )
+        assert f"export const INSTALL = '{self.INSTALL}';" in command_source
+        assert f"export const CREATE_KEW = '{self.CREATE_KEW}';" in command_source
+        assert "git+https" not in command_source
         assert '<a class="cta primary" href="#install">Install kew</a>' in hero
-        assert "INSTALL_PARTS" not in hero
         assert install_import in install
-        render = "{#each INSTALL_PARTS as part, i}{#if i > 0}<wbr />{/if}{part}{/each}"
-        assert render in install
-        assert "navigator.clipboard.writeText(INSTALL)" in install
+        assert "<code>{INSTALL}</code>" in install
+        assert "<code>{CREATE_KEW}</code>" in install
+        assert "copy(INSTALL, 'install')" in install
+        assert "copy(CREATE_KEW, 'create-kew')" in install
+        assert "navigator.clipboard.writeText(command)" in install
         for page in (hero, install):
             assert "git+https" not in page
             assert "pip install" not in page
         assert self.INSTALL not in hero
         assert self.INSTALL not in install
+        # The hero takes only the repository link from the install module, so
+        # it cannot render either command, by value or by name.
+        assert hero.count("data/install") == 1
+        assert "import { REPO_URL } from './data/install';" in hero
+        for name in ("INSTALL", "CREATE_KEW", self.CREATE_KEW):
+            assert name not in hero, name
         assert "pip install kew-cli" not in command_source
         assert "Sixty seconds" not in install
-        assert '<p class="eyebrow">Install from source</p>' in install
+        assert '<p class="eyebrow">Install from PyPI</p>' in install
+        assert "Install from source" not in install
 
     def test_isolation_copy_matches_the_product_contract(self) -> None:
         loop = _read("www/src/lib/Loop.svelte")
@@ -7582,7 +7583,7 @@ def test_2030_anchor_is_computed_on_the_ledger_host() -> None:
             assert stale not in text, (rel, stale)
 
 
-def test_2030_git_install_names_the_missing_web_bundle() -> None:
+def test_2030_install_pages_name_the_pypi_command_with_the_web_extra() -> None:
     ignored = _read(".gitignore")
     assert "kew/src/kew/serve/web/" in ignored
     from kew.serve.bundle import missing_build_html
@@ -7592,7 +7593,13 @@ def test_2030_git_install_names_the_missing_web_bundle() -> None:
         # Unquote the README's blockquote before joining lines.
         text = " ".join(re.sub(r"^\s*>\s?", "", _read(rel), flags=re.M).split())
         assert "(with the web `serve` extra)" not in text, rel
-        assert "A git install does not include the web UI bundle" in text, rel
+        # The published wheel carries the web console; the git install that
+        # lacked it is no longer offered, nor the sentence that warned of it.
+        assert 'uv tool install "kew-cli[serve]"' in text, rel
+        assert "git+https://github.com/" not in text, rel
+        assert "INTERIM-INSTALL" not in text, rel
+        assert "A git install does not include the web UI bundle" not in text, rel
+        assert "`npx create-kew`" in text, rel
 
 
 def test_2030_kew_review_is_not_called_an_independent_reviewer() -> None:

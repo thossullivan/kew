@@ -1,6 +1,8 @@
 # kew restore
 
-Validate and non-destructively restore a kew backup archive into the configured log directory. Checks schema compatibility and (by default) chain integrity before touching any files.
+`kew restore` validates a [`kew backup`](backup.md) archive and restores it,
+non-destructively, into the configured log directory. It checks schema
+compatibility and (by default) chain integrity before it touches any files.
 
 ```text
 Usage: kew restore [OPTIONS] ARCHIVE

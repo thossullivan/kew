@@ -59,7 +59,8 @@
  *     never broken inside a token; its block runs the column's full width and
  *     scrolls the command sideways inside itself;
  *   - every font face the page loads decodes (none has status "error");
- *   - the install section's Copy puts exactly INSTALL on the clipboard;
+ *   - the install section's Copy puts exactly INSTALL on the clipboard, and
+ *     the npm row's quiet Copy exactly CREATE_KEW (at 390 and 1440);
  *   - at 390 and 1440 every small visible text node, on the page and in the
  *     opened per-model fold, reads at least 4.5:1 against what is behind it
  *     (#3353);
@@ -110,7 +111,7 @@ import {
   PHONE
 } from '../src/lib/data/console-frames.js';
 import { DEMO_TOUR_URL, DEMO_URL } from '../src/lib/data/demo.js';
-import { INSTALL } from '../src/lib/data/install.js';
+import { CREATE_KEW, INSTALL } from '../src/lib/data/install.js';
 import {
   PROOF_ALWAYS,
   PROOF_DOCS,
@@ -728,6 +729,18 @@ async function copyCopiesInstall(page) {
   await button.click();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   return copied === INSTALL ? null : `Copy put "${copied}" on the clipboard`;
+}
+
+/** The npm row's Copy puts exactly CREATE_KEW on the clipboard, and the row
+ *  shows that command whole. */
+async function copyCopiesCreateKew(page) {
+  const shown = await page.locator('#install .altline code').textContent();
+  if (shown !== CREATE_KEW) return `the npm row reads "${shown}"`;
+  const button = page.locator('#install .altline button');
+  await button.scrollIntoViewIfNeeded();
+  await button.click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  return copied === CREATE_KEW ? null : `the npm row's Copy put "${copied}" on the clipboard`;
 }
 
 /** Every small text node under `root` that a user sees and that reads below
@@ -1984,6 +1997,7 @@ const CHECKS = [
   ],
   ['every font the page uses decodes', EVERY, fontsDecode],
   ['Copy copies the install command exactly', [1440], copyCopiesInstall],
+  ['the npm row shows and copies npx create-kew exactly', [390, 1440], copyCopiesCreateKew],
   ['small text meets WCAG AA contrast at 390 and 1440 px', [390, 1440], smallTextMeetsAA],
   ['the hero offers Install kew and How a change is proven', EVERY, heroOffersTwoActions],
   [

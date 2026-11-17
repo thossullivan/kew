@@ -1,8 +1,9 @@
 # Epic DAG live view
 
 `kew serve` renders the epic driver's own record as a **live, replayable
-dependency graph** — the flight-recorder model applied to `kew epic
-run`/`advance` instead of a single dispatch. Two pages:
+dependency graph**: the flight-recorder model applied to `kew epic
+run`/`advance` instead of a single dispatch. Use it to watch an epic move and to
+follow its spend. Two pages:
 
 - **`/epics`** — a list of every epic the driver has journaled at least one
   tick for: ref, tri-state signal, done/failed counts, drain spend, and how

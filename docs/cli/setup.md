@@ -1,6 +1,8 @@
 # kew setup
 
-One-time setup: creates GitHub labels, generates the security hook, writes the kew block into `AGENTS.md`, and creates log directories.
+`kew setup` does a repository's one-time setup: it creates GitHub labels,
+generates the security hook, writes the kew block into `AGENTS.md`, and creates
+log directories. [`kew init`](init.md) runs it for you.
 
 ```text
 Usage: kew setup [OPTIONS]

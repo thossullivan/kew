@@ -1,19 +1,19 @@
 # Tuning the governance dials
 
-kew's governance dials interact: a budget cap can silently starve a review
-cycle, a concurrency cap can make a healthy epic look stalled, and a breaker
-floor tuned for one model class is wrong for another. This page maps each dial
-to the failure mode you'll actually observe when it's mis-set — every entry
-here was hit for real during dogfooding, with the incident issue linked.
-
-The short version: **when an epic looks stuck, check holds, then run rows,
-then slots — in that order.**
+When an epic looks stuck, **check holds, then run rows, then slots, in that
+order.** This page maps each governance dial to the failure you will see when it
+is mis-set, so start here when kew does less than you expected.
 
 ```bash
 kew epic status <name>          # holds + stuck reasons, ready frontier
 sqlite3 logs/dispatch/dispatch.db \
   "select issue_num, run_kind, status from runs where status='pending'"
 ```
+
+The dials interact: a budget cap can silently starve a review cycle, a
+concurrency cap can make a healthy epic look stalled, and a breaker floor tuned
+for one model class is wrong for another. Every entry here was hit for real
+during dogfooding, and links its incident issue.
 
 ---
 

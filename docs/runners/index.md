@@ -4,7 +4,25 @@ description: The coding agents kew can run, what each one is for, and how each o
 
 # Runners
 
-kew is **runner-agnostic**. It owns the queue, standalone clone isolation, budgets, security hook, tamper-evident audit log, and governance. It treats the coding agent as a pluggable, supervised subprocess. The pre-dispatch budget caps, the audit log and the `kew stop` latch apply to every runner; the caps count only the spend a runner reports. Approval gates apply when `[approval] threshold_usd` is set. The in-run cost watchdog can stop a run only on a runner that reports cost: the [capability manifest](#runner-capability-manifest) lists each runner's cost signal. The security hook is a Claude Code hook. External-containment runners use containers. Official Codex uses its own sandbox. Unavailable containment routes fail closed. Host-execution paths listed in [Security](../security.md#sandboxed-dispatch-credential-posture) have no kew guard.
+kew can run several coding agents. This page lists the supported runners, what
+each one is for, what each reports, and how each is contained.
+
+kew is **runner-agnostic**. It owns the queue, standalone clone isolation,
+budgets, security hook, tamper-evident audit log, and governance. It treats the
+coding agent as a pluggable, supervised subprocess.
+
+The pre-dispatch budget caps, the audit log and the `kew stop` latch apply to
+every runner; the caps count only the spend a runner reports. Approval gates
+apply when `[approval] threshold_usd` is set. The in-run cost watchdog can stop
+a run only on a runner that reports cost: the
+[capability manifest](#runner-capability-manifest) lists each runner's cost
+signal.
+
+Containment differs by runner. The security hook is a Claude Code hook.
+External-containment runners use containers. Official Codex uses its own
+sandbox. Unavailable containment routes fail closed. Host-execution paths listed
+in [Security](../security.md#sandboxed-dispatch-credential-posture) have no kew
+guard.
 
 > Governance that lives inside one vendor's console governs one vendor. kew keeps budgets, audit, approval, and the kill switch **outside** the runner, cloud or local. What each control can measure depends on what the runner reports.
 

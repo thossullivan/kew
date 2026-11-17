@@ -1,6 +1,7 @@
 # kew drive
 
-Drive every active epic of the project from one supervised process.
+`kew drive` keeps every active epic of the project advancing from one supervised
+process, so you do not tick each one by hand.
 
 `kew drive` ticks each active, non-archived epic on the project's tracker once
 per `--interval`, round after round, until `kew drive stop`. It replaces a shell

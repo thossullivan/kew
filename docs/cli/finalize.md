@@ -1,6 +1,9 @@
 # kew finalize
 
-Repair a run left awaiting host publication after out-of-band publication.
+`kew finalize <run-id>` repairs a run that is still recorded as awaiting host
+publication after its work was published by hand. The epic-driver tick
+reconciles most such runs on its own; finalize is the escape hatch for the rest,
+and it also claims the head of a run the tick settled.
 
 ```text
 Usage: kew finalize [OPTIONS] RUN_ID
@@ -8,9 +11,10 @@ Usage: kew finalize [OPTIONS] RUN_ID
 
 Use `kew finalize <run-id>` only for residue that is still recorded as
 `awaiting_publication` after publication was completed out of band. The command
-atomically marks the run successful and terminals its unclaimed preserved-work
-continuation, then records the operator intent in the chained audit ledger. It
-refuses missing runs and every run state other than `awaiting_publication`.
+atomically marks the run successful and moves its unclaimed preserved-work
+continuation to a terminal state, then records the operator intent in the
+chained audit ledger. It refuses missing runs and every run state other than
+`awaiting_publication`.
 
 It also records the branch's verified remote head as this run's published
 output, so a governed remediation (a review round, `kew resolve`, `kew ci-fix`)

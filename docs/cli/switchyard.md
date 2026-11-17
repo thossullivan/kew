@@ -1,5 +1,9 @@
 # kew switchyard
 
+`kew switchyard` holds human-gated evidence tools for kew's optional Switchyard
+inference transport. Use it only after the rollout plan's human gate has
+approved the run.
+
 ```text
 Usage: kew switchyard COMMAND [ARGS]...
 ```
@@ -17,7 +21,6 @@ Options:
     Switchyard transport remains rollout-gated and requires human approval.
     Use it only with supervision and the required pinned configuration.
 
-Human-gated evidence tools for Kew's optional Switchyard inference transport.
 The first command is a fixed-corpus, direct-versus-passthrough benchmark:
 
 ```bash

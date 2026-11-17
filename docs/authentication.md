@@ -1,6 +1,10 @@
 # Authentication
 
-kew dispatches Claude Code autonomously — it runs without a human in the loop. This has authentication requirements that differ from interactive Claude Code use.
+kew runs coding agents with no person in the loop, so their credentials work
+differently from interactive use. This page says which credential each runner
+needs, and which one a contained dispatch forwards into its container. For
+Claude Code, use an `ANTHROPIC_API_KEY`, not a Claude Pro or Max subscription
+token.
 
 ## Official Codex CLI login
 

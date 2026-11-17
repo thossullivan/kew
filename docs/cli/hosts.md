@@ -1,6 +1,7 @@
 # kew hosts
 
-Build and inspect the machines kew ships verification jobs to. See
+`kew hosts` builds and inspects the machines kew ships verification jobs to: it
+provisions a verify host, and drops a host's lease by hand. See
 [Hosts](../hosts.md) for what a host holds, how to create one, its quota and
 idle stop, and what it costs.
 

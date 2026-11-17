@@ -1,12 +1,17 @@
 # Roadmap
 
+This page shows where kew is headed, in three layers: agents (shipped and
+deepening), local execution (a direction, not yet claimed) and model
+intelligence (deepening). Read it to see what has shipped, where kew is headed,
+and the test an item has to pass to make the list.
+
 kew's job is to be **the governance layer for agentic software work** — budgets, audit, policy, and the kill switch, applied across runners. Each route states its own capabilities; kew does not claim identical controls everywhere.
 
 The vendors are building governance too — metering, spend caps, approval flows — each inside their own walls. kew's claim is the quadrant they structurally don't serve: **self-hosted, cross-runner, and aware of runs and outcomes rather than API calls.** If your governance lives in one vendor's console, it governs one vendor.
 
-Every roadmap item passes one test: **does it extend governance, ownership, or trust to a new actor, a new origin, or a new standard of proof?** Items that only add orchestration breadth — more parallelism, more dashboards — don't make the list.
+Every roadmap item passes one test: **does it extend governance, ownership, or trust to a new actor, a new origin, or a new standard of proof?** Items that only add orchestration breadth (more parallelism, more dashboards) don't make the list.
 
-This roadmap is public on purpose. Items get claimed when they ship, not before — if something below slips or dies, you'll see that too.
+This roadmap is public on purpose. Items get claimed when they ship, not before. If something below slips or dies, you'll see that too.
 
 ## Layer 1 — Agents (shipped, deepening)
 

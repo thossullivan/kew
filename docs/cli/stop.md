@@ -1,7 +1,9 @@
 # kew stop
 
-Emergency stop for the whole fleet. Kills every in-flight agent run and
-latches dispatch — nothing new starts until you run `kew resume`.
+`kew stop` is the emergency stop for the whole fleet. It kills every in-flight
+agent run and latches dispatch, so nothing new starts until you run
+`kew resume`. Reach for it when something is going wrong across the fleet and
+you want everything to stop before you look.
 
 ```text
 Usage: kew stop [OPTIONS]

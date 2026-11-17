@@ -1,6 +1,9 @@
 # Recipes
 
-A ready-made justfile template is included at [`create-kew/templates/justfile-recipes.just`](https://github.com/thossullivan/kew/blob/main/create-kew/templates/justfile-recipes.just).
+This page collects `justfile` recipes for common kew workflows, plus a pointer
+to the dev-tunnel setup for Linear webhooks. Start from the ready-made template
+at [`create-kew/templates/justfile-recipes.just`](https://github.com/thossullivan/kew/blob/main/create-kew/templates/justfile-recipes.just),
+or paste the snippets below into your own `justfile`.
 
 Example `justfile` snippets for common workflows:
 

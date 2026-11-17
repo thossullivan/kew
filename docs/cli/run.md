@@ -1,6 +1,9 @@
 # kew run
 
-Take the next ready issue from the queue and dispatch the configured runner to implement it.
+`kew run` takes the next ready issue from the queue and dispatches the
+configured runner to implement it: one issue at a time or, with `--drain`, until
+the queue is empty.
+
 `kew run` works only from the ready queue. To dispatch one named issue, use
 [`kew dispatch <issue>`](dispatch.md).
 

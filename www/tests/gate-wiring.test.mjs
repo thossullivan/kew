@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 const www = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -328,13 +328,17 @@ test('a child signal is nonzero and still restores generated churn', async (t) =
   assert.deepEqual(await readFile(project.stats), Buffer.from('entry\n'));
 });
 
-test('deploy fails before publication when the install gate rejects the repository', async (t) => {
+/**
+ * Run deploy.sh in a scratch repository on main with `fetch` replaced by
+ * `fetchSource`, a module every node process deploy.sh starts loads first, so
+ * the gate's PyPI and npm requests never leave the machine. Rejects with the
+ * failed run, whose output the caller checks.
+ */
+async function deployWithRegistries(t, fetchSource) {
   const temporary = await mkdtemp(join(tmpdir(), 'kew-deploy-gate-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const bin = join(temporary, 'bin');
-  await mkdir(bin);
-  const gh = join(bin, 'gh');
-  await writeFile(gh, '#!/bin/sh\nprintf \'{"visibility":"PRIVATE"}\'\n', { mode: 0o755 });
+  const offline = join(temporary, 'offline-fetch.mjs');
+  await writeFile(offline, fetchSource);
 
   // deploy.sh refuses anything but a clean main before the install gate, and
   // CI checks out a PR ref, so the gate runs in a scratch repo on main holding
@@ -359,20 +363,45 @@ test('deploy fails before publication when the install gate rejects the reposito
   // deploy.sh refuses a HEAD that is not the local origin/main ref.
   await git('update-ref', 'refs/remotes/origin/main', 'HEAD');
 
+  return execFileAsync('bash', [join(repo, 'www/deploy.sh')], {
+    cwd: join(repo, 'www'),
+    env: {
+      ...process.env,
+      DEPLOY_HOST: 'deploy.invalid',
+      DEPLOY_USER: 'kew',
+      NODE_OPTIONS: `--import=${pathToFileURL(offline).href}`
+    },
+    timeout: 30_000
+  });
+}
+
+test('deploy fails before publication when the install gate rejects the install command', async (t) => {
   await assert.rejects(
-    execFileAsync('bash', [join(repo, 'www/deploy.sh')], {
-      cwd: join(repo, 'www'),
-      env: {
-        ...process.env,
-        DEPLOY_HOST: 'deploy.invalid',
-        DEPLOY_USER: 'kew',
-        PATH: `${bin}:${process.env.PATH}`
-      },
-      timeout: 30_000
-    }),
+    deployWithRegistries(t, "globalThis.fetch = async () => new Response('{}', { status: 404 });\n"),
     (error) => {
-      assert.match(`${error.stdout}\n${error.stderr}`, /install gate:.*not public/i);
+      const output = `${error.stdout}\n${error.stderr}`;
+      assert.match(output, /install gate: kew-cli is not on PyPI/);
+      assert.match(output, /install gate: create-kew is not on npm/);
+      assert.doesNotMatch(output, /Building the docs/);
       return true;
     }
   );
+});
+
+test('deploy fails before publication when PyPI holds the release and npm does not', async (t) => {
+  const registries = `
+const RELEASE = { info: { version: '1.0.0', provides_extra: ['serve'] } };
+globalThis.fetch = async (url) =>
+  new URL(String(url)).hostname === 'pypi.org'
+    ? new Response(JSON.stringify(RELEASE), { status: 200, headers: { 'content-type': 'application/json' } })
+    : new Response('{}', { status: 404 });
+`;
+  await assert.rejects(deployWithRegistries(t, registries), (error) => {
+    const output = `${error.stdout}\n${error.stderr}`;
+    assert.match(output, /resolves: kew-cli is on PyPI/);
+    assert.match(output, /install gate: create-kew is not on npm/);
+    assert.doesNotMatch(output, /install gate: kew-cli/);
+    assert.doesNotMatch(output, /Building the docs/);
+    return true;
+  });
 });

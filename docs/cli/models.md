@@ -1,5 +1,9 @@
 # kew models
 
+`kew models` keeps kew's model catalog of prices and lifecycle up to date. Run
+`kew models refresh` when the catalog needs new figures; the catalog changes
+only through a reviewed pull request.
+
 ```text
 Usage: kew models COMMAND [ARGS]...
 ```

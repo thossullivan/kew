@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { INSTALL, INSTALL_PARTS, REPO_SLUG, REPO_URL } from '../src/lib/data/install.js';
+import { CREATE_KEW, INSTALL, REPO_SLUG, REPO_URL } from '../src/lib/data/install.js';
 
 const www = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -25,28 +25,22 @@ async function files(directory) {
   return found;
 }
 
-test('the install command and links are built from the one repository slug', () => {
+test('the links are built from the one repository slug', () => {
   assert.equal(REPO_SLUG, 'thossullivan/kew');
   assert.equal(REPO_URL, `https://github.com/${REPO_SLUG}`);
-  assert.equal(
-    INSTALL,
-    `uv tool install "kew-cli[serve] @ git+https://github.com/${REPO_SLUG}.git@main#subdirectory=kew"`
-  );
 });
 
-test('the install command breaks after each @ and before #subdirectory and joins back exactly', () => {
-  assert.equal(INSTALL_PARTS.join(''), INSTALL);
-  assert.deepEqual(INSTALL_PARTS, [
-    'uv tool install "kew-cli[serve] @',
-    ` git+https://github.com/${REPO_SLUG}.git@`,
-    'main',
-    '#subdirectory=kew"'
-  ]);
+test('the install commands are the PyPI package with its web extra and the npm launcher', () => {
+  assert.equal(INSTALL, 'uv tool install "kew-cli[serve]"');
+  assert.equal(CREATE_KEW, 'npx create-kew');
+  for (const command of [INSTALL, CREATE_KEW]) {
+    assert.doesNotMatch(command, /git\+|github\.com|subdirectory/);
+  }
 });
 
-test('the install gate checks the command the site renders', async () => {
+test('the install gate checks the commands the site renders', async () => {
   const gate = await readFile(join(www, 'scripts/check-install.mjs'), 'utf8');
-  assert.match(gate, /import \{ INSTALL \} from '\.\.\/src\/lib\/data\/install\.js';/);
+  assert.match(gate, /import \{ CREATE_KEW, INSTALL \} from '\.\.\/src\/lib\/data\/install\.js';/);
   assert.doesNotMatch(gate, /thossullivan/);
 });
 

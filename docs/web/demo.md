@@ -2,9 +2,12 @@
 
 [demo.kew.dev](https://demo.kew.dev/) is the web console that
 [`kew serve`](index.md) shows, running in your browser with nothing behind it.
+Its data is made up, apart from the Build history line, and no button changes
+anything. Take a tour below to walk through it one step at a time.
+
 It shows how kew builds software: agents work headless and sandboxed, kew
-checks what they produce, and a person makes each merge decision. kew itself
-is built this way.
+checks what they produce, and nothing merges on the word of the agent that
+wrote it. kew itself is built this way.
 
 ## What you are looking at
 
@@ -14,7 +17,7 @@ is built this way.
   kew's own history: the pull requests, agent runs, review rounds and
   list-price cost that built that page. It is the one part of the demo that is
   not made up. A demo build made without that history reads sample data and is
-  labelled so.
+  labeled so.
 - **Allowlisted fields.** Build history publishes only those counts and costs,
   each feature's id, title, routes, epics and issue numbers, its pull requests
   and the commits they landed, its held-out failure counts, its flagged-run

@@ -1,8 +1,8 @@
 # Prompt profiles
 
-Every agent kew launches runs a prompt. This page covers which prompt each
-role runs, how an operator adds to it, what kew records about it, and why a
-contained agent cannot change it.
+Every agent kew launches runs a base prompt for its role. An operator can add
+to it with a profile that an approver activates, but a profile never replaces
+the base.
 
 ## Roles and their base prompts
 

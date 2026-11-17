@@ -1,8 +1,11 @@
 # Agents
 
-How a script or a coding agent sets up and operates kew without a terminal.
-It is the [Getting Started](getting-started.md) path with every prompt
-replaced by a flag and every report read as JSON.
+This page shows how a script or a coding agent sets up and operates kew
+without a terminal. It is the [Getting Started](getting-started.md) path with
+every prompt replaced by a flag and every report read as JSON: write the
+configuration with `kew init --yes`, loop on `kew doctor --json` until `ok` is
+`true`, then dispatch. The last two sections list each command's JSON output
+and the exit codes.
 
 ## 1. Install
 

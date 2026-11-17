@@ -4,7 +4,13 @@ description: How to open the web console that kew serve runs on localhost agains
 
 # Web UI
 
-`kew serve` opens a unified cockpit — one 56px header framing all governance views in a SvelteKit SPA. Everything runs on localhost by default and reads your existing run history; no account, no external service.
+**Bottom line up front:** `kew serve` gives you a web console over the run
+history kew already keeps. It runs on localhost by default, with no kew account and
+no hosted service; it talks to GitHub through your `gh` login. It is where you
+see what needs you, approve held work and read what each run did. This page walks through each view.
+
+The console is one SvelteKit page app under a single 56px header that frames
+every governance view.
 
 !!! note "Flight Recorder status"
     Each run's page (`/runs/<id>`) renders its Flight Recorder view from the
@@ -12,7 +18,7 @@ description: How to open the web console that kew serve runs on localhost agains
     The `/timeline` and `/events` API routes are live, but no web page reads them yet.
 
 ```bash
-pip install 'kew-cli[serve]'
+uv tool install "kew-cli[serve]"
 kew serve   # → in a terminal, prints a tokenized link: http://127.0.0.1:8765/#token=…
 ```
 

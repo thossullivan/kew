@@ -1,6 +1,8 @@
 # kew settle
 
-Reaps one dead run whose container never started, and frees the slot it held.
+`kew settle RUN_ID` reaps one dead run whose container never started, and frees
+the slot it held. kew's reconcilers do this on their own; this command does it
+by hand for one run.
 
 ```text
 Usage: kew settle [OPTIONS] RUN_ID

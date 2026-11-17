@@ -1,6 +1,9 @@
 # kew schema
 
-Print every visible kew command as JSON: its path, help line, arguments, options, whether it takes `--json`, and its exit-code family.
+`kew schema` prints every visible kew command as JSON: its path, help line,
+arguments, options, whether it takes `--json`, and its exit-code family. A
+script or another agent can use it to discover kew's commands without parsing
+help text.
 
 ```text
 Usage: kew schema [OPTIONS]

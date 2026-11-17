@@ -1,5 +1,8 @@
 # kew ingest
 
+`kew ingest` records Claude Code's OTel usage in kew's run store, so the Claude
+Code sessions you run by hand show in `kew report` beside kew's own runs.
+
 ```text
 Usage: kew ingest COMMAND [ARGS]...
 ```
@@ -15,7 +18,7 @@ Arguments:
 Usage: kew ingest serve
 ```
 
-Ingest Claude Code OTel usage into kew's unified run store. Produces a self-hosted record that spans **dispatched** usage (kew's own runs) and **interactive** usage (a developer running Claude Code by hand), visible in `kew report` as a separate "Interactive (Claude Code)" breakdown.
+The result is a self-hosted record in kew's unified run store that spans **dispatched** usage (kew's own runs) and **interactive** usage (a developer running Claude Code by hand), visible in `kew report` as a separate "Interactive (Claude Code)" breakdown.
 
 This is **passive observation, honestly framed**: kew records what Claude Code reports and can alert against a configured cap; it does **not** enforce limits or interrupt an interactive session. Ingested telemetry is **observed, not attested** — it is stored off the tamper-evident hash chain and is not covered by `kew audit verify`.
 

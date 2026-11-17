@@ -4,10 +4,14 @@ description: What kew defends against and what it does not, starting from the co
 
 # Threat model
 
-This document states, honestly, **what kew defends against and what it does not.** kew
-runs autonomous coding agents against your code; that is inherently a position of trust,
-and the value of a control plane is bounding the blast radius when something the agent
-does goes wrong. Knowing the edges of that boundary is part of using kew safely.
+This page states **what kew defends against and what it does not.** The main
+adversary is the agent kew governs, not an outside attacker. The machine running
+kew, you as its operator, and the runner CLIs are trusted.
+
+kew runs autonomous coding agents against your code, which is a position of
+trust. A control plane earns that trust by bounding the blast radius when
+something the agent does goes wrong, so knowing the edges of that boundary is
+part of using kew safely.
 
 For how to report a vulnerability, see [SECURITY.md](https://github.com/thossullivan/kew/blob/main/SECURITY.md). For the concrete
 command-blocking rules, see [the security page](security.md).

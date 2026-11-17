@@ -114,19 +114,21 @@ cd www
 DEPLOY_HOST=… DEPLOY_USER=… ./deploy.sh
 ```
 
-or `npm run deploy`. It checks the install command resolves, builds both trees,
+or `npm run deploy`. It checks the install commands resolve, builds both trees,
 composes them, and rsyncs with `--delete` scoped to the kew dir — it cannot reach
 another site's files on the host.
 
 ### Install gate
 
-The page uses the README source installation until the Release workflow
-publishes the package. The install gate checks that command against the README.
-It also verifies the public repository, explicit ref, and source subdirectory.
-After the command changes to a PyPI form (`uv tool install "kew-cli[serve]"`,
-`pipx install "kew-cli[serve]"` or `pip install kew-cli`), the gate checks that
-PyPI holds the project and that it declares the extra the command names.
-Network and authentication failures block deployment.
+The page shows two commands from `src/lib/data/install.js`: the PyPI install
+(`uv tool install "kew-cli[serve]"`) and the npm launcher (`npx create-kew`).
+The install gate (`scripts/check-install.mjs`) checks that PyPI holds the
+project and that it declares the extra the command names, and that npm holds
+`create-kew` with a `latest` whose major version equals that of the project's
+latest release on PyPI (the launcher installs only its own major). A registry
+that answers 404 fails the gate as "not on PyPI" or "not on npm"; any other
+failure, network or HTTP, fails it as "could not verify". So deploy only once
+both registries hold the release.
 
 No GitHub Actions workflow deploys the site: the manual script is the path.
 

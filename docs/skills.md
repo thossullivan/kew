@@ -1,6 +1,9 @@
 # Skills catalog
 
-kew ships a set of governance artifacts — Claude Code skills plus the security-guard hook — as package data. They install into your project's `.claude/` with [`kew skills`](cli/skills.md), which tracks drift so updates don't clobber your local changes.
+kew ships a set of governance artifacts, Claude Code skills plus the
+security-guard hook, as package data. [`kew skills`](cli/skills.md) installs them
+into your project's `.claude/` and tracks drift, so an update does not overwrite
+your local changes. This page lists each one and what it is for.
 
 ```bash
 kew skills list           # see what's installed and its state

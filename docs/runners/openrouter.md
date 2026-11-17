@@ -1,6 +1,10 @@
 # OpenRouter Models
 
-[OpenRouter](https://openrouter.ai) is a gateway that puts hundreds of models from many vendors (Qwen, DeepSeek, Mistral, Anthropic, OpenAI, Google, …) behind a single API key. Kew dispatches to OpenRouter through the [OpenCode runner](opencode.md), so any model in OpenRouter's catalog is one `model =` line away — no per-vendor accounts or keys.
+[OpenRouter](https://openrouter.ai) is a gateway that puts hundreds of models
+from many vendors (Qwen, DeepSeek, Mistral, Anthropic, OpenAI, Google, …) behind
+a single API key. kew dispatches to OpenRouter through the
+[OpenCode runner](opencode.md), so any model in OpenRouter's catalog is one
+`model =` line away, with no per-vendor accounts or keys.
 
 ## Setup
 

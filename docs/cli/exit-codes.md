@@ -1,5 +1,10 @@
 # CLI exit codes
 
+kew's commands share the exit-code scheme on this page, and the command-family
+table lists where one differs. Read it when you
+script kew and need to tell "could not run" apart from "ran and found something
+to act on".
+
 kew uses one two-axis scheme: **did it run**, and **what did it find**?
 
 | Code | Did it run? | What did it find? |

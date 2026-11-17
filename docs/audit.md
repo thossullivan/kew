@@ -2,9 +2,14 @@
 
 kew records governance events in a hash-chained audit log (`audit_events` in
 `dispatch.db`). Each entry carries the hash of the previous entry, and `kew
-audit verify` checks the chain. `kew audit anchor` writes the chain head to a
-sink you choose. It uses `audit-anchors.jsonl` at the project root by default.
-The daily `.github/workflows/audit-anchor.yml` workflow can commit and push it.
+audit verify` checks the chain. The chain shows the integrity of what was
+written, not that nothing is missing. This page lists what each kind of event
+records, the `kew audit` commands, and what that tamper-evidence does and does
+not mean.
+
+`kew audit anchor` writes the chain head to a sink you choose. It uses
+`audit-anchors.jsonl` at the project root by default. The daily
+`.github/workflows/audit-anchor.yml` workflow can commit and push it.
 
 Admitted dispatch runs also retain their inference-transport identity: direct
 or Switchyard mode, sanitized endpoint origin, route, managed/external flag,

@@ -1,6 +1,7 @@
 # Local Runner Troubleshooting
 
-This page covers common issues when running kew against a local OpenAI-compatible endpoint.
+This page covers the common failures when kew runs against a local
+OpenAI-compatible endpoint. Each section gives the symptom and the fix.
 
 ## Context window too small
 

@@ -1,6 +1,8 @@
 # kew prompts
 
-See and change the operator profile each agent role's prompt runs with.
+`kew prompts` shows and changes the operator profile each agent role's prompt
+runs with. This is for giving a role's prompt standing instructions of your own,
+under approval.
 
 A **profile** is an addendum to a role's packaged prompt, never a replacement:
 the packaged prompt stays the reviewed base, and replacing a base still takes a

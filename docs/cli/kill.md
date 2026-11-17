@@ -1,6 +1,7 @@
 # kew kill
 
-Stops one run through its recorded process identity.
+`kew kill RUN_ID` stops one run, through the process identity kew recorded for
+it, and leaves the rest of the fleet running.
 
 ```text
 Usage: kew kill [OPTIONS] RUN_ID

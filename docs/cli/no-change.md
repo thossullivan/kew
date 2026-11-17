@@ -1,14 +1,15 @@
 # kew no-change
 
-Decide one no-change outcome: confirm it, reject it, rejudge it against the
-current base, or retry a synchronization that held.
+`kew no-change` is where you decide a run that finished with **no diff to
+show**: confirm it, reject it, rejudge it against the current base, or retry a
+synchronization that held.
 
-A no-change outcome is a run that finished with **no diff to show**. kew does
-not close the work item on its own — it records an attested judgment and waits
-for a person, because an item closed on an absence leaves a reviewer nothing to
-read afterwards. This command group is that decision from the terminal; the web
-console's **Judgment queue** offers the same three actions against the same
-service verb, with the same authority rules and the same audit event.
+kew does not close such a work item on its own. It records an attested judgment
+and waits for a person, because an item closed on an absence leaves a reviewer
+nothing to read afterwards. This command group makes that decision from the
+terminal. The web console's **Judgment queue** offers the same three actions
+against the same service verb, with the same authority rules and the same audit
+event.
 
 Each command names the **work item** — the GitHub issue number or tracker id,
 the same spelling `kew dispatch` and `kew triage` take. kew resolves the

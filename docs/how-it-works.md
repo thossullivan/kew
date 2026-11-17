@@ -4,6 +4,22 @@ description: How kew takes a ready issue through selection, its own checkout and
 
 # How It Works
 
+**Bottom line up front:** a ready backlog goes in, and pull requests ready for
+your review come out. In between, every step that touches the agent's output checks
+it rather than trusting it. It works in its own clone, under a budget, in a runner contained by
+default. On the contained route the host, not the agent, pushes and opens the
+pull request. On epic work where you turn it on, a fresh reviewer judges the
+pull request before it reaches you for approval, unless you sign a standing
+merge rule. This page walks that path,
+what each outcome means, and what happens when a run fails.
+
+I designed the loop so that a failure is loud. A failed run keeps its checkout
+for you to inspect. A run that changes nothing waits for policy or a person to
+confirm it.
+A run whose work could not be published records which step failed. Each outcome
+is named for what it is, so none of them is shaped like success (green while it
+is failing).
+
 A person labels an issue `ready`; `kew run` selects it, builds a checkout and a
 prompt, and hands both to the configured runner, which ends in a pull request or
 a preserved failure:
@@ -81,7 +97,8 @@ The two producers differ here, and the difference is the reason the agent prompt
 
 ## Dispatch outcomes
 
-Each dispatch ends in one of the following outcomes:
+Each dispatch ends in one of the following outcomes. They are kept apart on
+purpose, so a run that did not finish never reads as one that did:
 
 - **Completed** -- the agent called `finish` and committed coherent work. kew pushes the branch, creates a PR labeled `pr-pending-review`, and removes the checkout.
 - **No changes** -- the agent ran but made no changes and called `finish`. kew
@@ -383,14 +400,14 @@ draws invented sample figures there, and the line says "sample data".
 
 ## Governed adversarial review
 
-Every substantive defect that reached the merge surface across the
-delegation-hardening waves was caught not by the implementing agent's own tests
-(honest, green) but by a **fresh-context adversarial reviewer** run by hand:
-same-context self-review structurally cannot see interactions with actors
-outside its context. The governed adversarial-review stage makes that manual
-loop a pipeline stage the control plane owns, between "an agent opened a PR" and
-the human approval surface. It is **opt-in** (`[review].adversarial = true`) and
-off by default.
+While I built kew, every substantive defect that reached the merge surface
+across the delegation-hardening waves was caught not by the implementing agent's
+own tests (honest, green) but by a **fresh-context adversarial reviewer** run by
+hand. Same-context self-review structurally cannot see interactions with actors
+outside its context. The governed adversarial-review stage turns that manual
+loop into a pipeline stage the control plane owns, between "an agent opened a
+PR" and the human approval surface. It is **opt-in**
+(`[review].adversarial = true`) and off by default.
 
 !!! note "Where the stage runs"
     The stage runs on epic nodes that `kew epic` or `kew drive` advances, and on
@@ -1208,7 +1225,7 @@ a `vi.mock` only adds lines and still changes what the file's cases check.
 Deleting one, or renaming it, is a change too, declared by its path on the
 base branch. A new frontend test file needs no line.
 
-The interface between kew and the image — mounted checkout, prompt-file→stdin handoff, `"$@"` extra args, one JSON event per line on stdout, and the reviewer verdict channel — is fixed and documented in the [container entrypoint contract](sandbox-entrypoint-contract.md). Per-runner variation lives inside the image; kew's host-side contract does not change.
+The interface between kew and the image — mounted checkout, prompt-file→stdin handoff, `"$@"` extra args, one JSON event per line on stdout, the reviewer verdict channel, and the extraction artifact — is fixed and documented in the [container entrypoint contract](sandbox-entrypoint-contract.md). Per-runner variation lives inside the image; kew's host-side contract does not change.
 
 The security guard (`.claude/hooks/security-guard.sh`) is still active inside the container as **best-effort layer 2** defence-in-depth. It is known-bypassable in-process (#502); the mount boundary is the primary containment. See [Security](security.md#sandboxed-dispatch-credential-posture) and [Configuration](configuration.md#sandbox) for details.
 

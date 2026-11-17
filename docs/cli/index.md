@@ -4,6 +4,10 @@ description: Every kew command, grouped by what it is for, with a link to its re
 
 # CLI Reference
 
+This page lists every kew command by what it is for, with a link to each
+reference page. Start here when you know what you want done and need the command
+that does it.
+
 kew's commands cover dispatch, review and merge, epics, setup, and the data
 kew records. `kew run` takes work from the ready queue; `kew dispatch <issue>`
 names one issue. Work-item arguments are GitHub issue numbers. Linear items run

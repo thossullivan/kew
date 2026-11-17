@@ -1,6 +1,7 @@
 # kew serve
 
-Launch the approval inbox and web UI.
+`kew serve` launches the approval inbox and web UI, where you see what needs
+you, release held work and read what each run did.
 
 ```text
 Usage: kew serve [OPTIONS] [COMMAND] [ARGS]...
@@ -234,7 +235,7 @@ marks the badge **stale**, a reminder to re-run `scripts/build_web.sh`.
 `kew serve` requires the `serve` extra:
 
 ```bash
-pip install 'kew-cli[serve]'
+uv tool install "kew-cli[serve]"
 ```
 
 ## Notes

@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -33,6 +34,25 @@ def test_serve_static_dir_resolves_to_the_built_bundle_location():
     assert cli_resolved == pkg_serve_web
     # The immediate parent must be the `serve` package, never `cli`.
     assert cli_resolved.parent.name == "serve"
+
+
+def test_serve_without_the_web_extra_names_the_tool_install_and_pipx(
+    tmp_path, monkeypatch
+):
+    # A kew installed without `[serve]` cannot import uvicorn. The message
+    # names the uv tool install the docs give, and pipx, which the PyPI page
+    # also offers; never `pip install` into whatever environment is active.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(sys.modules, "uvicorn", None)
+    with patch("kew.cli.preflight_tools"):
+        result = runner.invoke(app, ["serve"])
+    assert result.exit_code == 2, result.output
+    assert "kew serve needs the 'serve' extra" in result.output
+    assert 'uv tool install "kew-cli[serve]"' in result.output
+    assert 'pipx install --python python3.13 "kew-cli[serve]"' in result.output
+    # `pipx install --force` would rebuild the venv with pipx's own Python.
+    assert "--force" not in result.output
+    assert "pip install 'kew-cli" not in result.output
 
 
 def test_serve_nonloopback_without_expose_aborts(tmp_path, monkeypatch):

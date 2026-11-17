@@ -1,5 +1,9 @@
 # `kew config`
 
+`kew config effective` shows the configuration a live command will use, after it
+applies the default, `kew.toml`, database override, and environment layers. When
+a setting does not behave as you expect, `--sources` tells you which layer won.
+
 ```text
 Usage: kew config COMMAND [ARGS]...
 ```
@@ -11,9 +15,6 @@ Options:
   --json
   --sources
 ```
-
-Inspect the configuration that a live command will use after applying the
-default, `kew.toml`, database override, and environment layers.
 
 ```console
 kew config effective --sources

@@ -1,10 +1,12 @@
 # kew triage
 
+`kew triage` classifies a work item and records what it proposes; a person
+decides what happens next. This is for a first read on an item without letting a
+model act on the tracker.
+
 ```text
 Usage: kew triage COMMAND [ARGS]...
 ```
-
-Classify a work item and record the proposal; a person decides.
 
 The triage station reads one item, asks a classifier what it is, and writes the
 answer to the ledger. **In this release every outcome is a proposal.** The

@@ -4,14 +4,22 @@ description: What an agent can write, what kew reads instead before a change can
 
 # How kew decides a change is proven
 
-kew treats the agent that writes a change as an untrusted author. What the
-agent produces is input for kew to check. It is not evidence that the change is
-correct. The rule that follows from this: **a change never defines its own
-proof.**
+**Bottom line up front:** kew never takes an agent's word that its change
+works. For each thing an agent can write (its repository, its tests, its
+reasons, the reviewer's verdict, the gates, its cost report), this page says
+what kew reads instead before the change can merge. Each section names the code
+and the tests, so you can check the claim against the source, and, where there
+is one, the limit, so you know where the rule stops.
 
-This page lists what an agent can write, and what kew reads instead before the
-change can merge. Each section names the code and the tests, so you can check
-the claim against the source.
+kew treats the agent that writes a change as an untrusted author. What the
+agent produces is input for kew to check, not evidence that the change is
+correct. The rule that follows: **a change never defines its own proof.**
+
+I hold this rule because an agent can make a broken change look finished. It
+can edit the test that would have failed, plant a verdict file in the
+reviewer's checkout, or report a lower cost. Each of those is a result shaped
+like success: green while it is failing. The sections below are where kew
+checks for it, and they say plainly where a check stops.
 
 !!! note "What applies where"
     The publication rules apply on the contained dispatch route. The review
@@ -148,6 +156,9 @@ confirms it.
 
 ## What this does not prove
 
+None of these rules makes a change correct. They are there so that a failure
+is loud.
+
 - A passed gate shows that the checks ran and what they found. It does not show
   that the change is correct.
 - The [audit chain](audit.md) shows that recorded rows were not edited. It does
@@ -155,3 +166,15 @@ confirms it.
 - Governed review is opt-in, and the reviewer is a model.
 - kew binds a merge to the commit that was reviewed. A person still approves
   the pull request.
+
+So before you trust a green check on an agent's pull request, ask:
+
+- Did the check run on this route? The publication rules hold on the contained
+  route, and the review rules only with `[review] adversarial = true`.
+- Could the pull request have changed the check? With governed review on, a
+  file listed in `[epic] merge_gate_paths` needs two independent full reviews
+  on the same commit, and the merge queue holds it for a person; a check the
+  list leaves out has no such guard.
+- Did the test that matters exist on the base branch? A test the pull request
+  adds has no base copy to run.
+- Who will read the diff before it merges?

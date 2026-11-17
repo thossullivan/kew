@@ -1,6 +1,7 @@
 # kew attach
 
-Attach to a running agent's live event stream.
+`kew attach ISSUE` attaches to the live event stream of the agent running on
+that issue, so you can watch its progress as it works.
 
 ```text
 Usage: kew attach ISSUE

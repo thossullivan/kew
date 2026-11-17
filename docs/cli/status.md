@@ -1,6 +1,7 @@
 # kew status
 
-Show queue counts, run history, and cost summaries.
+`kew status` shows queue counts, run history and cost summaries: a quick read on
+what is queued, what ran and what it cost.
 
 ```text
 Usage: kew status [OPTIONS]

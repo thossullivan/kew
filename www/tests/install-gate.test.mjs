@@ -1,7 +1,38 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
-import { pypiTarget, verifyPyPIInstall, verifySourceInstall } from '../scripts/install-gate.mjs';
+import { CREATE_KEW, INSTALL } from '../src/lib/data/install.js';
+import {
+  npmTarget,
+  pypiTarget,
+  verifyNpmLauncher,
+  verifyPyPIInstall,
+  verifySourceInstall
+} from '../scripts/install-gate.mjs';
+
+const execFileAsync = promisify(execFile);
+const launcher = resolve(dirname(fileURLToPath(import.meta.url)), '../../create-kew');
+
+test('the npm command the site shows names the launcher package in the repository', async () => {
+  const manifest = JSON.parse(await readFile(join(launcher, 'package.json'), 'utf8'));
+  assert.equal(npmTarget(CREATE_KEW)?.package, manifest.name);
+});
+
+test('the launcher installs the project and extras the PyPI command names', async () => {
+  // The launcher prints the install it runs; it runs no uv for --help.
+  const { stdout } = await execFileAsync(process.execPath, [join(launcher, 'index.js'), '--help']);
+  const spec = stdout.match(/uv tool install "([^"]+)"/)?.[1];
+  assert.ok(spec, stdout);
+  const parsed = spec.match(/^([A-Za-z0-9._-]+)(?:\[([A-Za-z0-9._,-]+)\])?/);
+  const installs = { project: parsed[1], extras: parsed[2] ? parsed[2].split(',') : [] };
+  assert.deepEqual(installs, pypiTarget(INSTALL));
+  assert.deepEqual(installs, { project: 'kew-cli', extras: ['serve'] });
+});
 
 const SOURCE_INSTALL =
   'uv tool install "kew-cli[serve] @ git+https://github.com/thossullivan/kew.git@main#subdirectory=kew"';
@@ -170,4 +201,125 @@ test('a source URL without an explicit ref fails the install gate', async () => 
 
   assert.equal(result.ok, false);
   assert.match(result.reason, /unsupported source command/i);
+});
+
+// The npm launcher: create-kew X.Y.Z installs kew-cli >=X,<X+1, so the gate
+// holds its latest major to kew-cli's latest major on PyPI.
+const NPM_LATEST = (latest) => ({ status: 200, json: { 'dist-tags': { latest } } });
+const PYPI_LATEST = (version) => ({ status: 200, json: { info: { version } } });
+
+test('the npm launcher form parses to its package', () => {
+  assert.deepEqual(npmTarget('npx create-kew'), { package: 'create-kew' });
+  for (const command of [
+    'npx create-kew --yes',
+    'npx create-kew && curl example.invalid',
+    'npm init kew',
+    'npx ../create-kew',
+    'npx'
+  ]) {
+    assert.equal(npmTarget(command), null, command);
+  }
+});
+
+test('a launcher whose latest major matches the PyPI release passes the install gate', async () => {
+  const asked = [];
+  const result = await verifyNpmLauncher(
+    'npx create-kew',
+    'kew-cli',
+    async (name) => {
+      asked.push(`npm:${name}`);
+      return NPM_LATEST('1.2.0');
+    },
+    async (project) => {
+      asked.push(`pypi:${project}`);
+      return PYPI_LATEST('1.0.3');
+    }
+  );
+
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual(asked, ['npm:create-kew', 'pypi:kew-cli']);
+});
+
+test('a launcher on another major than the PyPI release fails the install gate', async () => {
+  for (const [latest, released] of [
+    ['0.0.1', '1.0.0'],
+    ['2.0.0', '1.4.0']
+  ]) {
+    const result = await verifyNpmLauncher(
+      'npx create-kew',
+      'kew-cli',
+      async () => NPM_LATEST(latest),
+      async () => PYPI_LATEST(released)
+    );
+
+    assert.equal(result.ok, false, `${latest} against ${released}`);
+    assert.ok(result.reason.includes(`create-kew ${latest} on npm`), result.reason);
+    assert.ok(result.reason.includes(`PyPI's latest is ${released}`), result.reason);
+  }
+});
+
+test('a launcher npm does not hold fails the install gate', async () => {
+  const result = await verifyNpmLauncher(
+    'npx create-kew',
+    'kew-cli',
+    async () => ({ status: 404, json: null }),
+    async () => PYPI_LATEST('1.0.0')
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /create-kew is not on npm/);
+});
+
+test('a launcher without a latest version fails the install gate', async () => {
+  const result = await verifyNpmLauncher(
+    'npx create-kew',
+    'kew-cli',
+    async () => ({ status: 200, json: { 'dist-tags': {} } }),
+    async () => PYPI_LATEST('1.0.0')
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /create-kew on npm has no latest version/);
+});
+
+test('a launcher checked against a project PyPI does not hold fails the install gate', async () => {
+  const result = await verifyNpmLauncher(
+    'npx create-kew',
+    'kew-cli',
+    async () => NPM_LATEST('1.0.0'),
+    async () => ({ status: 404, json: null })
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /kew-cli is not on PyPI/);
+});
+
+test('a registry outage fails the gate as unverified, not as unpublished', async () => {
+  const outage = async () => ({ status: 503, json: null });
+
+  const install = await verifyPyPIInstall('uv tool install "kew-cli[serve]"', outage);
+  assert.equal(install.ok, false);
+  assert.equal(install.reason, 'could not verify kew-cli on PyPI (HTTP 503)');
+
+  const npm = await verifyNpmLauncher('npx create-kew', 'kew-cli', outage, async () => PYPI_LATEST('1.0.0'));
+  assert.equal(npm.ok, false);
+  assert.equal(npm.reason, 'could not verify create-kew on npm (HTTP 503)');
+
+  const pypi = await verifyNpmLauncher('npx create-kew', 'kew-cli', async () => NPM_LATEST('1.0.0'), outage);
+  assert.equal(pypi.ok, false);
+  assert.equal(pypi.reason, 'could not verify kew-cli on PyPI (HTTP 503)');
+});
+
+test('an npm or PyPI network error fails the launcher check', async () => {
+  const down = async () => {
+    throw new Error('network unreachable');
+  };
+
+  const npm = await verifyNpmLauncher('npx create-kew', 'kew-cli', down, async () => PYPI_LATEST('1.0.0'));
+  assert.equal(npm.ok, false);
+  assert.match(npm.reason, /could not verify create-kew on npm/);
+
+  const pypi = await verifyNpmLauncher('npx create-kew', 'kew-cli', async () => NPM_LATEST('1.0.0'), down);
+  assert.equal(pypi.ok, false);
+  assert.match(pypi.reason, /could not verify kew-cli on PyPI/);
 });

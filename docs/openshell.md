@@ -1,18 +1,18 @@
 # OpenShell runtime setup
 
 `[sandbox] runtime = "openshell"` replaces the container boundary with an
-[NVIDIA OpenShell](https://github.com/NVIDIA/openshell) gateway. Nothing else
+[NVIDIA OpenShell](https://github.com/NVIDIA/openshell) gateway. The agent runs
+in an OpenShell sandbox instead of a Docker container, and its credential stays
+on the gateway instead of entering the agent's environment. Nothing else
 moves: kew still owns host-side publication, the publication filter, the audit
-chain and image-ID launch. The agent runs in an OpenShell sandbox instead of a
-Docker container, and its credential stays on the gateway instead of entering
-the agent's environment.
+chain and image-ID launch.
 
 This page is the whole setup, in order. You do not need to read the design to
-follow it, and you do not have to know whether it worked: `kew doctor` checks
-what every step below has to leave true — read off the running gateway, not off
-any file this host wrote — and names the fix for each failure. The one thing it
-cannot check after the fact is the install step's checksum, so verify that one
-while you are there.
+follow it, or to judge for yourself whether it worked. `kew doctor` checks what
+every step below has to leave true, reading the running gateway rather than any
+file this host wrote, and names the fix for each failure. The one thing it
+cannot check afterward is the install step's checksum, so verify that one while
+you are there.
 
 !!! warning "Experimental"
 

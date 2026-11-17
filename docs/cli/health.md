@@ -1,5 +1,8 @@
 # kew health
 
+`kew health` checks that the control plane itself is working, as a gate for
+monitoring or CI.
+
 ```text
 Usage: kew health [OPTIONS]
 
@@ -7,8 +10,6 @@ Options:
   --json
   --window INTEGER
 ```
-
-Attest that the control plane itself is functioning — a monitoring/CI gate.
 
 ```bash
 kew health                # human table; exit 0 healthy / 1 degraded / 2 can't read db

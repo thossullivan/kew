@@ -1,5 +1,9 @@
 # kew doctor
 
+`kew doctor` runs local environment diagnostics and surfaces known issues that
+cause silent failures or wasted dispatch spend. Run it before your first
+dispatch, and whenever a run fails in a way you do not understand.
+
 ```text
 Usage: kew doctor [OPTIONS] [COMMAND] [ARGS]...
 
@@ -16,9 +20,6 @@ Options:
   --force-probe
   -y, --yes
 ```
-
-Run local environment diagnostics and surface known issues that cause silent
-failures or wasted dispatch spend.
 
 ```bash
 kew doctor                # human-readable checks; exit 0 clean / 1 issue found

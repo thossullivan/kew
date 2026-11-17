@@ -1,6 +1,8 @@
 # kew init
 
-Write a project's `kew.toml` from what kew detects and the flags you pass, then run `kew setup` and the `kew doctor` checks.
+When you first bring kew to a repository, `kew init` writes the project's
+`kew.toml` from what kew detects and the flags you pass, then runs `kew setup`
+and the `kew doctor` checks.
 
 ```text
 Usage: kew init [OPTIONS]

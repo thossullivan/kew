@@ -1,7 +1,8 @@
 # kew quota
 
-Release a runner lane that kew is holding after the provider refused a run for
-quota.
+`kew quota` releases a runner lane that kew is holding after the provider
+refused a run for quota. Use it when you know the limit is gone before kew can
+tell, such as after a raised account limit.
 
 When a runner's provider account rejects a run for quota (for example Claude's
 seven-day limit), kew does not mark the work as failed. The item goes back to

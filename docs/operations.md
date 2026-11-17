@@ -1,6 +1,11 @@
 # Operations
 
-Where kew stores data, how to back it up and restore it, how retention works, and what forward-only migrations mean for upgrades.
+**Bottom line up front:** kew keeps its durable record, every run and the audit
+chain, in one SQLite file. This page covers where that file lives, how to back
+it up and restore it, how retention works, and what forward-only migrations mean
+for upgrades. Later sections cover renaming a project's repository, and the
+runbook for kew's own repository: cutting a release, making the public
+snapshot, and the CI rules for agent pull requests.
 
 ## Where data lives
 
@@ -351,29 +356,26 @@ The repository guard only keeps forks and the private repository from
 reaching a release step. The boundary that stops anyone else publishing is
 trusted publishing plus the environments' protection rules.
 
-### Release day: the install command moves to PyPI
+### The install commands
 
-Until `kew-cli` is on PyPI, the README, Getting Started and the site install
-kew from the git source, and `create-kew` already installs `kew-cli[serve]`
-from PyPI, held to its own major version (npm publishes it only after PyPI).
-Keep the
-`[serve]` extra in every command: without it there is no web console. Once the
-first release is live on PyPI, one pull request makes these edits, in order:
+The README, Getting Started and the site install kew from PyPI with
+`uv tool install "kew-cli[serve]"`, and offer `npx create-kew` as the second
+way: it installs `kew-cli[serve]` from PyPI, held to its own major version,
+and runs `kew init`. Keep the `[serve]` extra in every command: without it
+there is no web console.
 
-| # | File | Change | Gates that pin it |
-|---|---|---|---|
-| 1 | `www/src/lib/data/install.js` (`INSTALL`, about line 17) | `uv tool install "kew-cli[serve]"` | `www/tests/repository-slug.test.mjs` (the command and its `INSTALL_PARTS` pieces); `tests/test_docs_truthfulness.py::TestFrontDoorTruthfulness::test_install_copy_uses_the_source_command` |
-| 2 | `www/src/lib/Install.svelte` (about line 59) | the "Install from source" label | the same `TestFrontDoorTruthfulness` test |
-| 3 | `README.md` (the `INTERIM-INSTALL` block, about lines 100-105) | the PyPI command; drop the markers | `tests/test_docs_truthfulness.py::test_2030_git_install_names_the_missing_web_bundle` (its git-install sentence) |
-| 4 | `docs/getting-started.md` (the `INTERIM-INSTALL` block, about lines 38-48) | the PyPI command and the sentence about the git install's missing web UI | the same `test_2030` test |
-| 5 | the tests named above | expect the PyPI command | the merge gate runs their old copies against the new tree, so list them under **Behavior changes** |
+| File | Holds | Gates that pin it |
+|---|---|---|
+| `www/src/lib/data/install.js` | `INSTALL` and `CREATE_KEW`, the commands the site renders and copies | `www/tests/repository-slug.test.mjs`; `tests/test_docs_truthfulness.py::TestFrontDoorTruthfulness::test_install_copy_uses_the_pypi_command` |
+| `www/src/lib/Install.svelte` | the "Install from PyPI" row and the npm row | the same `TestFrontDoorTruthfulness` test; `npm run browser-check` |
+| `README.md`, `docs/getting-started.md` | the PyPI command and one line naming `npx create-kew` | `tests/test_docs_truthfulness.py::test_2030_install_pages_name_the_pypi_command_with_the_web_extra`; `tests/test_create_kew.py` |
 
-`www/scripts/check-install.mjs` (run by `www/deploy.sh`) already accepts
-`uv tool install "kew-cli[serve]"`, `pipx install "kew-cli[serve]"` and
-`pip install kew-cli`, and for those it checks PyPI instead of GitHub: the
-project must be published and must declare the extra the command names. After
-the pull request merges, deploy the site from a clean `main` with
-`www/deploy.sh`.
+`www/scripts/check-install.mjs` (run by `www/deploy.sh`) checks both before
+anything is published: the PyPI project must be published and declare the
+extra the command names, and `create-kew` must be on npm with a `latest`
+whose major version is that of the project's latest release on PyPI. So
+deploy the site only after both registries hold the release, from a clean
+`main` with `www/deploy.sh`.
 
 ## Making the public snapshot
 

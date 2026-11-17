@@ -1,6 +1,8 @@
 # Panels
 
-Each cockpit panel shows a different slice of your dispatch state. Press the panel number (`1`-`4`) to expand any panel to full screen with a detail pane on the right.
+The cockpit has four panels, Queue, Workers, Reviews and Analytics, and each
+shows a different slice of your dispatch state. Press the panel number
+(`1`-`4`) to expand any panel to full screen with a detail pane on the right.
 
 ## [1] Queue
 

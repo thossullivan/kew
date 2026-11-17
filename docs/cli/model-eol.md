@@ -1,5 +1,9 @@
 # kew model-eol
 
+`kew model-eol check` checks the models your configuration names against kew's
+curated model lifecycle registry, and warns about any that is retiring or has no
+reviewed row. Run it when you change a model in your configuration.
+
 ```text
 Usage: kew model-eol COMMAND [ARGS]...
 ```

@@ -28,7 +28,7 @@ from kew.cli._apps import serve_app
 from kew.config import DispatchConfig, _is_loopback
 from kew.config import project_root as _project_root
 from kew.ledger_identity import canonical_project_root, open_managed_store
-from kew.links import UPGRADE_HINT
+from kew.links import SERVE_EXTRA_INSTALL, UPGRADE_HINT
 from kew.policy import repo_root as _policy_repo_root
 from kew.progress import _error, _warn
 from kew.run_store import SchemaTooNewError, SqliteRunStore
@@ -290,9 +290,7 @@ def serve(
 
         from kew.serve.app import create_app
     except ModuleNotFoundError:
-        _error(
-            "kew serve needs the 'serve' extra. Install: pip install 'kew-cli[serve]'"
-        )
+        _error(f"kew serve needs the 'serve' extra. Install: {SERVE_EXTRA_INSTALL}")
         raise typer.Exit(2) from None
 
     import os

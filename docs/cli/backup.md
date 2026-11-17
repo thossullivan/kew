@@ -1,6 +1,9 @@
 # kew backup
 
-Snapshot `dispatch.db` and `kew.toml` into a portable, compressed archive using SQLite's online-backup API. Safe to run against a live database — no write lock, no forward migration.
+`kew backup` snapshots `dispatch.db` and `kew.toml` into a portable, compressed
+archive, using SQLite's online-backup API. It is safe to run against a live
+database: no write lock, no forward migration. Run it before an upgrade, or on a
+schedule.
 
 ```text
 Usage: kew backup [OPTIONS]

@@ -1,6 +1,7 @@
 # kew gc
 
-List what closed work left on disk, and how much space removing it frees; `--apply` removes it.
+`kew gc` lists what closed work left on disk and how much space removing it
+frees; `--apply` removes it.
 
 ```text
 Usage: kew gc [OPTIONS]

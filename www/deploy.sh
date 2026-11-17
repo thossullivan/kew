@@ -99,9 +99,10 @@ if [ "${DRY_RUN}" -eq 0 ]; then
   fi
 fi
 
-# The install command must be real before anything is published. The gate fails
-# closed when GitHub or PyPI cannot verify the displayed command.
-echo "==> Checking the install command resolves…"
+# The install commands must be real before anything is published: the PyPI
+# project with the extra the command names, and create-kew on npm at the same
+# major version. The gate fails closed when PyPI or npm cannot verify them.
+echo "==> Checking the install commands resolve…"
 npm run --silent check:install
 
 echo "==> Building the docs (mkdocs → ../site)…"

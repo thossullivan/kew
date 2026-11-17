@@ -1,6 +1,7 @@
 # kew review
 
-Gather PR review comments and dispatch the configured runner to address them.
+`kew review <PR>` gathers a pull request's review comments and dispatches the
+configured runner to address them.
 
 Standalone review supports runners that require **host-publication**, including
 official Codex. Canonical mode always uses host publication. The review prompt

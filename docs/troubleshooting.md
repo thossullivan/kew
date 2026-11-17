@@ -1,6 +1,9 @@
 # Troubleshooting
 
-Common failure modes and how to resolve them.
+This page covers four common ways a run goes wrong: `kew run` picks no issue,
+the agent times out, a budget cap holds or refuses a run, or a checkout is left behind.
+Each section gives the cause and the fix. For a runner on a local model, see
+[Local Runner Troubleshooting](runners/troubleshooting.md).
 
 ## "kew run picks no issue"
 
@@ -71,7 +74,7 @@ runs the review or remediation. A run already in progress finishes.
 
 A standalone clone can remain after a crash or interrupted dispatch. kew stores it at `{branches.worktree_base}/agent/issue-{N}`. A relative base starts from the directory where you ran kew.
 
-`kew cleanup` reports orphaned label states; it repairs them only when you pass `--reset-to ready` or `--reset-to agent-failed`. It does not remove clone directories.
+`kew cleanup` reports orphaned label states; it repairs them only when you pass `--reset-to ready` or `--reset-to agent-failed`. Without `--dry-run` it also removes work trees past retention that no live run references; a checkout a run still references stays.
 
 1. **Confirm the effective base**:
    ```bash

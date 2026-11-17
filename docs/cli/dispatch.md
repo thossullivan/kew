@@ -1,5 +1,8 @@
 # `kew dispatch`
 
+`kew dispatch <issue>` runs the configured runner on one issue you name, now,
+rather than the next one in the ready queue (that is [`kew run`](run.md)).
+
 ```text
 Usage: kew dispatch [OPTIONS] ISSUE
 
@@ -17,17 +20,14 @@ Options:
   --json               Print one JSON result summary on stdout; progress stays on stderr
 ```
 
-Dispatch a single named issue. [`kew run`](run.md) takes work from the ready
-queue instead.
-
 `ISSUE` is a GitHub issue number. Linear items run through [`kew epic`](epic.md)
 and [`kew delegate`](delegate.md); see
 [What works with Linear](../configuration.md#what-works-with-linear).
 
-Dispatch publishes through a fresh host-owned canonical repository by default.
-Kew reads the agent checkout as plain files and filters them before publication.
-A review-sensitive path stops publication and preserves the checkout. Kew then
-records an awaiting-publication state for human action.
+By default, dispatch publishes through a fresh canonical repository that the
+host owns. kew reads the agent checkout as plain files and filters them before
+publication. A review-sensitive path stops publication and preserves the
+checkout, and kew records an awaiting-publication state for a person to act on.
 Contained runs record this state before returning a held publication to the host.
 An existing PR or failed PR lookup does not prove that the current edits were published.
 Canonical dispatch publishes those edits or preserves the checkout with a publication deferral.

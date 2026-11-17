@@ -1,5 +1,9 @@
 # Lemonade Runner
 
+The Lemonade runner is kew's own tool-use loop over an OpenAI-compatible
+endpoint on your machine, so inference stays local when the endpoint is local. It is experimental and every dispatch
+runs on the host, uncontained, so use it only under supervision.
+
 !!! warning "Experimental"
     The local tool loop and OpenAI-compatible endpoint integration are implemented.
     This runner cannot be contained: its inference endpoint is on host loopback,

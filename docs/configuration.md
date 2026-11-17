@@ -4,7 +4,10 @@ description: The kew.toml reference, section by section, with each field's defau
 
 # Configuration
 
-All configuration lives in `kew.toml` at your repo root. Every field has a sensible default.
+All configuration lives in `kew.toml` at your repo root, and every field has a
+sensible default, so you set only what you want to change. This page is the
+reference, section by section: each key, its default, and how kew reports a
+configuration error.
 
 ## Config errors
 

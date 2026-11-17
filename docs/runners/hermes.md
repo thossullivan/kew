@@ -1,6 +1,9 @@
 # Hermes Runner
 
-Hermes is a headless coding agent that runs against [OpenRouter](openrouter.md). kew reaches it through a thin adapter (`kew/runners/hermes.py`) that shells out to the `hermes` CLI once per dispatch. It applies the same standalone clone isolation, budget gate, audit log, and kill switch.
+Hermes is a headless coding agent that runs against [OpenRouter](openrouter.md).
+kew reaches it through a thin adapter (`kew/runners/hermes.py`) that shells out
+to the `hermes` CLI once per dispatch, with the same standalone clone isolation,
+budget gate, audit log, and kill switch.
 
 !!! note "OpenRouter only"
     Hermes runs **OpenRouter models only**. kew deliberately does not wire it to Anthropic or any other provider — route those to `claude-code` or `opencode` instead. A route to `hermes` with a non-OpenRouter model **fails closed** at command-build time rather than silently falling back.

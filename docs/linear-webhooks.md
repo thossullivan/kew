@@ -1,5 +1,8 @@
 # Linear webhooks
 
+With webhooks set up, Linear sends kew issue moves and comment activity as they
+happen, and polling drops to a low-frequency reconcile pass.
+
 !!! warning "Experimental"
     The Linear epic driver and delegation rail have run against a live Linear
     workspace. Webhook delivery and its security checks have automated
@@ -7,7 +10,9 @@
     Without webhooks the driver polls. See
     [What works with Linear](configuration.md#what-works-with-linear).
 
-kew can receive Linear webhook events in near-real-time via `POST /webhooks/linear` on the existing `kew ingest serve` receiver. This turns polling into a low-frequency reconcile pass and makes epic state changes (issue moves, comment activity) surface immediately.
+kew receives Linear webhook events in near-real-time through
+`POST /webhooks/linear` on the existing `kew ingest serve` receiver, so epic
+state changes (issue moves, comment activity) surface immediately.
 
 ## Overview
 

@@ -1,6 +1,7 @@
 # kew verify
 
-Run the merge verification on a host and record what it returned.
+`kew verify` runs the merge verification on a host and records what it returned,
+to check a commit or a pull request's head before it merges.
 
 ```text
 Usage: kew verify [OPTIONS] [REF]

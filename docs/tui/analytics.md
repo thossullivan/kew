@@ -1,6 +1,8 @@
 # Analytics Dashboard
 
-Press `4` from the cockpit to open the full analytics dashboard. This screen shows fleet performance metrics with breakdowns by model, complexity, and daily activity.
+Press `4` from the cockpit to open the full analytics dashboard: fleet
+performance metrics, with breakdowns by model, complexity, and daily activity.
+This page explains the lookback periods, each stat, and the keybindings.
 
 ## Lookback periods
 

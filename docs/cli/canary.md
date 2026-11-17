@@ -1,10 +1,12 @@
 # kew canary
 
-Attest that kew still reads **fresh** vendor CLI output correctly — the runtime
-twin of [`kew health`](health.md). A vendor CLI update can rename a JSON key and
-silently break kew's capture of tokens/session/cost; `kew canary` runs the real
-runner against a trivial prompt and checks the governance fields the meter
-depends on.
+`kew canary` checks that kew still reads **fresh** vendor CLI output correctly;
+it is the runtime twin of [`kew health`](health.md). Run it after a vendor CLI
+update, which can rename a JSON key and silently break kew's capture of tokens,
+session and cost.
+
+`kew canary` runs the real runner against a trivial prompt and checks the
+governance fields the meter depends on.
 
 ```text
 Usage: kew canary [OPTIONS]

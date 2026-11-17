@@ -140,5 +140,9 @@ def test_getting_started_names_runtimes_as_runtimes_not_installs() -> None:
     text = GETTING_STARTED.read_text()
     for runtime in ("Docker", "OrbStack", "Podman", "OpenShell"):
         assert f"**{runtime}**" in text, runtime
-    assert "npx create-kew" not in text
+    # The launcher is an install path, not a runtime: it is named only inside
+    # the install step.
+    path = _numbered_path(text)
+    install_step = path.split("\n2. ", 1)[0]
+    assert text.count("npx create-kew") == install_step.count("npx create-kew") == 1
     assert "gh auth login" in text

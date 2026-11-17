@@ -1,6 +1,10 @@
 # kew skills
 
-Install and maintain kew's shipped agent skills and the security-guard hook inside a target repo's `.claude/` directory. Artifacts install **from the wheel's package data only** — no remote fetch, no registry. See [Skills catalog](../skills.md) for what's in the box.
+`kew skills` installs and maintains kew's shipped agent skills and the
+security-guard hook in a repository's `.claude/` directory.
+
+Everything installs **from the wheel's package data only**: no remote fetch, no
+registry. See [Skills catalog](../skills.md) for what's in the box.
 
 ```text
 Usage: kew skills COMMAND [ARGS]...

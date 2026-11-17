@@ -1,16 +1,15 @@
 # Run reports
 
-When `[run_reports]` is enabled, kew writes one small markdown **run report**
-per run into a machine-level sink (`~/.local/share/kew/runs` by default). The
-sink pools the exhaust of every repo kew orchestrates into one corpus, so
-cross-project decision questions — "which model handles docs PRs well", "what
-did runs shaped like this cost", "how did this failure mode resolve before" —
-have something to retrieve from.
+When `[run_reports]` is enabled, kew writes one small Markdown **run report**
+per run into a machine-level sink (`~/.local/share/kew/runs` by default). Every
+repository kew works on adds to that one corpus, so cross-project questions
+such as "which model handles docs PRs well", "what did runs shaped like this
+cost" or "how did this failure mode resolve before" have something to search.
 
 Configuration: [`[run_reports]`](configuration.md#run_reports). Design:
-`docs/design/2026-08-21-run-report-sink-design.md`. The kew repo
-itself runs with the sink enabled (its committed `kew.toml`, since
-2026-08-22) — the corpus below is dogfooded, not hypothetical.
+`docs/design/2026-08-21-run-report-sink-design.md`. kew's own repository runs
+with the sink enabled (its committed `kew.toml`, since 2026-08-22), so the
+corpus below is dogfooded, not hypothetical.
 
 ## When reports are written
 

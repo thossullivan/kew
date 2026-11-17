@@ -1,6 +1,8 @@
 # kew sandbox
 
-Tooling for the sandboxed-dispatch container path.
+`kew sandbox` holds the tooling for the container a contained dispatch runs
+in. Use it to build a runner image, set up the network, or prove the container
+path works before you route work at it.
 
 ```text
 Usage: kew sandbox COMMAND [ARGS]...

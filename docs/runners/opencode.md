@@ -1,10 +1,12 @@
 # OpenCode Runner
 
 [OpenCode](https://opencode.ai) is a multi-provider terminal coding agent.
-Kew's `OpenCodeRunner` shells out to the OpenCode CLI, giving you a single
-integration that covers Gemini, GPT/o-series (including Codex-branded models),
-Ollama, OpenRouter, and 70+ other providers. This is distinct from kew's
-official `codex` runner, which invokes OpenAI's Codex CLI directly.
+kew's `OpenCodeRunner` shells out to the OpenCode CLI, so one integration covers
+Gemini, GPT/o-series (including Codex-branded models), Ollama, OpenRouter, and
+70+ other providers.
+
+This runner is distinct from kew's official `codex` runner, which invokes
+OpenAI's Codex CLI directly.
 
 ## Prerequisites
 

@@ -1,6 +1,7 @@
 # kew ci-fix
 
-Dispatch an agent to auto-fix a failed GitHub Actions run.
+`kew ci-fix RUN_ID` dispatches an agent to fix a failed GitHub Actions run, for
+when a pull request's CI went red and the fix is worth an agent's time.
 
 ```text
 Usage: kew ci-fix RUN_ID

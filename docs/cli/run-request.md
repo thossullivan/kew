@@ -1,7 +1,7 @@
 # kew run-request
 
-Queue a kew command for the running [`kew drive`](drive.md) to run as you — the
-terminal half of the console's **Run** button.
+`kew run-request` queues a kew command for the running [`kew drive`](drive.md)
+to run as you. It is the terminal half of the console's **Run** button.
 
 ```text
 Usage: kew run-request [OPTIONS] COMMAND [ARGS]...
