@@ -6,6 +6,10 @@ repository kew works on adds to that one corpus, so cross-project questions
 such as "which model handles docs PRs well", "what did runs shaped like this
 cost" or "how did this failure mode resolve before" have something to search.
 
+`kew init` turns reports on: the `kew.toml` it writes sets
+`[run_reports] enabled = true`. The config default stays off, so a `kew.toml`
+written by hand opts in with that same line.
+
 Configuration: [`[run_reports]`](configuration.md#run_reports). Design:
 `docs/design/2026-08-21-run-report-sink-design.md`. kew's own repository runs
 with the sink enabled (its committed `kew.toml`, since 2026-08-22), so the

@@ -266,9 +266,9 @@ def test_setup_json_reports_labels_hook_and_directories(in_tmp: Path) -> None:
         patch("kew.cli._detect_repo"),
         patch("kew.labels.run", side_effect=_fake_gh()),
     ):
-        first = runner.invoke(app, ["setup", "--json"])
+        first = runner.invoke(app, ["setup", "--json", "--guard-hook"])
         hook = (in_tmp / ".claude/hooks/security-guard.sh").read_text()
-        second = runner.invoke(app, ["setup", "--json"])
+        second = runner.invoke(app, ["setup", "--json", "--guard-hook"])
 
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output

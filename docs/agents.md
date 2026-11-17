@@ -36,9 +36,13 @@ Init refuses an existing `kew.toml` with exit `2` and leaves it untouched.
 Pass `--force` to overwrite it: that is how an agent changes a value, rather
 than editing the file.
 
-After writing, init runs `kew setup` (labels and security hooks) and the
+After writing, init runs `kew setup` (labels and directories) and the
 `kew doctor` checks. With `--yes` it runs no fix itself: it prints each
 failing check with its `fix:` command and exits `1`.
+
+Init writes the security-guard hook and the `AGENTS.md` block only with
+`--guard-hook` and `--agents-md`: both change every session in the
+repository, not only kew's agents.
 
 | `kew init` exit | Meaning |
 | --- | --- |

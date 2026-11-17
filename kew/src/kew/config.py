@@ -913,7 +913,7 @@ class SandboxConfig(BaseModel):
     # Only enabled=True activates this exception for remediation flows.
     allow_uncontained_flows: bool | None = Field(default=None, strict=True)
     runtime: str = "docker"
-    image: str = "kew-agent:docker-d148816b388f"
+    image: str = "kew-agent:docker-236e8d2ed49d"
     images: dict[str, str] = {}
     #: The image the pre-review gate's static and ui-check halves and the
     #: resolver's checks run in (#3281): the approved agent image with the
@@ -3732,12 +3732,33 @@ def _anchor_log_dir(raw: dict[str, Any], root: Path) -> None:
     dir came from ``--project`` / ``KEW_PROJECT`` or from the discovered
     kew.toml (#1156). An explicit KEW_LOG_DIR still wins (the env loop overrides
     this); absolute log dirs are left untouched.
+
+    The anchor is the canonical checkout, so a linked worktree and its main
+    checkout open the same ledger (#3576): the registry is shared through the
+    git common directory, and a database registered inside a worktree locked
+    the main checkout out with WRONG-LEDGER once the worktree was removed.
     """
     logging_raw = raw.get("logging")
     toml_dir = logging_raw.get("dir") if isinstance(logging_raw, dict) else None
     base_dir = toml_dir if toml_dir is not None else _default_log_dir()
     if not Path(base_dir).is_absolute():
-        raw.setdefault("logging", {})["dir"] = str((root / base_dir).resolve())
+        anchor = _ledger_root(root)
+        raw.setdefault("logging", {})["dir"] = str((anchor / base_dir).resolve())
+
+
+def _ledger_root(root: Path) -> Path:
+    """*root*'s place in the checkout every linked worktree shares, else *root*.
+
+    A project in a subdirectory keeps that subdirectory, so the main checkout
+    resolves exactly as before. Git metadata the ledger cannot read keeps the
+    checkout's own root: the managed open refuses that layout itself.
+    """
+    from kew.ledger_identity import LedgerIdentityError, canonical_checkout_path
+
+    try:
+        return canonical_checkout_path(root)
+    except LedgerIdentityError:
+        return root
 
 
 def _anchor_worktree_base(raw: dict[str, Any], root: Path) -> None:

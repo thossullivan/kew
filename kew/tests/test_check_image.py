@@ -36,7 +36,7 @@ from kew.loops.verification import (
 from kew.resolve_checks import ResolutionChecksFailed, run_resolution_checks
 from kew.subprocess_utils import TOOL_PATHS
 
-RUNNER_IMAGE = "kew-agent:docker-d148816b388f"
+RUNNER_IMAGE = "kew-agent:docker-236e8d2ed49d"
 CHECK_IMAGE = "kew-check:0123456789ab"
 RUNNER_ID = "sha256:" + "a" * 64
 CHECK_ID = "sha256:" + "c" * 64

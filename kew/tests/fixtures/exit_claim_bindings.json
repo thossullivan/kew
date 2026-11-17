@@ -1646,7 +1646,7 @@
   },
   {
     "page": "agents.md",
-    "claim": "After writing, init runs `kew setup` (labels and security hooks) and the `kew doctor` checks. With `--yes` it runs no fix itself: it prints each failing check with its `fix:` command and exits `<code>`.",
+    "claim": "After writing, init runs `kew setup` (labels and directories) and the `kew doctor` checks. With `--yes` it runs no fix itself: it prints each failing check with its `fix:` command and exits `<code>`.",
     "bindings": [
       "init::setup or a readiness check needs fixing"
     ]

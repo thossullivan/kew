@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import shlex
+import subprocess
 import tomllib
 from pathlib import Path
 from unittest.mock import patch
@@ -20,6 +21,7 @@ import pytest
 from typer.testing import CliRunner
 
 from kew import onboarding
+from kew.agents_md import BLOCK
 from kew.cli import app, doctor
 from kew.cli import init as init_cmd
 from kew.config import DispatchConfig, load_config
@@ -54,9 +56,7 @@ def setup_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 @pytest.fixture
-def repo(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, setup_calls: list[str]
-) -> Path:
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """An empty fixture project with every machine-dependent probe pinned."""
     monkeypatch.setenv("KEW_PROJECT", str(tmp_path))
     monkeypatch.chdir(tmp_path)
@@ -65,6 +65,12 @@ def repo(
     monkeypatch.setattr(onboarding, "detect_runners", lambda: ())
     monkeypatch.setattr("kew.cli.init.run_checks", _credential_check_only)
     return tmp_path
+
+
+@pytest.fixture
+def repo(project: Path, setup_calls: list[str]) -> Path:
+    """The fixture project, with ``kew setup`` recorded instead of run."""
+    return project
 
 
 @pytest.fixture
@@ -171,6 +177,7 @@ def test_detect_flags_win_over_detection(repo: Path) -> None:
         "commands": {"ci": "tox", "format": "black ."},
         "sandbox": {"runtime": "podman"},
         "budget": {"per_issue_usd": 40.0},
+        "run_reports": {"enabled": True},
     }
 
 
@@ -331,11 +338,22 @@ def test_minimal_file_holds_only_values_that_differ_from_defaults(
     assert written == {
         "project": {"repo": "acme/widgets"},
         "agent": {"runner": "codex"},
+        "run_reports": {"enabled": True},
     }
     defaults = DispatchConfig()
     for section, fields in written.items():
         for name, value in fields.items():
             assert getattr(getattr(defaults, section), name) != value, (section, name)
+
+
+def test_init_in_a_fresh_repo_turns_run_reports_on(repo: Path) -> None:
+    result = _init("--yes", "--runner", "codex")
+
+    assert result.exit_code == 0, result.output
+    config = load_config(repo / "kew.toml", env={})
+    assert config.run_reports.enabled is True
+    assert DispatchConfig().run_reports.enabled is False
+    assert DispatchConfig().run_reports.sink_path in (repo / "kew.toml").read_text()
 
 
 def test_minimal_values_drops_every_default() -> None:
@@ -392,9 +410,10 @@ def test_interactive_minimal_asks_only_for_the_runner(
 ) -> None:
     _fully_detectable(repo, monkeypatch)
 
-    # Exactly two answers: the runner, then the write confirmation. Any further
-    # question would read EOF and abort, so a zero exit proves none was asked.
-    result = runner.invoke(app, ["init"], input="\ny\n")
+    # Exactly four answers: the runner, the write confirmation, then the two
+    # opt-in writes. Any further question would read EOF and abort, so a zero
+    # exit proves none was asked.
+    result = runner.invoke(app, ["init"], input="\ny\n\n\n")
 
     assert result.exit_code == 0, result.output
     assert "Runner [codex]:" in result.output
@@ -406,6 +425,7 @@ def test_interactive_minimal_asks_only_for_the_runner(
         "project": {"repo": "acme/widgets"},
         "agent": {"runner": "codex"},
         "commands": {"ci": "just test", "format": "just fmt"},
+        "run_reports": {"enabled": True},
     }
 
 
@@ -416,7 +436,7 @@ def test_interactive_asks_for_each_undetected_value_with_its_default(
     monkeypatch.setattr(onboarding, "detect_runtime", lambda: None)
 
     result = runner.invoke(
-        app, ["init"], input="acme/gadgets\ntox\n\npodman\nnope\ncodex\ny\n"
+        app, ["init"], input="acme/gadgets\ntox\n\npodman\nnope\ncodex\ny\n\n\n"
     )
 
     assert result.exit_code == 0, result.output
@@ -428,6 +448,7 @@ def test_interactive_asks_for_each_undetected_value_with_its_default(
         "agent": {"runner": "codex"},
         "commands": {"ci": "tox"},
         "sandbox": {"runtime": "podman"},
+        "run_reports": {"enabled": True},
     }
 
 
@@ -449,7 +470,7 @@ def test_interactive_flags_are_not_asked_again(
             "--format",
             "",
         ],
-        input="y\n",
+        input="y\n\n\n",
     )
 
     assert result.exit_code == 0, result.output
@@ -487,7 +508,7 @@ def test_interactive_decline_image_build_leaves_the_check_failing_with_its_fix(
         "kew.cli.init.run_checks", lambda config: [_image_check(CheckStatus.FAIL)]
     )
 
-    result = runner.invoke(app, ["init"], input="claude-code\ny\nn\n")
+    result = runner.invoke(app, ["init"], input="claude-code\ny\n\n\nn\n")
 
     assert builds == []
     assert result.exit_code == 1, result.output
@@ -512,7 +533,7 @@ def test_interactive_accepted_image_build_runs_and_the_checks_rerun(
 
     monkeypatch.setattr("kew.cli.init.run_checks", checks)
 
-    result = runner.invoke(app, ["init"], input="claude-code\ny\ny\n")
+    result = runner.invoke(app, ["init"], input="claude-code\ny\n\n\ny\n")
 
     assert builds == ["claude-code"]
     assert result.exit_code == 0, result.output
@@ -541,7 +562,7 @@ def test_interactive_offers_the_network_and_credential_guidance(
         "kew.cli.sandbox_network", lambda **kw: created.append(kw["check"])
     )
 
-    result = runner.invoke(app, ["init"], input="claude-code\ny\ny\n")
+    result = runner.invoke(app, ["init"], input="claude-code\ny\n\n\ny\n")
 
     assert created == [False]
     assert "claude setup-token" in result.output
@@ -559,7 +580,7 @@ def test_interactive_replay_command_reproduces_the_same_file(
     result = runner.invoke(
         app,
         ["init", "--budget-per-issue", "12.5", "--model", "m 1"],
-        input="acme/gadgets\ntox -e py\n\npodman\npi\ny\n",
+        input="acme/gadgets\ntox -e py\n\npodman\npi\ny\n\n\n",
     )
     assert result.exit_code == 0, result.output
     match = re.search(r"^.*?(kew init --yes .*)$", result.output, re.MULTILINE)
@@ -606,3 +627,86 @@ def test_non_interactive_no_tty_without_yes_exits_2_naming_the_missing_flags(
         assert flag not in result.output.split("pass --yes", 1)[1]
     assert not (repo / "kew.toml").exists()
     assert setup_calls == []
+
+
+# --- #3577: the guard hook and the AGENTS.md block are opt-in ---------------
+
+
+@pytest.fixture
+def real_setup(project: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """``kew setup`` runs for real, with only ``gh`` and the tool preflight pinned."""
+
+    def gh(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 0, '{"name": "widgets"}', "")
+
+    monkeypatch.setattr("kew.cli.preflight_tools", lambda *a, **k: None)
+    monkeypatch.setattr("kew.labels.run", gh)
+    return project
+
+
+def _guard_wired(repo: Path) -> bool:
+    settings = json.loads((repo / ".claude/settings.json").read_text())
+    commands = {
+        hook["command"]
+        for entry in settings["hooks"]["PreToolUse"]
+        for hook in entry["hooks"]
+    }
+    return commands == {".claude/hooks/security-guard.sh"}
+
+
+def test_opt_in_yes_leaves_settings_and_agents_md_untouched(real_setup: Path) -> None:
+    mine = b"# Rules\n\nThis session may merge.\n"
+    (real_setup / "AGENTS.md").write_bytes(mine)
+
+    result = _init("--yes", "--runner", "codex")
+
+    assert result.exit_code == 0, result.output
+    assert (real_setup / "kew.toml").is_file()
+    assert "Setup complete!" in result.output
+    assert not (real_setup / ".claude").exists()
+    assert (real_setup / "AGENTS.md").read_bytes() == mine
+
+
+def test_opt_in_yes_with_both_flags_writes_both(real_setup: Path) -> None:
+    result = _init("--yes", "--runner", "codex", "--guard-hook", "--agents-md")
+
+    assert result.exit_code == 0, result.output
+    assert _guard_wired(real_setup)
+    assert (real_setup / ".claude/hooks/security-guard.sh").is_file()
+    assert (real_setup / "AGENTS.md").read_text() == f"{BLOCK}\n"
+
+
+def test_opt_in_interactive_asks_what_each_write_changes_and_replays_it(
+    real_setup: Path, monkeypatch: pytest.MonkeyPatch, terminal: None
+) -> None:
+    _fully_detectable(real_setup, monkeypatch)
+
+    # The runner, the write confirmation, then yes to the guard, no to AGENTS.md.
+    result = runner.invoke(app, ["init"], input="\ny\ny\nn\n")
+
+    assert result.exit_code == 0, result.output
+    assert "every Claude session in this repo" in result.output
+    assert "never to approve, label or merge" in result.output
+    assert _guard_wired(real_setup)
+    assert not (real_setup / "AGENTS.md").exists()
+    match = re.search(r"(kew init --yes .*)$", result.output, re.MULTILINE)
+    assert match is not None, result.output
+    replay = shlex.split(match.group(1))
+    assert "--guard-hook" in replay
+    assert "--agents-md" not in replay
+
+
+def test_opt_in_interactive_default_answers_write_neither(
+    real_setup: Path, monkeypatch: pytest.MonkeyPatch, terminal: None
+) -> None:
+    _fully_detectable(real_setup, monkeypatch)
+
+    result = runner.invoke(app, ["init"], input="\ny\n\n\n")
+
+    assert result.exit_code == 0, result.output
+    assert not (real_setup / ".claude").exists()
+    assert not (real_setup / "AGENTS.md").exists()
+    match = re.search(r"(kew init --yes .*)$", result.output, re.MULTILINE)
+    assert match is not None, result.output
+    assert "--guard-hook" not in match.group(1)
+    assert "--agents-md" not in match.group(1)

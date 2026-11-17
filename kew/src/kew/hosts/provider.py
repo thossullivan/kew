@@ -138,10 +138,9 @@ class HostProvider(ABC):
     #: Provider name, as it appears in a :class:`JobResult` and in config.
     name: str = "host"
 
-    #: Whether this host can build kew's images from private inputs. Only the
-    #: operator machine holds the pinned Switchyard source archive, and it
-    #: never leaves it, so a remote host's job is told to skip that layer
-    #: rather than being handed the input.
+    #: Whether a job here is handed the Switchyard image opt-in. Only the
+    #: operator machine is: that layer compiles the pinned upstream source,
+    #: and a remote verify host skips it.
     builds_private_images: bool = False
 
     #: What an operator runs when :meth:`probe` cannot reach this host, for a

@@ -470,10 +470,11 @@ def test_gitleaks_install_refuses_a_substituted_archive(
 
 # --- The Switchyard image is opt-in -------------------------------------------
 #
-# The kew-switchyard image builds only from a pinned private source input that
-# the private runner alone holds, so the tooling is opt-in: ci.yml and
-# release.yml set one switch at the workflow level, to "1" only where that
-# input exists. tests/test_switchyard_image_skip.py pins what the value does.
+# The kew-switchyard image compiles upstream's public source at a pinned
+# commit, which is slow and needs the network, so the tooling is opt-in:
+# ci.yml and release.yml set one switch at the workflow level, to "1" only on
+# the private runner. tests/test_switchyard_image_skip.py pins what the value
+# does.
 
 RUN_ENV = "KEW_SWITCHYARD_IMAGE"
 RUN_EXPRESSION = "${{ github.event.repository.visibility == 'private' && '1' || '' }}"
@@ -514,8 +515,7 @@ def _assert_switchyard_runs_only_in_private(workflows: dict[str, dict]) -> None:
             for visibility in NON_PRIVATE_VISIBILITIES:
                 assert evaluate(expression, context_for(visibility)) == "", (
                     f"{workflow_name} opts into the Switchyard image for "
-                    f"visibility {visibility!r}, where the job runs hosted and "
-                    "the pinned private source input does not exist."
+                    f"visibility {visibility!r}, where the job runs hosted."
                 )
         # One switch per workflow: no job or step may set or override it.
         for job_name, job in data["jobs"].items():

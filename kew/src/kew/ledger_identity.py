@@ -208,6 +208,17 @@ def canonical_project_root(project_root: str | Path) -> Path:
     return root
 
 
+def canonical_checkout_path(path: str | Path) -> Path:
+    """*path*'s place in the canonical checkout, so a directory in a linked
+    worktree maps to the same directory in the main checkout (#3576)."""
+    requested = Path(path).resolve()
+    git_entry = _find_git_entry(requested)
+    if git_entry is None:
+        return requested
+    checkout = git_entry.parent
+    return canonical_project_root(checkout) / requested.relative_to(checkout)
+
+
 def registry_paths(project_root: str | Path) -> RegistryPaths:
     """Return the fixed registry and adjacent advisory-lock locations."""
     root, common_dir = _project_layout(Path(project_root))
@@ -703,6 +714,27 @@ def ledger_rebind(
         return LedgerRebindResult(ledger_id=selected_id, db_path=normalized_target)
 
 
+def _path_mismatch_detail(registry: RegistryRecord, db_path: Path) -> str:
+    """Where the registered ledger is, and how to bring it to *db_path*."""
+    rebind = (
+        f" kew audit ledger-rebind --target {db_path}"
+        f" --expected-ledger-id {registry.ledger_id} --reason <why> --yes"
+    )
+    if registry.db_path.exists():
+        # An earlier release registered a relative logging.dir inside a linked
+        # worktree; the main checkout's path now wins (#3576).
+        return (
+            f"; registered path exists at {registry.db_path}. To keep that"
+            f" ledger at {db_path}, stop kew, move it there with any -wal and"
+            f" -shm files, then run{rebind}"
+        )
+    return (
+        f"; registered database {registry.db_path} is missing. Put the ledger"
+        f" back at {db_path} (from a kew backup or a surviving copy), then run"
+        f"{rebind}"
+    )
+
+
 def _registered_open_checks(
     *,
     registry: RegistryRecord,
@@ -713,12 +745,10 @@ def _registered_open_checks(
     if registry.project_root != project_root:
         raise LedgerIdentityError("WRONG-LEDGER: registry project mismatch")
     if registry.db_path != db_path:
-        detail = (
-            f"; registered path exists at {registry.db_path}"
-            if registry.db_path.exists()
-            else ""
+        raise LedgerIdentityError(
+            "WRONG-LEDGER: configured path mismatch"
+            + _path_mismatch_detail(registry, db_path)
         )
-        raise LedgerIdentityError(f"WRONG-LEDGER: configured path mismatch{detail}")
     if not db_path.exists():
         raise LedgerIdentityError(f"REGISTERED-LEDGER-MISSING: {registry.db_path}")
     if (

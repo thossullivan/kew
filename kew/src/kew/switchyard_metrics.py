@@ -23,7 +23,6 @@ MetricFamily = Literal[
     "request_latency",
     "routing_overhead",
     "model_selection",
-    "tier_selection",
     "tokens",
 ]
 
@@ -39,13 +38,30 @@ _SAMPLE = re.compile(
 )
 _LABEL = re.compile(r'(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)="(?P<value>(?:\\.|[^"\\])*)"')
 _HISTOGRAM_SUFFIX = re.compile(r"_(?:bucket|sum|count)$")
+# The families the pinned Switchyard build emits (upstream main at
+# 46331725, which reports version 0.3.0), by their Prometheus names. Every one
+# but switchyard_decisions_total is in the "Metrics" table of upstream's
+# crates/switchyard-server/README.md at that revision; that one is libsy's
+# record_decision (crates/libsy/src/observability.rs). Durations are
+# milliseconds and carry the unit in the name. No metric carries a tier label,
+# so /metrics is never tier evidence.
 _DOCUMENTED_FAMILIES: dict[str, MetricFamily] = {
+    # Successful calls, labelled ``model`` with the model that answered, and
+    # failed ones, each failed fallback attempt included.
     "switchyard_requests_total": "requests",
     "switchyard_errors_total": "errors",
-    "switchyard_request_duration_seconds": "request_latency",
-    "switchyard_routing_overhead_seconds": "routing_overhead",
-    "switchyard_model_selections_total": "model_selection",
-    "switchyard_tier_selections_total": "tier_selection",
+    # Full-turn latency of a successful routed response, labelled ``model``.
+    "switchyard_total_latency_ms": "request_latency",
+    # Time spent producing the routing outcome, labelled ``algorithm``.
+    "switchyard_routing_overhead_ms": "routing_overhead",
+    # One per published routing decision, labelled ``algorithm`` and
+    # ``selected_model``: libsy's ``record_decision`` (observability.rs:317 at
+    # the pinned revision) emits it when the router publishes its choice. It
+    # names the model the router picked, not the one that answered, which a
+    # fallback to another target can change, so a decision is served-model
+    # evidence only when it agrees with the successful calls
+    # (``_served_model_candidates``).
+    "switchyard_decisions_total": "model_selection",
     # Switchyard names token counters per direction rather than carrying a
     # ``direction`` label: ``usage_metrics.rs`` registers switchyard.prompt_tokens
     # and switchyard.completion_tokens, which the Prometheus exporter renders
@@ -66,6 +82,7 @@ _TOKEN_DIRECTIONS: dict[str, str] = {
 }
 _SAFE_LABELS = frozenset(
     {
+        "algorithm",
         "direction",
         "error",
         "error_type",
@@ -75,8 +92,8 @@ _SAFE_LABELS = frozenset(
         "protocol",
         "provider",
         "route",
+        "selected_model",
         "status",
-        "tier",
         "token_type",
     }
 )
@@ -157,19 +174,22 @@ class ProxyMetricsObservation:
         runner_input_tokens: int = 0,
         runner_output_tokens: int = 0,
     ) -> SwitchyardSelectionEvidence:
-        """Extract bounded model/tier evidence without making it billing truth.
+        """Extract bounded model evidence without making it billing truth.
 
         ``/metrics`` is a counter surface.  This helper reports only identities
         and a separately labelled classifier-overhead observation; it never
         turns proxy token counters into runner task usage.
         When the runner has already reported a structured served model, that
         identity is used only to separate a classifier model from the served
-        model.  Otherwise a model/tier is admitted only when the corresponding
-        positive counter has one unambiguous label, or when one model's
-        observed token totals uniquely match the runner-reported usage.
+        model.  Otherwise a model is admitted only when one model's observed
+        token totals uniquely match the runner-reported usage, or when the
+        decision counter and the successful-call counter each name the same
+        single model.  A decision alone names the model the router picked,
+        which a fallback can replace, so it is never served-model evidence on
+        its own.  The pinned Switchyard build labels no metric with a tier, so the tier
+        is always absent here.
         """
-        model_candidates = tuple(sorted(_selection_samples(self, "model", route)))
-        tier_candidates = tuple(sorted(_selection_samples(self, "tier", route)))
+        model_candidates = _served_model_candidates(self, route)
         token_totals = _token_totals_by_model(self, route)
         selected, from_runner = _resolve_selected_model(
             served_model=served_model,
@@ -189,9 +209,8 @@ class ProxyMetricsObservation:
         return SwitchyardSelectionEvidence(
             observation=self,
             selected_model=selected,
-            selected_tier=tier_candidates[0] if len(tier_candidates) == 1 else None,
+            selected_tier=None,
             model_candidates=model_candidates,
-            tier_candidates=tier_candidates,
             # The source names the path that actually produced the identity,
             # never the shape of the raw argument: a served model the bounded
             # sanitizer rejected leaves proxy-derived evidence labelled proxy.
@@ -270,16 +289,18 @@ class SwitchyardSelectionEvidence:
     """Sanitized identity evidence derived from a proxy observation.
 
     The nested observation declares whether it is a raw process-wide snapshot
-    or a bracketed managed-run delta.  The selected model and tier can reconcile
-    an adaptive route's identity, but the runner's token/cost report remains
-    the task accounting authority.
+    or a bracketed managed-run delta.  The selected model can reconcile an
+    adaptive route's identity, but the runner's token/cost report remains the
+    task accounting authority.  ``selected_tier`` stays ``None`` when the
+    evidence comes from ``/metrics``: the pinned Switchyard build exposes no
+    tier there, and the classifier records, which it does not write, are the
+    only tier evidence.
     """
 
     observation: ProxyMetricsObservation
     selected_model: str | None
     selected_tier: str | None
     model_candidates: tuple[str, ...] = ()
-    tier_candidates: tuple[str, ...] = ()
     selected_model_source: str = "switchyard_proxy_metrics"
     classifier_model: str | None = None
     classifier_input_tokens: int = 0
@@ -441,17 +462,34 @@ def _same_model_classifier_overhead(
     return selected, classifier_input, classifier_output
 
 
-def _selection_samples(
+def _served_model_candidates(
     observation: ProxyMetricsObservation,
+    route: str | None,
+) -> tuple[str, ...]:
+    """The served model the decision and request counters agree on, if any.
+
+    ``switchyard_decisions_total`` names the selected model and
+    ``switchyard_requests_total`` the model of each successful final call.  A
+    fallback makes them differ, so the decision counts only when both name
+    exactly one model and it is the same one.  Anything else is unresolved.
+    """
+    selected = _labelled_models(observation, "model_selection", "selected_model", route)
+    served = _labelled_models(observation, "requests", "model", route)
+    if len(served) == 1 and selected == served:
+        return tuple(served)
+    return ()
+
+
+def _labelled_models(
+    observation: ProxyMetricsObservation,
+    family: str,
     label: str,
     route: str | None,
 ) -> set[str]:
+    """Every model a positive counter of *family* names in *label*."""
     values: set[str] = set()
-    family = "model_selection" if label == "model" else "tier_selection"
     for sample in observation.samples:
-        if sample.family != family:
-            continue
-        if sample.value <= 0:
+        if sample.family != family or sample.value <= 0:
             continue
         if route is not None and sample.labels.get("route") not in {None, route}:
             continue

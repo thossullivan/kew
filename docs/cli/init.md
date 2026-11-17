@@ -17,6 +17,10 @@ Options:
   --budget-per-issue FLOAT   Spend cap per issue, in USD.
   -y, --yes                  Write without asking anything.
   --force                    Overwrite an existing kew.toml.
+  --guard-hook               Install the security-guard hook; it runs in every
+                             Claude session in the repo.
+  --agents-md                Write kew's AGENTS.md block; it tells every agent
+                             in the repo never to approve, label or merge.
 ```
 
 **Example**
@@ -24,6 +28,7 @@ Options:
 ```bash
 kew init --yes --runner codex
 kew init --yes --runner claude-code --budget-per-issue 25
+kew init --yes --runner codex --guard-hook --agents-md
 kew init            # on a terminal: asks only what it could not detect
 ```
 
@@ -50,6 +55,13 @@ With `--yes`, init asks nothing.
 
 `kew init` never overwrites an existing `kew.toml`: it refuses and leaves the file byte-for-byte untouched unless you pass `--force`.
 
+## Repository-wide writes
+
+`kew init --yes` writes `kew.toml`, labels and log directories, and nothing that changes other sessions in the repository: it leaves `.claude/settings.json` and `AGENTS.md` untouched unless you pass `--guard-hook` or `--agents-md`.
+`--guard-hook` installs the security-guard hook as a `PreToolUse` hook in `.claude/settings.json`, so it runs in every Claude session in the repository, not only kew's agents.
+`--agents-md` writes kew's block into `AGENTS.md`, which tells every agent never to approve, label or merge.
+See [`kew setup`](setup.md#the-security-guard-hook) for both.
+
 ## On a terminal
 
 When stdin is a terminal and `--yes` is absent, init asks for what neither a flag nor detection answered: the repository, the CI and format commands, and the container runtime, each showing kew's default.
@@ -64,19 +76,20 @@ lemonade     no         host only  no boundary: it runs on this host with your a
 
 `[agent] model` and `[budget] per_issue_usd` are never asked; pass them as flags.
 Init then prints the file and asks before writing it.
+After writing, it asks about each repository-wide write, default no, unless you passed its flag: whether to install the security-guard hook, which runs in every Claude session in the repository, and whether to add kew's block to `AGENTS.md`, which tells every agent never to approve, label or merge.
 
 After writing, init offers to run the fixes it can run itself: `kew sandbox build --runner <runner>` when the runner image check fails, and `kew sandbox network` when the `allowlist-network` check fails.
 When a `claude-code` credential is missing it says how to get one: run `claude setup-token`, then `export CLAUDE_CODE_OAUTH_TOKEN=<token>`.
 It then re-runs the checks; a fix you declined is still listed, with its `fix:` command.
 
 Every answer maps onto a flag, and init ends by printing the `kew init --yes ...` command that writes the same `kew.toml`, so an agent or script can repeat the run.
-That command passes every chosen value, so it does not depend on what the next machine detects.
+That command passes every chosen value, and `--guard-hook` or `--agents-md` for each write you accepted, so it does not depend on what the next machine detects.
 
 Without a terminal and without `--yes`, init asks nothing: it refuses as a failure to run, writing nothing, and names the flags it would have asked for instead of waiting on a prompt nobody can answer.
 
 ## After writing
 
-Init runs [`kew setup`](setup.md), then the [`kew doctor`](doctor.md) checks, and prints each result with its `fix:` command.
+Init runs [`kew setup`](setup.md), writes the security-guard hook and the `AGENTS.md` block when `--guard-hook` and `--agents-md` asked for them, then runs the [`kew doctor`](doctor.md) checks, and prints each result with its `fix:` command.
 Among them is `runner-credential`: a contained runner cannot inherit a CLI login, so its credential has to be in the environment.
 When it is missing, init still writes the file and prints the fix, for example `fix: export ANTHROPIC_API_KEY=<key>` for `claude-code`.
 A runner that contains itself natively (`codex`), an OpenShell runtime, and a project with containment disabled skip this check; with `dangerously_skip_containment` it warns that dispatch runs the runner uncontained.

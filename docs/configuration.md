@@ -49,6 +49,8 @@ Database overrides are stored in the run database (not in `kew.toml`) and apply 
 
 By default kew finds `kew.toml` by walking up from your current directory to the git root. **A relative `logging.dir` (and therefore `dispatch.db`) resolves against the directory that `kew.toml` lives in, not against your current directory.** One project, one ledger, from any subdirectory.
 
+The same holds in a linked git worktree (`git worktree add`). There, a relative `logging.dir` resolves against the matching directory of the main checkout. The worktree and the main checkout open the same `dispatch.db`, and removing the worktree does not remove the ledger. An absolute `logging.dir` and `KEW_LOG_DIR` are used as given. kew's sandboxed agent checkouts are standalone clones, not linked worktrees, so a relative `logging.dir` inside one stays in that checkout.
+
 kew does not read `dispatch.toml`. If the walk (or the `--project` directory) reaches a `dispatch.toml` before any `kew.toml`, kew refuses to run and exits `2` without parsing it, rather than start on default settings. A `dispatch.toml` next to a `kew.toml` is ignored.
 
 A relative `branches.worktree_base` also resolves against the selected project root. This rule covers its default, TOML value, and `KEW_WORKTREE_BASE` override. Absolute checkout roots remain unchanged.
@@ -134,9 +136,15 @@ remain passthrough-only, and the Switchyard rollout remains **HOLD** pending
 human approval.
 
 `expected_version` is the exact token printed by `switchyard-server --version`,
-not a source commit or moving tag. For the pinned compatibility build it is
-`"0.1.0"`; use `compatibility_record_path` and `binary_sha256` to bind that
-version to reviewed provenance. Kew never downloads or updates Switchyard.
+not a source commit or moving tag. The pinned build is upstream Switchyard's
+`main` at commit `46331725daebda02b83781f63bb9c94db9059a1e`, which
+`docker/switchyard.Dockerfile` compiles from public source and which reports
+`"0.3.0"`. That token cannot tell this build from the tagged v0.3.0 release
+or from any other `main` build that reports the same version, so it is not
+the binding: `binary_sha256` pins the exact managed executable,
+`compatibility_record_path` names the reviewed provenance record, and the
+sidecar image carries the commit in its `org.opencontainers.image.revision`
+label. Kew never downloads or updates Switchyard.
 
 | Field | Operator contract |
 | --- | --- |
@@ -207,7 +215,7 @@ allow_adaptive = false       # rollout-gated; managed classifier dispatch only
 [inference_transport.switchyard]
 # endpoint = "https://switchyard.example.com:4000" # external or host-managed only
 route = "switchyard/passthrough"
-expected_version = "0.1.0"
+expected_version = "0.3.0"
 # compatibility_record_path = "/absolute/reviewed/switchyard-compatibility.md"
 managed = false              # sidecar mode and external endpoints keep this false
 config_path = "/absolute/operator-owned/switchyard.toml" # managed or sidecar
@@ -598,7 +606,7 @@ cap_usd = 0.0                 # 0 = no cap alert
 combine_with_dispatch = false # cap against interactive only, or interactive + dispatched
 
 [logging]
-dir = "./logs/dispatch"       # relative → resolved against this kew.toml's directory
+dir = "./logs/dispatch"       # relative → this kew.toml's directory (of the main checkout, in a linked worktree)
 retention_days = 0            # cutoff (days) for `kew export --purge`; 0 = keep forever
 ```
 
@@ -1601,7 +1609,9 @@ sink_path = "~/.local/share/kew/runs"  # machine-level sink; reports land at <si
 
 - **`enabled`** (default `false`) — turn the exporter on. Export is
   best-effort: a report that cannot be written logs a warning and never fails
-  the run.
+  the run. `kew init` turns reports on: the `kew.toml` it writes sets
+  `enabled = true`. A `kew.toml` written by hand keeps the `false` default
+  until it sets the key.
 - **`sink_path`** (default `"~/.local/share/kew/runs"`) — where reports land,
   `~` expanded. The default is deliberately machine-level (not per-repo) so
   every repo's exhaust pools into one queryable corpus; point a repo's own
@@ -1619,7 +1629,7 @@ silently falling back to the host.
 [sandbox]
 enabled = "auto"                                   # "auto" (default) | true | false
 runtime = "docker"                                 # "docker" (default) | "podman" | "openshell"
-image = "kew-agent:docker-d148816b388f"            # pinned Claude Code image, built locally
+image = "kew-agent:docker-236e8d2ed49d"            # pinned Claude Code image, built locally
 network = "allowlist"                              # container network mode ("allowlist" default | "open" opt-out)
 proxy_environment = "none"                         # "none" (default) | "inherit"
 host = "local"                                     # where agent containers run: "local" (default) | "gcp"
@@ -1634,8 +1644,8 @@ dangerously_skip_containment = false               # run agents on the host, no 
 
 [sandbox.images]                                   # runner name -> container image
 # Intentional runner-image mapping example.
-opencode = "kew-agent-opencode:docker-d148816b388f" # pinned OpenCode image, built locally
-codex = "kew-agent-codex:docker-d148816b388f"       # pinned Codex image, built locally
+opencode = "kew-agent-opencode:docker-236e8d2ed49d" # pinned OpenCode image, built locally
+codex = "kew-agent-codex:docker-236e8d2ed49d"       # pinned Codex image, built locally
 
 [sandbox.openshell]                                # only read when runtime = "openshell"
 gateway = ""                                       # "" (default) = the CLI's own default; OPENSHELL_GATEWAY wins
@@ -1833,16 +1843,16 @@ extraction, merge-queue command verification) stay at the hard caps.
     - **The remediation flows run uncontained or not at all.** `kew review`, `kew resolve`, `kew ci-fix` and an epic's plan run swap one execution step for a container command line rather than handing the whole launch to the gateway, and a gateway sandbox has no command line to be the subject of. Where they would be contained, all four are refused at admission, before any sandboxed posture is recorded: as `openshell-egress-uncertified` without a matching certification, and as `openshell-runtime-unavailable` with one. `kew review` and `kew resolve` have a documented host fallback, so under `enabled = "auto"` (or with `allow_uncontained_flows = true`) they run on the host and record the gap, exactly as they do on a machine with no container runtime at all. `kew ci-fix` and an epic's plan run resolve through the dispatch admission, which has no such fallback: they refuse whatever `enabled` says, and `dangerously_skip_containment` does not excuse it — naming a runtime is asking for containment. Set `runtime = "docker"` to contain them.
     - **kew sets no resource cap on the sandbox.** `max_memory` and `max_cpus` are Docker `--memory` / `--cpus` flags, and `openshell sandbox create` (v0.1.2) takes an image, credential providers, an egress policy and labels — no resource flag at all. So the per-container caps kew enforces under Docker are the gateway's business here: kew warns at launch when either is configured, and the run's `sandbox_resolved` event attests `null` for both rather than a cap no cgroup held. The caps kew enforces in its own watchdog — the wall clock, the transcript byte cap and the host free-space floor — are unchanged. Keep a run that needs a memory ceiling on `runtime = "docker"`.
     - **The image ID is still read locally.** v0.1.2 of the CLI has no image surface, so kew resolves the tag to its immutable ID through the Docker/Podman driver the gateway runs images under. The dispatching host needs one even though it runs nothing in it.
-- **`image`** (default `"kew-agent:docker-d148816b388f"`) — the OCI image used for a `claude-code` dispatch container. **kew never pulls it.** Run `kew sandbox build` to build the digest pin from the inputs shipped with `kew-cli`. Launch passes `--pull=never`. The container is ephemeral (`--rm`) and mounts only the standalone checkout. It never mounts host `~/.claude`, `dispatch.db`, or GitHub credentials. The stock image ships only the `claude` CLI, so this field is the **`claude-code` image**. Every other non-native runner needs an entry in `[sandbox.images]`.
+- **`image`** (default `"kew-agent:docker-236e8d2ed49d"`) — the OCI image used for a `claude-code` dispatch container. **kew never pulls it.** Run `kew sandbox build` to build the digest pin from the inputs shipped with `kew-cli`. Launch passes `--pull=never`. The container is ephemeral (`--rm`) and mounts only the standalone checkout. It never mounts host `~/.claude`, `dispatch.db`, or GitHub credentials. The stock image ships only the `claude` CLI, so this field is the **`claude-code` image**. Every other non-native runner needs an entry in `[sandbox.images]`.
 - **`images`** (default `{}`) — a map of runner name (`claude-code`, `codex`, `opencode`, `pi`, `hermes`, `lemonade`) to the container image that runs it. The image kew launches is chosen by the **resolved runner** for that dispatch, not by the environment: routing picks the runner, the runner picks the image. An entry here wins over `image` for a container runner; `claude-code` falls back to `image` when unmapped, which is why existing configs keep working untouched. A runner-native declaration takes precedence over image lookup *on the runtime it is declared for*, which is why a `codex` mapping is launched on `openshell` and not on `docker` or `podman` (see [the Codex reference](runners/codex.md)). Keys must be runner names the registry knows — an unknown key is rejected at config load rather than sitting inert, since lookup is by exact name and a typo would never match anything.
 
     Intentional per-runner image override examples.
 
     ```toml
     [sandbox.images]
-    claude-code = "kew-agent:docker-d148816b388f"
-    opencode = "kew-agent-opencode:docker-d148816b388f"
-    codex = "kew-agent-codex:docker-d148816b388f"
+    claude-code = "kew-agent:docker-236e8d2ed49d"
+    opencode = "kew-agent-opencode:docker-236e8d2ed49d"
+    codex = "kew-agent-codex:docker-236e8d2ed49d"
     ```
 
     Every image here must already exist in the local runtime.

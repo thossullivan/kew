@@ -24,14 +24,11 @@ def _adaptive_metrics():
     return parse_switchyard_metrics(
         "\n".join(
             (
-                "switchyard_requests_total{"
-                'route="switchyard/llm_classifier",status="ok"} 1',
-                "switchyard_model_selections_total{"
-                'model="gpt-5.6-sol",route="switchyard/llm_classifier"} 1',
-                "switchyard_model_selections_total{"
-                'model="gpt-5.6-luna",route="switchyard/llm_classifier"} 1',
-                "switchyard_tier_selections_total{"
-                'tier="strong",route="switchyard/llm_classifier"} 1',
+                'switchyard_requests_total{model="gpt-5.6-sol"} 1',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-sol"} 1',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-luna"} 1',
                 'switchyard_prompt_tokens_total{model="gpt-5.6-sol"} 120',
                 'switchyard_completion_tokens_total{model="gpt-5.6-sol"} 45',
                 'switchyard_prompt_tokens_total{model="gpt-5.6-luna"} 33',
@@ -49,7 +46,9 @@ def test_switchyard_metrics_keep_served_usage_separate_from_classifier_overhead(
     )
 
     assert evidence.selected_model == "gpt-5.6-sol"
-    assert evidence.selected_tier == "strong"
+    # The pinned Switchyard build carries no tier label on /metrics; the tier
+    # comes only from classifier records, which it does not write.
+    assert evidence.selected_tier is None
     assert evidence.classifier_model == "gpt-5.6-luna"
     assert evidence.classifier_input_tokens == 33
     assert evidence.classifier_output_tokens == 7
@@ -65,10 +64,10 @@ def test_managed_weak_tier_reconciles_same_model_classifier_overhead():
     final = parse_switchyard_metrics(
         "\n".join(
             (
-                "switchyard_model_selections_total{"
-                'model="gpt-5.6-luna",route="switchyard/llm_classifier"} 1',
-                "switchyard_tier_selections_total{"
-                'tier="weak",route="switchyard/llm_classifier"} 1',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-luna"} 1',
+                # The successful final call, which a decision alone is not.
+                'switchyard_requests_total{model="gpt-5.6-luna"} 1',
                 'switchyard_prompt_tokens_total{model="gpt-5.6-luna"} 153',
                 'switchyard_completion_tokens_total{model="gpt-5.6-luna"} 52',
             )
@@ -84,7 +83,7 @@ def test_managed_weak_tier_reconciles_same_model_classifier_overhead():
     )
 
     assert evidence.selected_model == "gpt-5.6-luna"
-    assert evidence.selected_tier == "weak"
+    assert evidence.selected_tier is None
     assert evidence.classifier_model == "gpt-5.6-luna"
     assert evidence.classifier_input_tokens == 33
     assert evidence.classifier_output_tokens == 7
@@ -205,7 +204,8 @@ def test_adaptive_reconciliation_uses_proxy_identity_without_overwriting_route(
 
     assert result.resolved_model == "gpt-5.6-sol"
     assert result.resolved_model_source == "switchyard_proxy_metrics"
-    assert result.selected_tier == "strong"
+    # No classifier record and no tier on /metrics: the tier stays unset.
+    assert result.selected_tier == ""
     assert result.classifier_overhead_input_tokens == 33
     assert result.classifier_overhead_output_tokens == 7
     assert result.switchyard_proxy_observation is not None
@@ -217,12 +217,9 @@ def test_partial_classifier_records_are_unreconciled(tmp_path):
     observation = parse_switchyard_metrics(
         "\n".join(
             (
-                "switchyard_requests_total{"
-                'route="switchyard/llm_classifier",status="ok"} 2',
-                "switchyard_model_selections_total{"
-                'model="gpt-5.6-sol",route="switchyard/llm_classifier"} 2',
-                "switchyard_tier_selections_total{"
-                'tier="strong",route="switchyard/llm_classifier"} 2',
+                'switchyard_requests_total{model="gpt-5.6-sol"} 2',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-sol"} 2',
                 'switchyard_prompt_tokens_total{model="gpt-5.6-luna"} 33',
                 'switchyard_completion_tokens_total{model="gpt-5.6-luna"} 7',
             )
@@ -262,12 +259,9 @@ def test_missing_classifier_overhead_is_unreconciled(tmp_path):
     observation = parse_switchyard_metrics(
         "\n".join(
             (
-                "switchyard_requests_total{"
-                'route="switchyard/llm_classifier",status="ok"} 1',
-                "switchyard_model_selections_total{"
-                'model="gpt-5.6-sol",route="switchyard/llm_classifier"} 1',
-                "switchyard_tier_selections_total{"
-                'tier="strong",route="switchyard/llm_classifier"} 1',
+                'switchyard_requests_total{model="gpt-5.6-sol"} 1',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-sol"} 1',
             )
         )
         + "\n"
@@ -495,6 +489,9 @@ def test_managed_adaptive_terminal_accounting_keeps_route_and_served_model(
         'id = "switchyard/llm_classifier"\n'
         'type = "llm_classifier"\n'
         'classifier_target = "strong"\n'
+        'strong_target = "strong"\n'
+        'weak_target = "strong"\n'
+        "base_threshold = 0.5\n"
     )
     config = DispatchConfig(
         retry=RetryConfig(max_attempts=1),
@@ -613,6 +610,9 @@ def test_empty_managed_adaptive_evidence_is_loudly_unreconciled(tmp_path):
         'id = "switchyard/llm_classifier"\n'
         'type = "llm_classifier"\n'
         'classifier_target = "strong"\n'
+        'strong_target = "strong"\n'
+        'weak_target = "strong"\n'
+        "base_threshold = 0.5\n"
     )
     config = DispatchConfig(
         retry=RetryConfig(max_attempts=1),

@@ -399,7 +399,8 @@ def setup_command(tmp_path, monkeypatch, *, modified=False):
         patch("kew.labels.run", side_effect=gh),
     ):
         result = CliRunner().invoke(
-            cli.app, ["setup", "--with-skills"] if modified else ["setup"]
+            cli.app,
+            ["setup", "--guard-hook", *(["--with-skills"] if modified else [])],
         )
     assert (tmp_path / "logs").is_dir()
     assert (tmp_path / "worktrees").is_dir()

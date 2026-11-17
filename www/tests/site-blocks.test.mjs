@@ -108,6 +108,16 @@ test('every copy of a site block sends the same Content-Security-Policy', async 
   }
 });
 
+test('the Content-Security-Policy refuses plugins, base-URL rewrites, cross-site form posts and framing', async () => {
+  const { live } = await copies();
+  const sent = csp(live)
+    .split(';')
+    .map((directive) => directive.trim().split(/\s+/).join(' '));
+  for (const directive of ["object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"]) {
+    assert.ok(sent.includes(directive), `${live.where} sends no "${directive}" in its Content-Security-Policy`);
+  }
+});
+
 test('a directive that differs, is missing or is extra is reported with both places named', () => {
   const one = { where: 'the first place', block: ['root * /srv/x', 'file_server'] };
   assert.equal(difference(one, { where: 'the second place', block: [...one.block] }), null);

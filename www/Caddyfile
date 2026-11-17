@@ -36,7 +36,7 @@
 		# The site is fully self-contained: no CDN scripts, no remote fonts.
 		# The docs serve their own IBM Plex and carry no GitHub widget (#1168);
 		# scripts/check-docs.sh fails a build whose pages load another origin.
-		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
@@ -92,7 +92,7 @@
 # 	}
 #
 # 	header {
-# 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'"
+# 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 # 		X-Content-Type-Options "nosniff"
 # 		Referrer-Policy "strict-origin-when-cross-origin"
 # 	}

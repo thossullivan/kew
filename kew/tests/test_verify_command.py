@@ -73,7 +73,6 @@ from kew.merge_verify import (
     PHASE_HELD_OUT,
     PHASE_MARK,
     PREFLIGHT_COMMAND,
-    SWITCHYARD_ARCHIVE_ENV,
     SWITCHYARD_IMAGE_ENV,
     UI_CHECK_COMMAND,
     VERIFY_EVENT,
@@ -498,10 +497,7 @@ class TestJob:
     def test_the_switchyard_opt_in_reaches_only_a_host_that_can_build_it(
         self, tmp_path: Path
     ) -> None:
-        ambient = {
-            SWITCHYARD_IMAGE_ENV: "1",
-            SWITCHYARD_ARCHIVE_ENV: "/private/kew-switchyard-source.tar",
-        }
+        ambient = {SWITCHYARD_IMAGE_ENV: "1"}
         local = job_environment(
             _candidate(),
             config=_config(tmp_path),
@@ -517,62 +513,34 @@ class TestJob:
         assert local[SWITCHYARD_IMAGE_ENV] == "1"
         assert SWITCHYARD_IMAGE_ENV not in remote
 
-    def test_the_opt_in_carries_the_input_the_gate_looks_for(
+    def test_the_opt_in_is_the_only_switchyard_variable_forwarded(
         self, tmp_path: Path
     ) -> None:
-        """The opt-in without its archive is the gate's ``input is missing``.
-
-        ``scripts/scan-agent-image.sh`` reads the private input's path from
-        ``KEW_SWITCHYARD_SOURCE_ARCHIVE``; forwarding the opt-in without it
-        refuses the gate on the one host that *can* build the layer, which
-        attests a failed verdict the candidate never earned.
-        """
-        archive = "/private/kew-switchyard-source.tar"
+        """The proxy builds from public source, so the opt-in needs no input
+        beside it: the job carries the switch and nothing else of the
+        operator's environment."""
         environment = job_environment(
             _candidate(),
             config=_config(tmp_path),
             builds_private_images=True,
-            ambient={
-                SWITCHYARD_IMAGE_ENV: "1",
-                SWITCHYARD_ARCHIVE_ENV: archive,
-            },
+            ambient={SWITCHYARD_IMAGE_ENV: "1", "UNRELATED_OPERATOR_VARIABLE": "x"},
         )
-        assert environment[SWITCHYARD_IMAGE_ENV] == "1"
-        assert environment[SWITCHYARD_ARCHIVE_ENV] == archive
+        assert environment == {
+            MEMORY_GUARD_ENV: "b" * 40,
+            SWITCHYARD_IMAGE_ENV: "1",
+        }
 
-    def test_the_input_never_reaches_a_host_that_cannot_build_it(
-        self, tmp_path: Path
+    @pytest.mark.parametrize("value", ["", "0", "true"])
+    def test_only_the_exact_opt_in_is_forwarded(
+        self, tmp_path: Path, value: str
     ) -> None:
-        """Where the archive lives stays on the operator machine."""
-        environment = job_environment(
-            _candidate(),
-            config=_config(tmp_path),
-            builds_private_images=False,
-            ambient={
-                SWITCHYARD_IMAGE_ENV: "1",
-                SWITCHYARD_ARCHIVE_ENV: "/private/kew-switchyard-source.tar",
-            },
-        )
-        assert SWITCHYARD_ARCHIVE_ENV not in environment
-
-    @pytest.mark.parametrize("archive", ["", "   "])
-    def test_an_opt_in_without_its_input_skips_the_layer_rather_than_failing(
-        self, tmp_path: Path, archive: str
-    ) -> None:
-        """A machine that cannot name the input is a machine without it.
-
-        Skipping that one layer is what every machine without the input
-        already does; refusing the whole gate would record a verdict about
-        the candidate that is really a fact about this machine.
-        """
         environment = job_environment(
             _candidate(),
             config=_config(tmp_path),
             builds_private_images=True,
-            ambient={SWITCHYARD_IMAGE_ENV: "1", SWITCHYARD_ARCHIVE_ENV: archive},
+            ambient={SWITCHYARD_IMAGE_ENV: value},
         )
         assert SWITCHYARD_IMAGE_ENV not in environment
-        assert SWITCHYARD_ARCHIVE_ENV not in environment
 
     def test_an_unset_opt_in_is_not_invented_for_the_local_host(
         self, tmp_path: Path
@@ -581,10 +549,9 @@ class TestJob:
             _candidate(),
             config=_config(tmp_path),
             builds_private_images=True,
-            ambient={SWITCHYARD_ARCHIVE_ENV: "/private/kew-switchyard-source.tar"},
+            ambient={},
         )
         assert SWITCHYARD_IMAGE_ENV not in environment
-        assert SWITCHYARD_ARCHIVE_ENV not in environment
 
     def test_configured_deselects_reach_the_job_as_pytest_addopts(
         self, tmp_path: Path
@@ -604,10 +571,7 @@ class TestJob:
             _candidate(),
             config=_config(tmp_path, deselect=["tests/test_a.py::test_x"]),
             builds_private_images=True,
-            ambient={
-                SWITCHYARD_IMAGE_ENV: "1",
-                SWITCHYARD_ARCHIVE_ENV: "/private/kew-switchyard-source.tar",
-            },
+            ambient={SWITCHYARD_IMAGE_ENV: "1"},
         )
         assert refuse_credentials(environment) == environment
 
@@ -2382,26 +2346,20 @@ class TestHostSelection:
             False,
         )
 
-    def test_the_local_job_declares_the_whole_private_opt_in(
+    def test_the_local_job_declares_the_switchyard_opt_in(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """End to end from the ambient environment: opt-in *and* input.
-
-        The job the local provider is handed is what the gate reads, so this
-        is the one that catches a half-forwarded opt-in before the gate does.
-        """
+        """End to end from the ambient environment: the job the local
+        provider is handed is what the gate reads."""
         from kew.merge_verify import build_job
 
-        archive = str(tmp_path / "kew-switchyard-source.tar")
         monkeypatch.setenv(SWITCHYARD_IMAGE_ENV, "1")
-        monkeypatch.setenv(SWITCHYARD_ARCHIVE_ENV, archive)
         job = build_job(
             _candidate(),
             config=_config(tmp_path),
             provider=LocalProvider(lock_dir=tmp_path / "locks"),
         )
         assert job.environment[SWITCHYARD_IMAGE_ENV] == "1"
-        assert job.environment[SWITCHYARD_ARCHIVE_ENV] == archive
 
     def test_resolving_an_unknown_host_names_the_two_that_exist(self) -> None:
         from kew.hosts import resolve_provider

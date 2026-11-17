@@ -699,7 +699,7 @@ def test_doctor_protects_configured_codex_pin_without_live_inspect(
     inventory, never through an ``image inspect`` that exits 1 for an image this
     host has not built yet (#2317 review)."""
     commands: list[list[str]] = []
-    config = SandboxConfig(images={"codex": "kew-agent-codex:docker-d148816b388f"})
+    config = SandboxConfig(images={"codex": "kew-agent-codex:docker-236e8d2ed49d"})
 
     issue, messages = _run_retained_agent_tag_check(
         monkeypatch,

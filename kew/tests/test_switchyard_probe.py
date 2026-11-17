@@ -12,7 +12,7 @@ import pytest
 
 from kew.switchyard import ProbeResponse, probe_switchyard
 
-UPSTREAM_REVISION = "6ff491acd7eb1ec239525a1baa015730c3d3564a"
+UPSTREAM_REVISION = "46331725daebda02b83781f63bb9c94db9059a1e"
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "switchyard"
 # The provenance record sits beside the fixtures it binds to the pinned
 # upstream build: the revision and the SHA-256 of each captured file.
@@ -29,7 +29,7 @@ def test_fixture_contract_binds_captures_to_pinned_build() -> None:
     version_fixture = FIXTURE_DIR / "server-version.txt"
 
     assert UPSTREAM_REVISION in report
-    assert version_fixture.read_text(encoding="utf-8") == "switchyard-server 0.1.0\n"
+    assert version_fixture.read_text(encoding="utf-8") == "switchyard-server 0.3.0\n"
 
     recorded_hashes = dict(
         re.findall(
@@ -47,7 +47,7 @@ class FakeProbeTransport:
     def __init__(
         self,
         *,
-        version: str = "switchyard-server 0.1.0\n",
+        version: str = "switchyard-server 0.3.0\n",
         dry_run: str = "ok",
         responses: dict[str, ProbeResponse] | None = None,
         failure: Exception | None = None,
@@ -84,14 +84,14 @@ def test_switchyard_probe_admits_only_after_all_bounded_checks() -> None:
     result = probe_switchyard(
         endpoint="https://switchyard.example",
         route="switchyard/passthrough",
-        expected_version="0.1.0",
+        expected_version="0.3.0",
         transport=transport,
         timeout_seconds=1.25,
     )
 
     assert result.admitted is True
     assert result.reason == "ready"
-    assert result.observed_version == "0.1.0"
+    assert result.observed_version == "0.3.0"
     assert result.endpoint == "https://switchyard.example"
     assert transport.timeouts == [1.25, 1.25, 1.25, 1.25]
 
@@ -149,7 +149,7 @@ def test_switchyard_probe_refusals_are_uniform_and_sanitized(
     result = probe_switchyard(
         endpoint="https://switchyard.example",
         route="switchyard/passthrough",
-        expected_version="0.1.0",
+        expected_version="0.3.0",
         transport=transport,
     )
 
@@ -164,7 +164,7 @@ def test_switchyard_probe_result_sanitizes_attacker_reachable_endpoint() -> None
     result = probe_switchyard(
         endpoint="https://token@example.test:444/private?api_key=secret",
         route="switchyard/passthrough",
-        expected_version="0.1.0",
+        expected_version="0.3.0",
         transport=FakeProbeTransport(failure=OSError("offline")),
     )
 
@@ -177,7 +177,7 @@ def test_switchyard_probe_normalizes_trailing_slash() -> None:
     result = probe_switchyard(
         endpoint="https://switchyard.example/",
         route="switchyard/passthrough",
-        expected_version="0.1.0",
+        expected_version="0.3.0",
         transport=FakeProbeTransport(),
     )
 
@@ -188,7 +188,7 @@ def test_switchyard_probe_sanitizes_invalid_scheme() -> None:
     result = probe_switchyard(
         endpoint="file://token@example.test/private?api_key=secret",
         route="switchyard/passthrough",
-        expected_version="0.1.0",
+        expected_version="0.3.0",
         transport=FakeProbeTransport(failure=OSError("offline")),
     )
 

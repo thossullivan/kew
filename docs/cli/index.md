@@ -67,7 +67,7 @@ Options:
 | Command | Description |
 |---------|-------------|
 | [`kew init`](init.md) | Write kew.toml from detection and flags, then run setup and doctor. |
-| [`kew setup`](setup.md) | Create labels, security hooks, and directories. |
+| [`kew setup`](setup.md) | Create labels and directories; the guard hook and AGENTS.md block on request. |
 | [`kew config`](config.md) | Show effective runtime configuration and winning sources. |
 | [`kew doctor`](doctor.md) | Run local environment diagnostics. |
 | [`kew health`](health.md) | Attest the control plane is functioning: meter, budgets, audit, runner. |

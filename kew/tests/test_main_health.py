@@ -60,7 +60,6 @@ from kew.merge_verify import (
     JOB_NAME,
     PREFLIGHT_PASSED_MARK,
     SUITE_JOB_NAME,
-    SWITCHYARD_ARCHIVE_ENV,
     SWITCHYARD_IMAGE_ENV,
     UI_CHECK_COMMAND,
     VERIFY_EVENT,
@@ -499,7 +498,7 @@ class TestTheNightly:
         # A CVE fails no test: main stays green.
         assert _health(store, main).state == "green"
 
-    def test_the_nightly_scan_carries_the_private_layer_opt_in_to_its_host(
+    def test_the_nightly_scan_carries_the_switchyard_opt_in_to_its_host(
         self,
         main: Main,
         config: DispatchConfig,
@@ -508,15 +507,12 @@ class TestTheNightly:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """PR verifies leave the scan to the nightly, so it must scan that layer."""
-        archive = str(main.root / "switchyard.tar")
         monkeypatch.setenv(SWITCHYARD_IMAGE_ENV, "1")
-        monkeypatch.setenv(SWITCHYARD_ARCHIVE_ENV, archive)
 
         run_nightly(config, store=store, repo_root=main.root, gh=FakeGh())
 
         (scan,) = host.named("image-scan")
         assert scan["environment"][SWITCHYARD_IMAGE_ENV] == "1"
-        assert scan["environment"][SWITCHYARD_ARCHIVE_ENV] == archive
 
 
 class TestTheRedMainGate:

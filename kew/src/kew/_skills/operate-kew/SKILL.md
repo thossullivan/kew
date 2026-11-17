@@ -55,7 +55,9 @@ Flags: `--runner`, `--model`, `--ci`, `--format`, `--runtime`, `--repo`,
 `--budget-per-issue`, `--yes`, `--force`. A flag always wins over detection.
 
 `kew setup` is the one-time repository setup `kew init` runs for you: GitHub
-labels, the security hook, log directories, and the kew block in `AGENTS.md`.
+labels and log directories. It installs the security hook only with
+`--guard-hook` and writes the kew block in `AGENTS.md` only with `--agents-md`:
+both change every session in the repository, so only the operator opts in.
 `kew setup --json` reports what it did as one JSON document.
 
 ## Discover commands with kew schema

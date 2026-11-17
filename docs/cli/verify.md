@@ -204,15 +204,11 @@ The **suite job**, in the same checkout, only behind a clean gate job:
 1. The virtualenv probe again, after a fresh `uv sync`.
 2. `KEW_VERIFY_STAGE=suite bash scripts/verify.sh`, which is the rest of the
    gate: the two pytest phases and the coverage floor, the agent-image scan,
-   the docs gate, and the frontend and www gates. The private Switchyard image layer inside it stays opt-in
-   through `KEW_SWITCHYARD_IMAGE`, and kew forwards that opt-in **only** to a
-   host that can build from the private input, and only together with
-   `KEW_SWITCHYARD_SOURCE_ARCHIVE`, the path at which that host finds the
-   input. The archive itself never leaves the operator machine, so a remote
-   host skips that one layer and gates every other image exactly as CI does.
-   An opt-in with no archive path is not an opt-in the gate can honour, so
-   the local host skips that layer too rather than failing the verification
-   over an input this machine never named. With `[verify] suite = "tiered"`,
+   the docs gate, and the frontend and www gates. The Switchyard image layer
+   inside it, which compiles the pinned upstream source, stays opt-in through
+   `KEW_SWITCHYARD_IMAGE`, and kew forwards that opt-in **only** to the local
+   host. A remote host skips that one layer and gates every other image
+   exactly as CI does. With `[verify] suite = "tiered"`,
    its two pytest phases may run the change's selection instead of the whole
    suite: see [The tiered suite](#tiered).
 3. `npm run ui-check` — Playwright screenshots and console checks — when, and

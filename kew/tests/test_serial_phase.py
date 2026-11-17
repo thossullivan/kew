@@ -490,14 +490,6 @@ REAL_PROCESS_TESTS = (
     "tests/test_switchyard_sidecar.py::test_failed_topology_start_removes_all_objects",
     "tests/test_sandbox.py::TestIsolatedSidecarNetworkArgv::"
     "test_sidecar_filter_never_mutates_global_firewall",
-    "tests/test_agent_image_scan_gate.py::"
-    "test_chunk_shipped_wrapper_real_cancellation_leaves_no_fake_docker_group[pid-term]",
-    "tests/test_agent_image_scan_gate.py::"
-    "test_chunk_shipped_wrapper_real_cancellation_leaves_no_fake_docker_group[pid-int]",
-    "tests/test_agent_image_scan_gate.py::"
-    "test_chunk_shipped_wrapper_real_cancellation_leaves_no_fake_docker_group[group-term]",
-    "tests/test_agent_image_scan_gate.py::"
-    "test_chunk_shipped_wrapper_real_cancellation_leaves_no_fake_docker_group[alarm]",
     # Spawns a real `openshell sandbox exec` child against an operator gateway
     # and waits on its exit. Skipped unless KEW_LIVE_OPENSHELL=1, so in CI it
     # is pinned here rather than running — the pin is what keeps the marker

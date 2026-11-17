@@ -20,13 +20,12 @@ permissions:
 env:
   # The Switchyard image tooling is opt-in: "1" exactly when the repository is
   # private, where serial-tests runs on the private runner. The kew-switchyard
-  # image builds only from its pinned private source input, which exists on
-  # that runner alone, so every other path gets "" and skips that image's
-  # prerequisite and the tests marked requires_switchyard_image
-  # (tests/conftest.py), each printing why. Nothing else is skipped, and the
-  # archive secret reaches only the steps this value opts in. Opting the hosted
-  # runner in is the switch in docs/operations.md
-  # ("Public repository runner rule").
+  # image compiles upstream's public source at the commit its Dockerfile pins,
+  # which is slow and fetches that source over the network, so every other
+  # path gets "" and skips that image's prerequisite and the tests marked
+  # requires_switchyard_image (tests/conftest.py), each printing why. Nothing
+  # else is skipped. Opting the hosted runner in is the switch in
+  # docs/operations.md ("Public repository runner rule").
   KEW_SWITCHYARD_IMAGE: ${{ github.event.repository.visibility == 'private' && '1' || '' }}
 
 concurrency:
@@ -144,15 +143,13 @@ jobs:
           docker image inspect "$worker_image" >/dev/null
           case "${KEW_SWITCHYARD_IMAGE:-}" in
             1) docker image inspect "$proxy_image" >/dev/null ;;
-            "") echo "Skipping the $proxy_image prerequisite: the pinned Switchyard input includes unreleased upstream patches; it builds on the private runner until they are public" ;;
+            "") echo "Skipping the $proxy_image prerequisite: building the Switchyard image compiles the pinned upstream source, which is slow and needs the network" ;;
             *) echo "::error::KEW_SWITCHYARD_IMAGE must be unset, empty or 1."; exit 1 ;;
           esac
 
       - name: Run serial tests
         timeout-minutes: 23
         working-directory: kew
-        env:
-          KEW_SWITCHYARD_SOURCE_ARCHIVE: ${{ env.KEW_SWITCHYARD_IMAGE == '1' && secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}
         run: uv run pytest -m serial
 
       - name: Docker daemon lock — release

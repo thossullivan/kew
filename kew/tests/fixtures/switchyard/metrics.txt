@@ -1,14 +1,146 @@
-# HELP switchyard_requests_total Requests handled by the proxy.
-# TYPE switchyard_requests_total counter
-switchyard_requests_total{route="switchyard/passthrough",status="ok"} 1
-# TYPE switchyard_request_duration_seconds histogram
-switchyard_request_duration_seconds_sum{route="switchyard/passthrough"} 0.42
-switchyard_request_duration_seconds_count{route="switchyard/passthrough"} 1
-# TYPE switchyard_model_selections_total counter
-switchyard_model_selections_total{model="gpt-5.6-sol",route="switchyard/passthrough"} 1
-# TYPE switchyard_tier_selections_total counter
-switchyard_tier_selections_total{tier="passthrough"} 1
-# TYPE switchyard_prompt_tokens_total counter
-switchyard_prompt_tokens_total{model="gpt-5.6-sol"} 120
+# TYPE switchyard_algorithms_in_flight gauge
+switchyard_algorithms_in_flight{algorithm="passthrough",otel_scope_name="switchyard"} 0
+# TYPE switchyard_build_info gauge
+switchyard_build_info{version="0.3.0",otel_scope_name="switchyard"} 1
+# TYPE switchyard_cached_tokens_total counter
+switchyard_cached_tokens_total{model="synthetic/model",otel_scope_name="switchyard"} 0
+# TYPE switchyard_client_responses_total counter
+switchyard_client_responses_total{outcome="client_disconnected",otel_scope_name="switchyard"} 0
+switchyard_client_responses_total{outcome="ok",otel_scope_name="switchyard"} 1
+switchyard_client_responses_total{outcome="other_error",otel_scope_name="switchyard"} 0
+switchyard_client_responses_total{outcome="retryable_error",otel_scope_name="switchyard"} 0
 # TYPE switchyard_completion_tokens_total counter
-switchyard_completion_tokens_total{model="gpt-5.6-sol"} 45
+switchyard_completion_tokens_total{model="synthetic/model",otel_scope_name="switchyard"} 45
+# TYPE switchyard_decisions_total counter
+switchyard_decisions_total{algorithm="passthrough",selected_model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_llm_call_duration_ms histogram
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="0"} 0
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="5"} 0
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="10"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="25"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="50"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="75"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="100"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="250"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="500"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="750"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="1000"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="2500"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="5000"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="7500"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="10000"} 1
+switchyard_llm_call_duration_ms_bucket{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard",le="+Inf"} 1
+switchyard_llm_call_duration_ms_sum{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard"} 5.395372
+switchyard_llm_call_duration_ms_count{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_llm_calls_total counter
+switchyard_llm_calls_total{algorithm="passthrough",outcome="ok",selected_model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_model_call_latency_ms histogram
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="0"} 0
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="5"} 0
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="10"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="25"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="50"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="75"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="100"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="250"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="500"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="750"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="1000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="2500"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="5000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="7500"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="10000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="15000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="30000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="60000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="120000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="300000"} 1
+switchyard_model_call_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="+Inf"} 1
+switchyard_model_call_latency_ms_sum{model="synthetic/model",otel_scope_name="switchyard"} 5.395372
+switchyard_model_call_latency_ms_count{model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_prompt_tokens_total counter
+switchyard_prompt_tokens_total{model="synthetic/model",otel_scope_name="switchyard"} 120
+# TYPE switchyard_reasoning_tokens_total counter
+switchyard_reasoning_tokens_total{model="synthetic/model",otel_scope_name="switchyard"} 0
+# TYPE switchyard_requests_total counter
+switchyard_requests_total{model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_router_retry_recovered_total counter
+switchyard_router_retry_recovered_total{otel_scope_name="switchyard"} 0
+# TYPE switchyard_routing_overhead_ms histogram
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="0.1"} 0
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="0.25"} 0
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="0.5"} 0
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="1"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="2.5"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="5"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="10"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="25"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="50"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="100"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="250"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="500"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="1000"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="2500"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="5000"} 1
+switchyard_routing_overhead_ms_bucket{algorithm="passthrough",otel_scope_name="switchyard",le="+Inf"} 1
+switchyard_routing_overhead_ms_sum{algorithm="passthrough",otel_scope_name="switchyard"} 0.604042
+switchyard_routing_overhead_ms_count{algorithm="passthrough",otel_scope_name="switchyard"} 1
+# TYPE switchyard_run_duration_ms histogram
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="0"} 0
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="5"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="10"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="25"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="50"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="75"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="100"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="250"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="500"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="750"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="1000"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="2500"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="5000"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="7500"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="10000"} 1
+switchyard_run_duration_ms_bucket{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard",le="+Inf"} 1
+switchyard_run_duration_ms_sum{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard"} 0.138291
+switchyard_run_duration_ms_count{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard"} 1
+# TYPE switchyard_runs_total counter
+switchyard_runs_total{algorithm="passthrough",outcome="ok",otel_scope_name="switchyard"} 1
+# TYPE switchyard_total_errors gauge
+switchyard_total_errors{otel_scope_name="switchyard"} 0
+# TYPE switchyard_total_latency_ms histogram
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="0"} 0
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="5"} 0
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="10"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="25"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="50"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="75"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="100"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="250"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="500"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="750"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="1000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="2500"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="5000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="7500"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="10000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="15000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="30000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="60000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="120000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="300000"} 1
+switchyard_total_latency_ms_bucket{model="synthetic/model",otel_scope_name="switchyard",le="+Inf"} 1
+switchyard_total_latency_ms_sum{model="synthetic/model",otel_scope_name="switchyard"} 6.798706
+switchyard_total_latency_ms_count{model="synthetic/model",otel_scope_name="switchyard"} 1
+# TYPE switchyard_total_requests gauge
+switchyard_total_requests{otel_scope_name="switchyard"} 1
+# TYPE switchyard_upstream_attempts_total counter
+switchyard_upstream_attempts_total{code="200",outcome="ok",otel_scope_name="switchyard"} 1
+switchyard_upstream_attempts_total{code="404",outcome="other_error",otel_scope_name="switchyard"} 0
+switchyard_upstream_attempts_total{code="429",outcome="retryable_error",otel_scope_name="switchyard"} 0
+switchyard_upstream_attempts_total{code="500",outcome="retryable_error",otel_scope_name="switchyard"} 0
+switchyard_upstream_attempts_total{code="504",outcome="retryable_error",otel_scope_name="switchyard"} 0
+switchyard_upstream_attempts_total{code="none",outcome="retryable_error",otel_scope_name="switchyard"} 0
+# HELP target_info Target metadata
+# TYPE target_info gauge
+target_info{service_name="switchyard-server",telemetry_sdk_language="rust",telemetry_sdk_name="opentelemetry",telemetry_sdk_version="0.32.1"} 1

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from kew.switchyard_metrics import (
@@ -14,28 +16,35 @@ from kew.switchyard_metrics import (
     parse_switchyard_metrics,
 )
 
-_DOCUMENTED_METRICS = """\
-# HELP switchyard_requests_total Requests handled by the proxy.
+_SCOPE = 'otel_scope_name="switchyard"'
+_DECISION = 'algorithm="passthrough",selected_model="gpt-5.6-sol"'
+# The families the pinned Switchyard build emits, in the label shapes it emits them
+# (upstream README "Metrics" table; switchyard_decisions_total is libsy's
+# routing-decision counter). The recorded fixture below has no failed call, so
+# errors appear only here.
+_DOCUMENTED_METRICS = f"""\
+# HELP switchyard_requests_total Successful final routed calls.
 # TYPE switchyard_requests_total counter
-switchyard_requests_total{route="switchyard/passthrough",status="ok"} 3
+switchyard_requests_total{{model="gpt-5.6-sol",{_SCOPE}}} 3
 # TYPE switchyard_errors_total counter
-switchyard_errors_total{route="switchyard/passthrough",error="upstream"} 1
-# TYPE switchyard_request_duration_seconds histogram
-switchyard_request_duration_seconds_bucket{route="switchyard/passthrough",le="0.5"} 2
-switchyard_request_duration_seconds_sum{route="switchyard/passthrough"} 0.75
-switchyard_request_duration_seconds_count{route="switchyard/passthrough"} 3
-# TYPE switchyard_routing_overhead_seconds histogram
-switchyard_routing_overhead_seconds_sum{route="switchyard/passthrough"} 0.03
-# TYPE switchyard_model_selections_total counter
-switchyard_model_selections_total{model="gpt-5.6-sol",route="switchyard/passthrough"} 3
-# TYPE switchyard_tier_selections_total counter
-switchyard_tier_selections_total{tier="passthrough"} 3
+switchyard_errors_total{{model="gpt-5.6-sol",{_SCOPE}}} 1
+# TYPE switchyard_total_latency_ms histogram
+switchyard_total_latency_ms_bucket{{model="gpt-5.6-sol",{_SCOPE},le="500"}} 2
+switchyard_total_latency_ms_sum{{model="gpt-5.6-sol",{_SCOPE}}} 750
+switchyard_total_latency_ms_count{{model="gpt-5.6-sol",{_SCOPE}}} 3
+# TYPE switchyard_routing_overhead_ms histogram
+switchyard_routing_overhead_ms_sum{{algorithm="passthrough",{_SCOPE}}} 0.3
+# TYPE switchyard_decisions_total counter
+switchyard_decisions_total{{{_DECISION},{_SCOPE}}} 3
 # TYPE switchyard_prompt_tokens_total counter
-switchyard_prompt_tokens_total{model="gpt-5.6-sol"} 120
+switchyard_prompt_tokens_total{{model="gpt-5.6-sol",{_SCOPE}}} 120
 # TYPE switchyard_completion_tokens_total counter
-switchyard_completion_tokens_total{model="gpt-5.6-sol"} 45
-python_gc_objects_collected_total{generation="0"} 999
+switchyard_completion_tokens_total{{model="gpt-5.6-sol",{_SCOPE}}} 45
+# TYPE switchyard_llm_calls_total counter
+switchyard_llm_calls_total{{{_DECISION},outcome="ok",{_SCOPE}}} 3
+python_gc_objects_collected_total{{generation="0"}} 999
 """
+_RECORDED_METRICS = Path(__file__).parent / "fixtures" / "switchyard" / "metrics.txt"
 
 
 def test_parse_switchyard_documented_metric_families() -> None:
@@ -50,10 +59,86 @@ def test_parse_switchyard_documented_metric_families() -> None:
         "request_latency",
         "routing_overhead",
         "model_selection",
-        "tier_selection",
         "tokens",
     }
     assert not any(sample.name.startswith("python_") for sample in observation.samples)
+    assert not any(
+        sample.name.startswith("switchyard_llm_") for sample in observation.samples
+    )
+
+
+def test_the_recorded_proxy_metrics_yield_every_family_it_emits() -> None:
+    """A real /metrics body from the pinned image, not a hand-written one.
+
+    One passthrough call of 120 input and 45 output tokens (PROVENANCE.md).
+    """
+    observation = parse_switchyard_metrics(_RECORDED_METRICS.read_text())
+
+    assert {sample.family for sample in observation.samples} == {
+        "requests",
+        "request_latency",
+        "routing_overhead",
+        "model_selection",
+        "tokens",
+    }
+    by_name = {
+        (sample.name, tuple(sorted(sample.labels.items()))): sample.value
+        for sample in observation.samples
+    }
+    assert by_name[("switchyard_requests_total", (("model", "synthetic/model"),))] == 1
+    assert (
+        by_name[
+            (
+                "switchyard_decisions_total",
+                (("algorithm", "passthrough"), ("selected_model", "synthetic/model")),
+            )
+        ]
+        == 1
+    )
+    assert (
+        by_name[("switchyard_prompt_tokens_total", (("model", "synthetic/model"),))]
+        == 120
+    )
+    assert (
+        by_name[("switchyard_completion_tokens_total", (("model", "synthetic/model"),))]
+        == 45
+    )
+
+
+def test_the_recorded_metrics_evidence_the_served_model_and_no_tier() -> None:
+    observation = parse_switchyard_metrics(_RECORDED_METRICS.read_text())
+
+    evidence = observation.selection_evidence(
+        route="switchyard/passthrough",
+        runner_input_tokens=120,
+        runner_output_tokens=45,
+    )
+
+    assert evidence.selected_model == "synthetic/model"
+    assert evidence.model_candidates == ("synthetic/model",)
+    assert evidence.selected_model_source == "switchyard_proxy_metrics"
+    # The pinned Switchyard build puts no tier label on any metric: the tier is absent,
+    # not guessed.
+    assert evidence.selected_tier is None
+    assert evidence.to_json()["selected_tier"] is None
+
+
+def test_a_tier_shaped_metric_is_not_tier_evidence() -> None:
+    """Names kew read before 0.3.0 are not on the 0.3.0 surface; a body that
+    still carries them evidences nothing from them."""
+    observation = parse_switchyard_metrics(
+        'switchyard_tier_selections_total{tier="strong"} 1\n'
+        'switchyard_model_selections_total{model="gpt-5.6-sol"} 1\n'
+        'switchyard_requests_total{model="gpt-5.6-sol",tier="strong"} 1\n'
+    )
+
+    assert [sample.name for sample in observation.samples] == [
+        "switchyard_requests_total"
+    ]
+    assert observation.samples[0].labels == {"model": "gpt-5.6-sol"}
+    evidence = observation.selection_evidence(route="switchyard/llm_classifier")
+    assert evidence.selected_tier is None
+    assert evidence.model_candidates == ()
 
 
 def test_switchyard_metric_json_schema_is_explicitly_observational() -> None:
@@ -134,9 +219,11 @@ def test_managed_metrics_delta_is_scoped_to_the_owned_run() -> None:
     baseline = parse_switchyard_metrics(
         "\n".join(
             (
-                'switchyard_requests_total{route="adaptive"} 4',
-                'switchyard_model_selections_total{model="strong",route="adaptive"} 3',
-                'switchyard_model_selections_total{model="stale",route="adaptive"} 2',
+                'switchyard_requests_total{model="strong"} 4',
+                "switchyard_decisions_total"
+                '{algorithm="llm_classifier",selected_model="strong"} 3',
+                "switchyard_decisions_total"
+                '{algorithm="llm_classifier",selected_model="stale"} 2',
                 'switchyard_prompt_tokens_total{model="strong"} 90',
             )
         )
@@ -145,9 +232,11 @@ def test_managed_metrics_delta_is_scoped_to_the_owned_run() -> None:
     final = parse_switchyard_metrics(
         "\n".join(
             (
-                'switchyard_requests_total{route="adaptive"} 6',
-                'switchyard_model_selections_total{model="strong",route="adaptive"} 5',
-                'switchyard_model_selections_total{model="stale",route="adaptive"} 2',
+                'switchyard_requests_total{model="strong"} 6',
+                "switchyard_decisions_total"
+                '{algorithm="llm_classifier",selected_model="strong"} 5',
+                "switchyard_decisions_total"
+                '{algorithm="llm_classifier",selected_model="stale"} 2',
                 'switchyard_prompt_tokens_total{model="strong"} 150',
             )
         )
@@ -334,3 +423,80 @@ def test_a_usage_total_that_matches_nothing_still_refuses_to_guess() -> None:
     )
 
     assert evidence.selected_model is None
+
+
+def test_a_selected_model_that_fell_back_is_not_the_served_model() -> None:
+    """The router picked ``weak``; the call failed over to ``strong``.
+
+    ``switchyard_decisions_total`` (libsy's ``record_decision``) names the
+    model the router picked when it published its decision; a fallback to
+    another target does not change it, so the decision is not served-model
+    evidence when the successful call went elsewhere. Nothing here identifies
+    the served model by usage either, so it stays unresolved and no
+    strong-model tokens become classifier overhead.
+    """
+    observation = managed_metrics_delta(
+        parse_switchyard_metrics(""),
+        parse_switchyard_metrics(
+            'switchyard_decisions_total{algorithm="llm_classifier",'
+            'selected_model="weak"} 1\n'
+            'switchyard_errors_total{model="weak"} 1\n'
+            'switchyard_requests_total{model="strong"} 1\n'
+            'switchyard_prompt_tokens_total{model="strong"} 1200\n'
+            'switchyard_completion_tokens_total{model="strong"} 300\n'
+        ),
+    )
+
+    evidence = observation.selection_evidence(
+        route="switchyard/llm_classifier",
+        runner_input_tokens=200,
+        runner_output_tokens=300,
+    )
+
+    assert evidence.selected_model is None
+    assert evidence.model_candidates == ()
+    assert evidence.classifier_model is None
+    assert evidence.classifier_input_tokens == 0
+    assert evidence.classifier_output_tokens == 0
+
+
+def test_a_window_where_one_turn_fell_back_leaves_the_served_model_unresolved() -> None:
+    """Two turns both selected ``weak``; the second fell back to ``strong``.
+
+    Successful final calls name two models, so no single served model exists
+    for the window and the decision counter cannot pick one.
+    """
+    observation = managed_metrics_delta(
+        parse_switchyard_metrics(""),
+        parse_switchyard_metrics(
+            'switchyard_decisions_total{algorithm="llm_classifier",'
+            'selected_model="weak"} 2\n'
+            'switchyard_errors_total{model="weak"} 1\n'
+            'switchyard_requests_total{model="weak"} 1\n'
+            'switchyard_requests_total{model="strong"} 1\n'
+            'switchyard_prompt_tokens_total{model="weak"} 100\n'
+            'switchyard_prompt_tokens_total{model="strong"} 1200\n'
+        ),
+    )
+
+    evidence = observation.selection_evidence(route="switchyard/llm_classifier")
+
+    assert evidence.selected_model is None
+    assert evidence.model_candidates == ()
+
+
+def test_a_decision_matching_the_one_served_model_names_it() -> None:
+    """Every turn selected ``strong`` and every final call succeeded on it."""
+    observation = managed_metrics_delta(
+        parse_switchyard_metrics(""),
+        parse_switchyard_metrics(
+            'switchyard_decisions_total{algorithm="llm_classifier",'
+            'selected_model="strong"} 2\n'
+            'switchyard_requests_total{model="strong"} 2\n'
+        ),
+    )
+
+    evidence = observation.selection_evidence(route="switchyard/llm_classifier")
+
+    assert evidence.selected_model == "strong"
+    assert evidence.model_candidates == ("strong",)

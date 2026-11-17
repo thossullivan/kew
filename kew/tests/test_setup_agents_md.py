@@ -1,4 +1,7 @@
-"""`kew setup` writes a kew block into the target repo's AGENTS.md (#2507)."""
+"""`kew setup --agents-md` writes a kew block into the target repo's AGENTS.md.
+
+The block is written only on request (#2507, #3577).
+"""
 
 from __future__ import annotations
 
@@ -50,7 +53,7 @@ def _setup_env(tmp_path: Path) -> Iterator[None]:
 
 def _setup(tmp_path: Path, *args: str):
     with _setup_env(tmp_path):
-        return runner.invoke(app, ["setup", *args])
+        return runner.invoke(app, ["setup", "--agents-md", *args])
 
 
 def test_setup_creates_agents_md_with_only_the_kew_block(tmp_path: Path) -> None:
@@ -131,3 +134,68 @@ def test_agents_block_points_at_the_skill_and_three_first_commands() -> None:
 def test_agents_block_skill_commands_exist() -> None:
     assert named_invocations(BLOCK)
     assert unknown_invocations(BLOCK) == []
+
+
+def _setup_without_flags(tmp_path: Path, *args: str):
+    with _setup_env(tmp_path):
+        return runner.invoke(app, ["setup", *args])
+
+
+def test_setup_without_flags_writes_neither_the_block_nor_the_guard(
+    tmp_path: Path,
+) -> None:
+    result = _setup_without_flags(tmp_path, "--json")
+
+    assert result.exit_code == 0, result.output
+    assert not (tmp_path / "AGENTS.md").exists()
+    assert not (tmp_path / ".claude").exists()
+    document = json.loads(result.stdout)
+    assert document["guard_hook"] == "not requested"
+    assert document["agents_md"]["action"] == "not requested"
+    assert document["ok"] is True
+    assert "kew setup --guard-hook" in result.stderr + result.stdout
+
+
+def test_setup_without_flags_leaves_an_existing_agents_md_byte_identical(
+    tmp_path: Path,
+) -> None:
+    original = b"# Mine\r\nThis session may merge.\r\n"
+    (tmp_path / "AGENTS.md").write_bytes(original)
+
+    assert _setup_without_flags(tmp_path).exit_code == 0
+    assert (tmp_path / "AGENTS.md").read_bytes() == original
+
+
+def test_setup_guard_hook_wires_the_guard_and_reruns_idempotently(
+    tmp_path: Path,
+) -> None:
+    settings = tmp_path / ".claude" / "settings.json"
+    settings.parent.mkdir()
+    settings.write_text('{"permissions": {"allow": ["Bash(ls)"]}}\n')
+
+    first = _setup_without_flags(tmp_path, "--guard-hook", "--json")
+    wired = settings.read_bytes()
+    second = _setup_without_flags(tmp_path, "--guard-hook", "--json")
+
+    assert first.exit_code == second.exit_code == 0, second.output
+    assert json.loads(first.stdout)["guard_hook"] == "installed"
+    assert os.access(tmp_path / ".claude/hooks/security-guard.sh", os.R_OK)
+    data = json.loads(wired)
+    assert data["permissions"] == {"allow": ["Bash(ls)"]}
+    assert {entry["matcher"] for entry in data["hooks"]["PreToolUse"]} == {
+        "Bash",
+        "Write",
+        "Edit",
+    }
+    assert settings.read_bytes() == wired
+    assert not (tmp_path / "AGENTS.md").exists()
+
+
+def test_setup_with_skills_leaves_the_guard_out_unless_asked(tmp_path: Path) -> None:
+    result = _setup_without_flags(tmp_path, "--with-skills", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert "security-guard" not in json.loads(result.stdout)["artifacts"]
+    assert not (tmp_path / ".claude/hooks/security-guard.sh").exists()
+    assert not (tmp_path / ".claude/settings.json").exists()
+    assert (tmp_path / ".claude/skills").is_dir()

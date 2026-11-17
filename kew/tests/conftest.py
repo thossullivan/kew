@@ -990,10 +990,10 @@ def pytest_collection_modifyitems(
 
 
 # --- The Switchyard image is opt-in -------------------------------------------
-# The kew-switchyard image builds only from the pinned private source input,
-# which exists on the private (self-hosted) runner alone. So the tests marked
-# @pytest.mark.requires_switchyard_image are deselected by default — on every
-# machine without that input, which is the verify VM, a hosted runner and a
+# The kew-switchyard image compiles upstream's public source at the commit
+# docker/switchyard.Dockerfile pins: slow, and it fetches that source over the
+# network. So the tests marked @pytest.mark.requires_switchyard_image are
+# deselected by default — on the verify VM, a hosted runner and a
 # contributor's laptop — with SWITCHYARD_IMAGE_SKIP_REASON printed in the
 # header and the summary. KEW_SWITCHYARD_IMAGE=1 opts in and runs them;
 # ci.yml and release.yml set it exactly when the repository is private. Any
@@ -1003,8 +1003,8 @@ def pytest_collection_modifyitems(
 SWITCHYARD_IMAGE_MARKER = "requires_switchyard_image"
 SWITCHYARD_IMAGE_ENV = "KEW_SWITCHYARD_IMAGE"
 SWITCHYARD_IMAGE_SKIP_REASON = (
-    "the pinned Switchyard input includes unreleased upstream patches; "
-    "it builds on the private runner until they are public"
+    "building the Switchyard image compiles the pinned upstream source, "
+    "which is slow and needs the network"
 )
 _SWITCHYARD_IMAGE_DESELECTED = pytest.StashKey[int]()
 

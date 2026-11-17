@@ -75,7 +75,7 @@
       "skip_xfail": 2
     },
     "tests/test_agent_image_scan_gate.py": {
-      "skip_xfail": 7
+      "skip_xfail": 4
     },
     "tests/test_artifact_store.py": {
       "source_text": 1

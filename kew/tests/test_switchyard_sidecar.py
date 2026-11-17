@@ -67,7 +67,7 @@ _EXTRA_PROXY_PORT = 4105
 _GATEWAY_PORT = 4106
 _IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 _CONTAINER_ID = re.compile(r"[0-9a-f]{64}")
-_PROXY_REVISION = "6ff491acd7eb1ec239525a1baa015730c3d3564a"
+_PROXY_REVISION = "46331725daebda02b83781f63bb9c94db9059a1e"
 _PROBE_TIMEOUT_SECONDS = 3
 _AGENT_MARKER = "/tmp/kew-agent-started"
 

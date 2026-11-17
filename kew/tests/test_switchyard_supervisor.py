@@ -897,6 +897,7 @@ def test_managed_switchyard_derives_credentials_across_classifier_targets(
         'classifier_target = "strong"\n'
         'weak_target = "weak"\n'
         'strong_target = "strong"\n'
+        "base_threshold = 0.5\n"
     )
     monkeypatch.setenv("OPENAI_API_KEY", "openai-secret")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-secret")
@@ -1070,14 +1071,14 @@ def test_managed_accounting_uses_bracketed_snapshots_after_close(
 ) -> None:
     _install_process_fakes(monkeypatch)
     baseline = parse_switchyard_metrics(
-        'switchyard_requests_total{route="exact-route"} 1\n'
+        'switchyard_requests_total{model="provider/model"} 1\n'
     )
     final = parse_switchyard_metrics(
         "\n".join(
             (
-                'switchyard_requests_total{route="exact-route"} 2',
-                "switchyard_model_selections_total{"
-                'model="provider/model",route="exact-route"} 1',
+                'switchyard_requests_total{model="provider/model"} 2',
+                "switchyard_decisions_total{"
+                'algorithm="passthrough",selected_model="provider/model"} 1',
                 'switchyard_prompt_tokens_total{model="provider/model"} 12',
                 'switchyard_completion_tokens_total{model="provider/model"} 3',
             )

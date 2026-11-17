@@ -158,7 +158,7 @@ Writes to `<internal-docs>/handoff/YYYY-MM-DD-<topic>.md` — see [the internal 
 
 ### `operate-kew`
 
-Teaches an agent to install, configure and drive kew in this repository: the `kew doctor --json` → fix → doctor loop, `kew init --yes` and its flags, `kew schema` for discovering commands instead of guessing them, kew's exit-code families, and which actions only a human takes (approvals, `ready` labels, merges). `kew setup` points agents at it from the kew block it writes into `AGENTS.md` — see [`kew setup`](cli/setup.md#agentsmd).
+Teaches an agent to install, configure and drive kew in this repository: the `kew doctor --json` → fix → doctor loop, `kew init --yes` and its flags, `kew schema` for discovering commands instead of guessing them, kew's exit-code families, and which actions only a human takes (approvals, `ready` labels, merges). `kew setup --agents-md` points agents at it from the kew block it writes into `AGENTS.md` — see [`kew setup`](cli/setup.md#agentsmd).
 
 ```bash
 kew skills install operate-kew
@@ -174,10 +174,10 @@ kew skills install adversarial-reviewer
 
 ### `security-guard` (hook, not a skill)
 
-The `PreToolUse` guard installed by `kew setup` (and manageable via `kew skills` like any other artifact). It catches destructive and exfiltration-prone shell patterns and blocks agent writes to `.claude/` — **defense-in-depth, not a security boundary.** See [Security](security.md) for the full framing, the pattern table, and how it relates to sandboxed dispatch.
+The `PreToolUse` guard installed by `kew setup --guard-hook` (and manageable via `kew skills` like any other artifact). It catches destructive and exfiltration-prone shell patterns and blocks agent writes to `.claude/` — **defense-in-depth, not a security boundary.** See [Security](security.md) for the full framing, the pattern table, and how it relates to sandboxed dispatch.
 
 ```bash
-kew skills install security-guard    # equivalent to `kew setup`'s hook generation
+kew skills install security-guard    # equivalent to `kew setup --guard-hook`
 kew skills update security-guard     # re-render from current kew.toml
 ```
 

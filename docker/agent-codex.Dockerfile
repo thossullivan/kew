@@ -33,7 +33,7 @@
 # RepoDigest off the pulled image, paste it here in ALL THREE agent
 # Dockerfiles, and let the CI agent-image-scan job re-scan what the new base
 # ships.
-FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS base
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS base
 
 # Every RUN below runs under bash with pipefail (#2902). Under the default
 # `/bin/sh -c`, a `curl ... | bash -` whose download fails pipes an empty

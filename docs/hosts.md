@@ -494,7 +494,7 @@ image, the runner and the credential names:
   "payload": {
     "host": "gcp",
     "instance": "agent-1",
-    "image": "kew-agent:docker-d148816b388f",
+    "image": "kew-agent:docker-236e8d2ed49d",
     "runner": "claude-code",
     "credentials": ["CLAUDE_CODE_OAUTH_TOKEN"],
     "image_built": false,

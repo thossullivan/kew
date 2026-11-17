@@ -14,9 +14,10 @@
 #     docker/agent.Dockerfile, after checking that the pin equals the digest of
 #     the docker/ inputs.
 #
-# The kew-switchyard image is not built here: its pinned source input exists
-# on the private runner alone, so the image tooling is opt-in
-# (KEW_SWITCHYARD_IMAGE, docs/operations.md "Public repository runner rule").
+# The kew-switchyard image is not built here: it compiles the pinned upstream
+# Switchyard source, which is slow and needs the network, so the image tooling
+# is opt-in and only the private runner opts in (KEW_SWITCHYARD_IMAGE,
+# docs/operations.md "Public repository runner rule").
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."

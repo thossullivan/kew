@@ -46,8 +46,8 @@ class LocalProvider(HostProvider):
 
     name = "local"
 
-    #: This machine is the operator machine: whatever private build input it
-    #: holds, the job can use without anything leaving it.
+    #: This machine is the operator machine, so a job here runs the
+    #: Switchyard image layer when the operator opted in.
     builds_private_images = True
 
     def __init__(self, *, lock_dir: Path, root: Path | None = None) -> None:

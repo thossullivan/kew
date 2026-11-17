@@ -20,7 +20,7 @@ import shlex
 import shutil
 import subprocess
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -265,16 +265,20 @@ def fields_to_ask(
     )
 
 
-def replay_command(values: Mapping[tuple[str, str], object]) -> str:
+def replay_command(
+    values: Mapping[tuple[str, str], object], switches: Sequence[str] = ()
+) -> str:
     """The ``kew init --yes`` command that writes the file ``values`` writes.
 
     Every chosen value is passed as a flag, defaults included, so the command
-    does not depend on what the next machine happens to detect.
+    does not depend on what the next machine happens to detect. ``switches``
+    are the opt-in writes the run chose, such as ``--guard-hook`` (#3577).
     """
     argv = ["kew", "init", "--yes"]
     for key in INIT_FIELDS:
         if key in values:
             argv.extend([INIT_FLAGS[key], str(values[key])])
+    argv.extend(switches)
     return shlex.join(argv)
 
 
@@ -337,7 +341,11 @@ def _toml_value(value: object) -> str:
 
 
 def render_toml(values: dict[tuple[str, str], object]) -> str:
-    """``values`` as TOML, one table per section, in ``INIT_FIELDS`` order."""
+    """``values`` as TOML, one table per section, in ``INIT_FIELDS`` order.
+
+    Every file ends with ``[run_reports] enabled = true``: ``kew init`` turns
+    run reports on for a new project.
+    """
     lines = ["# Written by `kew init`; only values that differ from kew's defaults."]
     section = None
     for key in INIT_FIELDS:
@@ -347,6 +355,16 @@ def render_toml(values: dict[tuple[str, str], object]) -> str:
             section = key[0]
             lines.extend(["", f"[{section}]"])
         lines.append(f"{key[1]} = {_toml_value(values[key])}")
+    # A new project writes run reports; the config default stays off (#3578).
+    sink = DispatchConfig().run_reports.sink_path
+    lines.extend(
+        [
+            "",
+            f"# One report per finished run, under {sink}/<owner>--<repo>/.",
+            "[run_reports]",
+            "enabled = true",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 

@@ -87,7 +87,13 @@ records as its issue, served that PR and is set aside. So
 branch. The head lookup reads a mixed branch under every item its runs name,
 and the one-claim-per-head check reads the same scopes. A hand `kew review` of
 that PR records its claim under N too. A run naming any other item still
-refuses the attestation.
+refuses the attestation, with `the runs on '<branch>' name more than one
+tracker item`.
+
+A branch no kew run ever used has no item to attest under, so the command
+refuses it with `kew has no run on '<branch>'`. Work published by hand on a
+branch of your own belongs to the run that produced it: record it with
+[`kew finalize <run-id>`](finalize.md) instead.
 
 `kew finalize` records the head for the run it finalizes, so the first
 hand-published head on a branch needs no separate attestation. Use

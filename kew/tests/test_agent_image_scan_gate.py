@@ -17,10 +17,9 @@ PATH, rather than grepping its source: a static assertion that the string
 
 from __future__ import annotations
 
+import contextlib
 import datetime
-import errno
 import hashlib
-import io
 import json
 import os
 import re
@@ -29,9 +28,7 @@ import signal
 import stat
 import subprocess
 import sys
-import tarfile
 import textwrap
-import threading
 import time
 import tomllib
 import uuid
@@ -60,15 +57,17 @@ _AGENT_DOCKERFILES = (
 )
 _SWITCHYARD_DOCKERFILE = _REPO_ROOT / "docker" / "switchyard.Dockerfile"
 _SWITCHYARD_REPOSITORY = "https://github.com/NVIDIA-NeMo/Switchyard"
-_SWITCHYARD_REVISION = "6ff491acd7eb1ec239525a1baa015730c3d3564a"
+_SWITCHYARD_REVISION = "46331725daebda02b83781f63bb9c94db9059a1e"
+_SWITCHYARD_TREE = "41f84a3f62124058200c3603e999b1342b87019c"
 _SWITCHYARD_LOCKFILE_SHA256 = (
-    "e895886482133481679db318c824919d5502166b8ef3564f87c9f825d0d8e0ab"
+    "2e561fbd0cb752a12bed92e96ad817a0ab288365dcc7619b704f16400bdd4538"
 )
-_SWITCHYARD_ARCHIVE_SHA256 = (
-    "a53aac972293ceef2ac2f5a84da92e022cc1d4a903521761cc90f18655cfb31e"
+_SWITCHYARD_VERSION = "0.3.0"
+_SWITCHYARD_TOOLCHAIN = "1.99.1"
+_SWITCHYARD_BUILDER = (
+    "rust:1.99.1-slim-bookworm@sha256:"
+    "f2c004e3d2d8b547e8cf7ffbc29205385f4e71d23e53e4e383065db5e9f822cd"
 )
-_SWITCHYARD_ARCHIVE_SIZE = 7_454_720
-_SYNTHETIC_ARCHIVE = b"synthetic reviewed Switchyard source\n"
 
 _CREDENTIAL_NAME_RE = re.compile(
     r"TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL", re.IGNORECASE
@@ -297,6 +296,63 @@ def test_overlay_verifier_followed_by_semicolon_true_is_rejected(
         _assert_overlay_verifier_is_enforced(dockerfile)
 
 
+# The ci.yml steps that run a pull request's code on the self-hosted runner.
+_PR_CODE_STEPS = ("Test (pytest)", "Agent image CVE gate")
+# ci.yml holds no secret at all, so the guard is a line rule over its raw text
+# rather than a walk over the fields a secret usually sits in: a `run:` line,
+# a function argument, container credentials, a quoted key or a flow-mapping
+# `secrets: inherit` all reach a job some other way. Case-insensitively, a line
+# is refused when it holds the word `secrets` anywhere, or `github.token`, an
+# index into `github`, or the whole `github` context passed to a function
+# (`toJSON(github)` includes the token). Two lines of today's ci.yml use the
+# word legitimately and are allowed by their exact content: a comment naming
+# "the `secrets` job" and that job's id. Any other spelling is refused.
+_SECRETS_WORD = re.compile(r"(?<![a-z])secrets(?![a-z])", re.IGNORECASE)
+_GITHUB_CREDENTIAL = re.compile(
+    r"github\s*\.\s*token|github\s*\[|[(,]\s*github\s*[,)]", re.IGNORECASE
+)
+_ALLOWED_SECRETS_LINES = frozenset(
+    {
+        "      # without it, so it installs the `secrets` job's pinned, checksummed",
+        "  secrets:",
+    }
+)
+
+
+def _ci_workflow() -> dict:
+    import yaml
+
+    return yaml.safe_load(_CI_WORKFLOW.read_text())
+
+
+def _named_ci_steps(workflow: dict, name: str) -> list[dict]:
+    return [
+        step
+        for job in workflow["jobs"].values()
+        for step in job.get("steps", [])
+        if step.get("name") == name
+    ]
+
+
+def _secret_references(text: str) -> list[str]:
+    """Every line of a workflow's raw *text* that could carry a credential."""
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if (_SECRETS_WORD.search(line) and line not in _ALLOWED_SECRETS_LINES)
+        or _GITHUB_CREDENTIAL.search(line)
+    ]
+
+
+def _insert_after(text: str, anchor: str, lines: str) -> str:
+    assert text.count(anchor) == 1, anchor
+    return text.replace(anchor, anchor + lines, 1)
+
+
+def _assert_no_environment(step: dict) -> None:
+    assert "env" not in step, f"{step.get('name')} maps {sorted(step['env'])}"
+
+
 class TestScanScriptIsWiredIn:
     def test_script_exists_and_is_executable(self) -> None:
         assert _SCAN_SCRIPT.exists(), f"missing {_SCAN_SCRIPT}"
@@ -313,33 +369,91 @@ class TestScanScriptIsWiredIn:
             "the agent-image-scan job must run the shared gate script"
         )
 
-    @pytest.mark.parametrize("step_name", ["Test (pytest)", "Agent image CVE gate"])
-    def test_private_archive_is_mapped_only_to_opted_in_ci_steps(
+    @pytest.mark.parametrize("step_name", _PR_CODE_STEPS)
+    def test_the_steps_that_run_pr_code_map_no_environment(
         self, step_name: str
     ) -> None:
-        """The archive reaches a step only when that step opts into Switchyard.
+        """Both run a pull request's code on the self-hosted runner, so
+        neither gets a mapped variable a test could read: the Switchyard
+        build that once needed one now builds from public source."""
+        (step,) = _named_ci_steps(_ci_workflow(), step_name)
+        _assert_no_environment(step)
 
-        The image tooling is opt-in (KEW_SWITCHYARD_IMAGE), and the private
-        source input is useless without it. A run that has not opted in gets
-        an empty value, so the secret is never mapped into a step that would
-        not use it.
-        """
-        import yaml
+    def test_ci_yml_references_no_secret(self) -> None:
+        assert _secret_references(_CI_WORKFLOW.read_text()) == []
 
-        workflow = yaml.safe_load(_CI_WORKFLOW.read_text())
-        steps = [
-            step
-            for job in workflow["jobs"].values()
-            for step in job.get("steps", [])
-            if step.get("name") == step_name
-        ]
+    @pytest.mark.parametrize(
+        ("anchor", "inserted"),
+        [
+            (
+                "      - name: Test (pytest)\n",
+                "        run: GH=${{ secrets.SOME_SECRET }} uv run pytest\n",
+            ),
+            (
+                "      - name: Agent image CVE gate\n",
+                "        env:\n          SOME_INPUT: ${{ secrets['SOME_SECRET'] }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        env:\n          ALL_SECRETS: ${{ toJSON(secrets) }}\n",
+            ),
+            (
+                "  test:\n",
+                "    container:\n      image: example/image\n"
+                "      credentials:\n        username: someone\n"
+                "        password: ${{ secrets.SOME_SECRET }}\n",
+            ),
+            ("  agent-image-scan:\n", "    secrets: inherit\n"),
+            (
+                "      - name: Agent image CVE gate\n",
+                "        with:\n          token: ${{ github.token }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        env:\n          TOKEN: ${{ github['token'] }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        env:\n"
+                "          VALUE: ${{ format('{0}', secrets.SOME_SECRET) }}\n",
+            ),
+            (
+                "      - name: Agent image CVE gate\n",
+                "        env:\n          CONTEXT: ${{ toJSON(github) }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        env:\n          VALUE: ${{ SECRETS.SOME_SECRET }}\n",
+            ),
+            (
+                "      - name: Agent image CVE gate\n",
+                "        with:\n          token: ${{ GITHUB.TOKEN }}\n",
+            ),
+            ("  agent-image-scan:\n", '    "secrets": inherit\n'),
+            ("jobs:\n", "  extra: {uses: ./x.yml, secrets: inherit}\n"),
+        ],
+        ids=[
+            "run-line",
+            "index-expression",
+            "whole-context",
+            "container-credentials",
+            "secrets-inherit",
+            "github-token",
+            "github-index",
+            "format-call",
+            "whole-github-context",
+            "upper-case-secrets",
+            "upper-case-github-token",
+            "quoted-key",
+            "flow-mapping-job",
+        ],
+    )
+    def test_a_secret_put_back_into_ci_yml_is_caught(
+        self, anchor: str, inserted: str
+    ) -> None:
+        mutated = _insert_after(_CI_WORKFLOW.read_text(), anchor, inserted)
 
-        assert len(steps) == 1
-        secret = (
-            "${{ env.KEW_SWITCHYARD_IMAGE == '1' "
-            "&& secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}"
-        )
-        assert steps[0].get("env") == {"KEW_SWITCHYARD_SOURCE_ARCHIVE": secret}
+        assert len(_secret_references(mutated)) == 1, inserted
 
     def test_gate_scans_every_agent_image(self) -> None:
         content = _SCAN_SCRIPT.read_text()
@@ -351,251 +465,184 @@ class TestScanScriptIsWiredIn:
         assert "docker/switchyard.Dockerfile" in _SCAN_SCRIPT.read_text()
 
 
-def test_proxy_source_manifest_binds_revision_lockfile_package_and_toolchain() -> None:
+def _switchyard_build_script() -> str:
+    """The proxy Dockerfile with every line continuation joined by one space."""
+    return re.sub(r"[ \t]*\\\n\s*", " ", _SWITCHYARD_DOCKERFILE.read_text())
+
+
+# A command position: the start of a line, or just after `;`, `&&`, `|` or `(`.
+_TOOLCHAIN_CALL_RE = re.compile(
+    r"(?:^|[;&|(])\s*(cargo|rustc)(?![\w-])\s+(\S+)", re.MULTILINE
+)
+
+
+def _unpinned_toolchain_calls(script: str) -> list[str]:
+    """Every cargo or rustc call that does not name the pinned toolchain.
+
+    Upstream's ``rust-toolchain.toml`` names the ``1.99`` channel, so a plain
+    ``cargo`` inside the checkout asks rustup to sync that channel and fails
+    without the network. ``+1.99.1`` is the toolchain the builder image ships.
+    """
+    calls = [match.groups() for match in _TOOLCHAIN_CALL_RE.finditer(script)]
+    assert calls, "no cargo or rustc call found; has the shape changed?"
+    return [
+        f"{tool} {argument}"
+        for tool, argument in calls
+        if argument != f"+{_SWITCHYARD_TOOLCHAIN}"
+    ]
+
+
+def test_proxy_source_is_fetched_by_the_full_pinned_commit() -> None:
+    script = _switchyard_build_script()
+    assert re.fullmatch(r"[0-9a-f]{40}", _SWITCHYARD_REVISION)
+    assert (
+        'git -C "$source_dir" fetch --quiet --depth 1 '
+        f"{_SWITCHYARD_REPOSITORY} {_SWITCHYARD_REVISION} "
+    ) in script
+    # A branch or tag name moves; only the commit names one tree.
+    assert "--branch" not in script
+    assert "refs/tags" not in script
+    assert "checkout --quiet FETCH_HEAD" in script
+
+
+def test_proxy_source_commit_and_tree_are_checked_before_anything_reads_it() -> None:
+    script = _switchyard_build_script()
+    commit_check = (
+        'test "$(git -C "$source_dir" rev-parse HEAD)" '
+        f"= {_SWITCHYARD_REVISION} "
+        "|| { echo 'switchyard source commit mismatch' >&2; exit 1; }"
+    )
+    tree_check = (
+        'test "$(git -C "$source_dir" rev-parse \'HEAD^{tree}\')" '
+        f"= {_SWITCHYARD_TREE} "
+        "|| { echo 'switchyard source tree mismatch' >&2; exit 1; }"
+    )
+    assert commit_check in script
+    assert tree_check in script
+    first_read = script.index('"$source_dir/Cargo.lock"')
+    assert script.index(commit_check) < first_read
+    assert script.index(tree_check) < first_read
+    assert script.index(tree_check) < script.index('cd "$source_dir"')
+
+
+def test_proxy_source_checkout_is_checked_clean() -> None:
+    script = _switchyard_build_script()
+    clean_check = (
+        'test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)" '
+        "|| { echo 'switchyard source checkout is not clean' >&2; exit 1; }"
+    )
+    assert clean_check in script
+    assert script.index(clean_check) < script.index('cd "$source_dir"')
+
+
+def test_proxy_lockfile_digest_is_checked_before_the_build() -> None:
+    script = _switchyard_build_script()
+    lockfile_check = (
+        f"printf '%s  %s\\n' {_SWITCHYARD_LOCKFILE_SHA256} "
+        '"$source_dir/Cargo.lock" | sha256sum --check --status '
+        "|| { echo 'switchyard source lockfile mismatch' >&2; exit 1; }"
+    )
+    assert lockfile_check in script
+    build = f"cargo +{_SWITCHYARD_TOOLCHAIN} auditable build --locked"
+    assert script.index(lockfile_check) < script.index(build)
+
+
+def test_proxy_builds_the_pinned_package_version() -> None:
+    script = _switchyard_build_script()
+    assert (
+        '.packages | any(.name == "switchyard-server" and '
+        f'.version == "{_SWITCHYARD_VERSION}")'
+    ) in script
+    assert (
+        f"cargo +{_SWITCHYARD_TOOLCHAIN} auditable build --locked --release "
+        "--package switchyard-server"
+    ) in script
+
+
+def test_every_cargo_and_rustc_call_names_the_pinned_toolchain() -> None:
+    assert _unpinned_toolchain_calls(_switchyard_build_script()) == []
+
+
+def test_an_unpinned_cargo_call_is_caught() -> None:
+    script = _switchyard_build_script()
+    pinned = f"cargo +{_SWITCHYARD_TOOLCHAIN} auditable build"
+    assert pinned in script
+    unpinned = script.replace(pinned, "cargo auditable build", 1)
+    assert _unpinned_toolchain_calls(unpinned) == ["cargo auditable"]
+
+
+def test_proxy_reads_no_build_secret_or_private_mount() -> None:
     content = _SWITCHYARD_DOCKERFILE.read_text()
-    for binding in (
-        _SWITCHYARD_REPOSITORY,
-        _SWITCHYARD_REVISION,
-        _SWITCHYARD_LOCKFILE_SHA256,
-        "switchyard-server",
-        "0.1.0",
-        "1.96.1",
-        "SOURCE-BINDING.json",
+    assert "type=secret" not in content
+    assert "/run/secrets" not in content
+
+
+def test_proxy_image_labels_name_the_pinned_source() -> None:
+    content = _SWITCHYARD_DOCKERFILE.read_text()
+    for label in (
+        f'org.opencontainers.image.source="{_SWITCHYARD_REPOSITORY}"',
+        f'org.opencontainers.image.revision="{_SWITCHYARD_REVISION}"',
+        f'org.opencontainers.image.version="{_SWITCHYARD_VERSION}"',
+        f'org.kew.switchyard.lockfile-sha256="{_SWITCHYARD_LOCKFILE_SHA256}"',
+        f'org.kew.switchyard.rust-toolchain="{_SWITCHYARD_TOOLCHAIN}"',
     ):
-        assert binding in content
-    assert "cargo +1.96.1 auditable build" in _join_continuations(content)
-    assert "--locked --release --package switchyard-server" in _join_continuations(
-        content
-    )
-    assert content.index(_SWITCHYARD_REVISION) < content.index(
-        "cargo +1.96.1 auditable build"
-    )
+        assert label in content
 
 
 def test_proxy_uses_the_verified_official_rust_builder() -> None:
     content = _SWITCHYARD_DOCKERFILE.read_text()
 
-    assert (
-        "FROM rust:1.96.1-slim-bookworm@sha256:"
-        "e18a79fc84dfcfc3ab5ba72290398a644c135c97eaa881447fddc354ee4701a3 "
-        "AS builder"
-    ) in content
+    assert f"FROM {_SWITCHYARD_BUILDER} AS builder" in content
     assert "rustup toolchain install" not in content
     assert (
-        "sha256:e42d574c21b0e1348205dc0e8994086cf73088596e999f67fce215f8406881a4"
+        "sha256:b78cfbe4c0fd96b8a06b259092f1f412cb3ad3c5aed89d188bc40a1b8637f8f6"
         in content
     )
     assert (
-        "sha256:39decc9f9f4a87e03db5069b2424c0ee13c3d7e4116010980d4f96849e823bc4"
+        "sha256:392f221964669402bf4ae133d2a46c3ae270f64734133f4b2703d40019235c1a"
         in content
     )
     assert "ARG TARGETARCH" in content
-    assert "rustc +1.96.1 -vV" in _join_continuations(content)
+    assert f"rustc +{_SWITCHYARD_TOOLCHAIN} -vV" in _join_continuations(content)
 
 
 def test_proxy_verifies_and_invokes_the_cargo_wrapper_correctly() -> None:
-    content = _join_continuations(_SWITCHYARD_DOCKERFILE.read_text())
+    content = _switchyard_build_script()
+    cargo = f"cargo +{_SWITCHYARD_TOOLCHAIN}"
 
     assert "9dc5ff28ff204b73eae91bd96cde4413fdcb70e0" in content
-    assert "cargo +1.96.1 metadata --locked --no-deps" in content
+    assert f"{cargo} metadata --locked --no-deps" in content
     assert (
-        "cargo +1.96.1 install --locked --path /private-source/cargo-auditable"
-        in content
+        f"{cargo} install --locked --path /switchyard-source/cargo-auditable" in content
     )
     assert '--target "$rust_target"' in content
-    assert "cargo +1.96.1 install --list --root /usr/local" in content
-    assert "cargo-auditable v0.7.5 (/private-source/cargo-auditable):" in content
-    assert "cargo +1.96.1 auditable --help" in content
+    assert f"{cargo} install --list --root /usr/local" in content
+    assert "cargo-auditable v0.7.5 (/switchyard-source/cargo-auditable):" in content
+    assert f"{cargo} auditable --help" in content
     assert "cargo-auditable --version" not in content
     assert (
-        "cargo +1.96.1 auditable build --locked --release --package switchyard-server"
+        f"{cargo} auditable build --locked --release --package switchyard-server"
     ) in content
     assert "readelf --sections --wide /opt/kew/switchyard-server" in content
 
 
-def test_proxy_validates_structured_archive_members_before_extraction() -> None:
-    content = _join_continuations(_SWITCHYARD_DOCKERFILE.read_text())
-    assert content.index("python3 -I -B -c") < content.index('tar -xf "$archive"')
-    for required in (
-        "len(n)==len(set(n))",
-        "x.isdir() or x.isreg()",
-        "membership_contract",
-        "set(n)=={root",
-        "a.extractfile",
-    ):
-        assert required in content
-
-
-_SYNTHETIC_MEMBER_ROOT = "synthetic-source"
-_SYNTHETIC_MEMBER_COUNT = 563
-
-
-def _dockerfile_archive_verifiers() -> tuple[str, ...]:
-    content = _SWITCHYARD_DOCKERFILE.read_text()
-    matches = tuple(re.findall(r"python3 -I -B -c '([^']+)'", content))
-    assert len(matches) == 2
-    return matches
-
-
-def _bound_archive_member(name: str, *, kind: bytes, size: int = 0) -> tarfile.TarInfo:
-    member = tarfile.TarInfo(name)
-    member.type = kind
-    member.mode = 0o755 if kind == tarfile.DIRTYPE else 0o644
-    member.uid = 0
-    member.gid = 0
-    member.mtime = 0
-    member.size = size if kind == tarfile.REGTYPE else 0
-    return member
-
-
-def _synthetic_bound_archive(path: Path, mutation: str = "") -> str:
-    contents = {
-        f"file-{index:03d}.txt": f"synthetic-{index}\n".encode()
-        for index in range(_SYNTHETIC_MEMBER_COUNT)
-    }
-    rows = [
-        {
-            "base_blob": "1" * 40,
-            "path": name,
-            "mode": "100644",
-            "sha256": hashlib.sha256(content).hexdigest(),
-            "size": len(content),
-            "source": "base-blob",
-        }
-        for name, content in contents.items()
+def test_proxy_binary_keeps_its_audit_metadata_through_strip_and_install() -> None:
+    """trivy inventories the proxy's crates from ``.dep-v0``; losing it at any
+    step leaves the Rust floor in the gate as the only thing that notices."""
+    script = _switchyard_build_script()
+    checks = [
+        "readelf --sections --wide \"$binary\" | grep -Fq '.dep-v0'",
+        'strip --strip-debug "$binary"',
+        "readelf --sections --wide \"$binary\" | grep -Fq '.dep-v0'",
+        "readelf --sections --wide /opt/kew/switchyard-server | grep -Fq '.dep-v0'",
     ]
-    if mutation == "file_digest":
-        rows[0]["sha256"] = "0" * 64
-    if mutation == "row_size":
-        rows[0]["size"] += 1
-    if mutation == "row_schema":
-        rows[0]["unexpected"] = "value"
-    if mutation == "base_blob":
-        rows[0]["base_blob"] = "invalid"
-    if mutation == "source_value":
-        rows[0]["source"] = "unbound"
-    binding = {
-        "membership_contract": {
-            "auxiliary_member": {
-                "mode": "100600",
-                "name": "SOURCE-BINDING.json",
-                "type": "regular-file",
-            },
-            "source_root": _SYNTHETIC_MEMBER_ROOT,
-        },
-        "archive": {"format": "ustar", "root": _SYNTHETIC_MEMBER_ROOT},
-        "files": rows,
-    }
-    auxiliary = (json.dumps(binding, sort_keys=True) + "\n").encode()
-    expected_auxiliary = hashlib.sha256(auxiliary).hexdigest()
-    first_name = f"{_SYNTHETIC_MEMBER_ROOT}/{rows[0]['path']}"
-    member_name = {
-        "absolute": "/absolute",
-        "traversal": f"{_SYNTHETIC_MEMBER_ROOT}/../escape",
-        "newline": f"{_SYNTHETIC_MEMBER_ROOT}/bad\nname",
-    }.get(mutation, first_name)
-    special = {
-        "symlink": tarfile.SYMTYPE,
-        "hardlink": tarfile.LNKTYPE,
-        "fifo": tarfile.FIFOTYPE,
-        "character": tarfile.CHRTYPE,
-        "sparse": tarfile.GNUTYPE_SPARSE,
-        "contiguous": tarfile.CONTTYPE,
-    }.get(mutation, tarfile.REGTYPE)
-    with tarfile.open(path, "w", format=tarfile.USTAR_FORMAT) as archive:
-        archive.addfile(
-            _bound_archive_member(_SYNTHETIC_MEMBER_ROOT, kind=tarfile.DIRTYPE)
-        )
-        for index, (name, content) in enumerate(contents.items()):
-            archived_name = (
-                member_name if index == 0 else f"{_SYNTHETIC_MEMBER_ROOT}/{name}"
-            )
-            kind = special if index == 0 else tarfile.REGTYPE
-            member = _bound_archive_member(archived_name, kind=kind, size=len(content))
-            if index == 0 and mutation == "uname":
-                member.uname = "unexpected"
-            if index == 0 and mutation == "gname":
-                member.gname = "unexpected"
-            archive.addfile(member, io.BytesIO(content) if member.isreg() else None)
-            if mutation == "duplicate" and index == 0:
-                archive.addfile(member, io.BytesIO(content))
-        if mutation == "extra_member":
-            archive.addfile(_bound_archive_member("other-root", kind=tarfile.DIRTYPE))
-        auxiliary_member = _bound_archive_member(
-            "SOURCE-BINDING.json", kind=tarfile.REGTYPE, size=len(auxiliary)
-        )
-        auxiliary_member.mode = 0o600
-        archive.addfile(auxiliary_member, io.BytesIO(auxiliary))
-    if mutation == "aux_digest":
-        return "f" * 64
-    return expected_auxiliary
+    position = script.index(f"cargo +{_SWITCHYARD_TOOLCHAIN} auditable build --locked")
+    for check in checks:
+        position = script.index(check, position + 1)
+    assert script.count("grep -Fq '.dep-v0'") == 3
 
 
-def _run_dockerfile_archive_verifier(
-    tmp_path: Path, mutation: str = ""
-) -> subprocess.CompletedProcess[str]:
-    archive = tmp_path / "synthetic.tar"
-    auxiliary_digest = _synthetic_bound_archive(archive, mutation)
-    results = [
-        subprocess.run(
-            [
-                sys.executable,
-                "-I",
-                "-B",
-                "-c",
-                verifier,
-                str(archive),
-                auxiliary_digest,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        for verifier in _dockerfile_archive_verifiers()
-    ]
-    failed = next((result for result in results if result.returncode), None)
-    return failed or results[0]
-
-
-def test_proxy_archive_member_verifier_accepts_bound_fixture(tmp_path: Path) -> None:
-    result = _run_dockerfile_archive_verifier(tmp_path)
-    assert result.returncode == 0
-    assert result.stdout == _SYNTHETIC_MEMBER_ROOT
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        "duplicate",
-        "symlink",
-        "hardlink",
-        "fifo",
-        "character",
-        "sparse",
-        "contiguous",
-        "absolute",
-        "traversal",
-        "newline",
-        "extra_member",
-        "aux_digest",
-        "file_digest",
-        "row_size",
-        "row_schema",
-        "base_blob",
-        "source_value",
-        "uname",
-        "gname",
-    ],
-)
-def test_proxy_archive_member_verifier_refuses_malformed_fixture(
-    tmp_path: Path, mutation: str
-) -> None:
-    result = _run_dockerfile_archive_verifier(tmp_path, mutation)
-    assert result.returncode != 0
-
-
-def _private_switchyard_command(
+def _switchyard_command(
     arguments: list[str],
     *,
     timeout: int,
@@ -619,6 +666,42 @@ def _private_switchyard_command(
     return result
 
 
+def _run_in_own_session(
+    arguments: list[str],
+    *,
+    timeout: float,
+    failure: str,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    """Run *arguments* as the leader of a new session and, on timeout, stop it.
+
+    ``subprocess.run(..., timeout=...)`` kills only the process it started, so
+    a ``docker build`` the scan script runs would outlive a timed-out test and
+    keep compiling. Here the whole process group gets TERM, then KILL.
+    """
+    process = subprocess.Popen(
+        arguments,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        for kind, grace in ((signal.SIGTERM, 30), (signal.SIGKILL, 10)):
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, kind)
+            try:
+                process.communicate(timeout=grace)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        raise AssertionError(failure) from None
+    return subprocess.CompletedProcess(arguments, process.returncode, stdout, stderr)
+
+
 def _switchyard_created_id(output: str) -> str:
     container_id = output.strip()
     if re.fullmatch(r"[0-9a-f]{64}", container_id) is None:
@@ -629,7 +712,7 @@ def _switchyard_created_id(output: str) -> str:
 def _owned_switchyard_inspection(
     container_id: str, *, name: str, label: str, image_id: str
 ) -> dict[str, object]:
-    inspected = _private_switchyard_command(
+    inspected = _switchyard_command(
         ["docker", "inspect", "--type", "container", container_id],
         timeout=30,
         failure="owned proxy container inspection failed",
@@ -671,7 +754,7 @@ def _owned_switchyard_inspection(
 
 
 def _switchyard_container_absent(container_id: str) -> bool:
-    result = _private_switchyard_command(
+    result = _switchyard_command(
         [
             "docker",
             "container",
@@ -703,7 +786,7 @@ def _cleanup_owned_switchyard(
     _owned_switchyard_inspection(
         container_id, name=name, label=label, image_id=image_id
     )
-    _private_switchyard_command(
+    _switchyard_command(
         ["docker", "rm", "--force", container_id],
         timeout=30,
         failure="owned proxy container removal could not be completed",
@@ -714,7 +797,7 @@ def _cleanup_owned_switchyard(
 
 
 def _assert_switchyard_write_controls(container_id: str, token: str) -> None:
-    permissions = _private_switchyard_command(
+    permissions = _switchyard_command(
         ["docker", "exec", container_id, "stat", "-c", "%a", "/tmp"],
         timeout=30,
         failure="proxy root write-control directory could not be inspected",
@@ -723,7 +806,7 @@ def _assert_switchyard_write_controls(container_id: str, token: str) -> None:
         raise AssertionError(
             "proxy root write-control directory has unexpected permissions"
         )
-    _private_switchyard_command(
+    _switchyard_command(
         [
             "docker",
             "exec",
@@ -736,7 +819,7 @@ def _assert_switchyard_write_controls(container_id: str, token: str) -> None:
         timeout=30,
         failure="proxy writable tmpfs control failed",
     )
-    denied = _private_switchyard_command(
+    denied = _switchyard_command(
         [
             "docker",
             "exec",
@@ -839,20 +922,18 @@ def test_proxy_runtime_assertion_rejects_failed_startup(
         )
 
 
-@pytest.mark.skipif(
-    shutil.which("docker") is None or "KEW_SWITCHYARD_SOURCE_ARCHIVE" not in os.environ,
-    reason="needs Docker and the approved private Switchyard source archive",
-)
+@pytest.mark.skipif(shutil.which("docker") is None, reason="needs Docker")
 @pytest.mark.requires_switchyard_image
 @pytest.mark.serial
 def test_proxy_image_builds_from_exact_pinned_revision(tmp_path: Path) -> None:
     from kew.switchyard import probe_switchyard_endpoint
 
-    built = _private_switchyard_command(
+    built = _run_in_own_session(
         ["bash", str(_SCAN_SCRIPT), "--build-switchyard-only"],
-        # The shared operation has a 1650s total deadline and two 10s termination waits.
+        # An uncached build fetches and compiles the pinned upstream source.
+        # On timeout the script's whole group is stopped, docker build too.
         timeout=1800,
-        failure="the private Switchyard image build failed or timed out",
+        failure="the Switchyard image build failed or timed out",
         # --build-switchyard-only is a Switchyard-only action, and the script
         # refuses one unless the run opts in. The test runs only on an opted-in
         # run, but the conftest autouse fixture keeps the ambient switch out of
@@ -860,7 +941,7 @@ def test_proxy_image_builds_from_exact_pinned_revision(tmp_path: Path) -> None:
         # (tests/test_switchyard_image_skip.py).
         env={**os.environ, "KEW_SWITCHYARD_IMAGE": "1"},
     )
-    assert built.returncode == 0, "the private Switchyard image build failed"
+    assert built.returncode == 0, "the Switchyard image build failed"
     image_id = built.stdout.strip()
     assert re.fullmatch(r"sha256:[0-9a-f]{64}", image_id)
     print(f"SCIMG startup image: {image_id}")
@@ -899,7 +980,7 @@ def test_proxy_image_builds_from_exact_pinned_revision(tmp_path: Path) -> None:
     owned_container_id: str | None = None
     print(f"SCIMG startup candidate: {container_name}; label={ownership_token}")
     try:
-        created = _private_switchyard_command(
+        created = _switchyard_command(
             [
                 "docker",
                 "create",
@@ -943,12 +1024,12 @@ def test_proxy_image_builds_from_exact_pinned_revision(tmp_path: Path) -> None:
             candidate_id, name=container_name, label=ownership_token, image_id=image_id
         )
         owned_container_id = candidate_id
-        _private_switchyard_command(
+        _switchyard_command(
             ["docker", "start", owned_container_id],
             timeout=60,
             failure="the configured proxy start failed or has unknown outcome",
         )
-        published = _private_switchyard_command(
+        published = _switchyard_command(
             ["docker", "port", owned_container_id, "4000/tcp"],
             timeout=30,
             failure="the configured proxy port could not be inspected",
@@ -978,7 +1059,7 @@ def test_proxy_image_builds_from_exact_pinned_revision(tmp_path: Path) -> None:
             label=ownership_token,
             image_id=image_id,
         )
-        effective_uid = _private_switchyard_command(
+        effective_uid = _switchyard_command(
             ["docker", "exec", owned_container_id, "id", "-u"],
             timeout=30,
             failure="the configured proxy identity could not be inspected",
@@ -1047,19 +1128,17 @@ def _startup_fixture_arrange(monkeypatch, responses):
 
 @pytest.mark.parametrize("kind", ["timeout", "oserror"])
 @pytest.mark.usefixtures("_startup_forbid_unarranged_subprocess")
-def test_startup_private_command_redacts_timeout_and_oserror_without_chaining(
+def test_startup_command_redacts_timeout_and_oserror_without_chaining(
     monkeypatch, kind
 ):
-    canary = "/SYNTHETIC_PRIVATE_ARCHIVE_CANARY"
-    arguments = ["docker", "build", "--secret", "id=source,src=" + canary]
+    canary = "/SYNTHETIC_COMMAND_CANARY"
+    arguments = ["docker", "build", "--file", canary]
     error = subprocess.TimeoutExpired(arguments, 1800, output=canary, stderr=canary)
     if kind == "oserror":
         error = OSError(canary)
     _startup_fixture_arrange(monkeypatch, [error])
     with pytest.raises(AssertionError, match="fixed build failure") as raised:
-        _private_switchyard_command(
-            arguments, timeout=1800, failure="fixed build failure"
-        )
+        _switchyard_command(arguments, timeout=1800, failure="fixed build failure")
     assert raised.value.__suppress_context__ is True
     import traceback
 
@@ -1068,11 +1147,11 @@ def test_startup_private_command_redacts_timeout_and_oserror_without_chaining(
 
 
 @pytest.mark.usefixtures("_startup_forbid_unarranged_subprocess")
-def test_startup_nonzero_private_build_never_renders_captured_output(monkeypatch):
-    canary = "SYNTHETIC_PRIVATE_BUILD_OUTPUT"
+def test_startup_nonzero_build_never_renders_captured_output(monkeypatch):
+    canary = "SYNTHETIC_BUILD_OUTPUT"
     _startup_fixture_arrange(monkeypatch, [_startup_fixture_result(canary, canary, 1)])
     with pytest.raises(AssertionError, match="fixed build failure") as raised:
-        _private_switchyard_command(
+        _switchyard_command(
             ["docker", "build"], timeout=1800, failure="fixed build failure"
         )
     assert canary not in str(raised.value)
@@ -1363,24 +1442,12 @@ def _shim(directory: Path, name: str, body: str) -> None:
 def _synthetic_scan_script(
     tmp_path: Path,
     *,
-    archive_bytes: bytes = _SYNTHETIC_ARCHIVE,
     repository_name: str = "synthetic-repo",
 ) -> Path:
     scripts = tmp_path / repository_name / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     script = scripts / "scan-agent-image.sh"
-    content = _SCAN_SCRIPT.read_text()
-    digest = hashlib.sha256(archive_bytes).hexdigest()
-    content = content.replace(
-        f'SWITCHYARD_SOURCE_ARCHIVE_SHA256="{_SWITCHYARD_ARCHIVE_SHA256}"',
-        f'SWITCHYARD_SOURCE_ARCHIVE_SHA256="{digest}"',
-    ).replace(
-        f"SWITCHYARD_SOURCE_ARCHIVE_SIZE={_SWITCHYARD_ARCHIVE_SIZE}",
-        f"SWITCHYARD_SOURCE_ARCHIVE_SIZE={len(archive_bytes)}",
-    )
-    assert _SWITCHYARD_ARCHIVE_SHA256 not in content
-    assert f"SWITCHYARD_SOURCE_ARCHIVE_SIZE={_SWITCHYARD_ARCHIVE_SIZE}" not in content
-    script.write_text(content)
+    script.write_text(_SCAN_SCRIPT.read_text())
     script.chmod(0o755)
     _plant_trivy_pin(tmp_path / repository_name)
     return script
@@ -1402,25 +1469,9 @@ def _plant_trivy_pin(repo_root: Path) -> Path:
     return plant_scan_inputs(repo_root)
 
 
-def _private_archive(
-    tmp_path: Path,
-    *,
-    archive_bytes: bytes = _SYNTHETIC_ARCHIVE,
-    directory_name: str = "private-input",
-) -> Path:
-    directory = tmp_path / directory_name
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory.chmod(0o700)
-    archive = directory / "source.tar"
-    archive.write_bytes(archive_bytes)
-    archive.chmod(0o600)
-    return archive
-
-
 def _run_scan_script(
     script: Path,
     binroot: Path,
-    archive: str | Path,
     *arguments: str,
     extra_env: dict[str, str] | None = None,
     pin_stub: bool = True,
@@ -1432,11 +1483,10 @@ def _run_scan_script(
         pin_stub_trivy(script.parent.parent, binroot / "trivy")
     env = dict(os.environ)
     env["PATH"] = f"{binroot}:{env['PATH']}"
-    env["KEW_SWITCHYARD_SOURCE_ARCHIVE"] = str(archive)
     # The Switchyard layer is opt-in (tests/test_switchyard_image_skip.py).
-    # Every caller here drives that layer — the archive preflight or the
-    # pinned build — so they all opt in; the conftest autouse fixture keeps
-    # the ambient switch out, so this is the only place it is set.
+    # Every caller here drives the whole gate, that layer included, so they
+    # all opt in; the conftest autouse fixture keeps the ambient switch out,
+    # so this is the only place it is set.
     env["KEW_SWITCHYARD_IMAGE"] = "1"
     env.update(extra_env or {})
     return subprocess.run(
@@ -1454,291 +1504,227 @@ def _run_gate(
 ) -> subprocess.CompletedProcess[str]:
     tmp_path = binroot.parent
     script = _synthetic_scan_script(tmp_path)
-    archive = _private_archive(tmp_path)
-    return _run_scan_script(
-        script,
-        binroot,
-        archive,
-        extra_env=extra_env,
-    )
+    return _run_scan_script(script, binroot, extra_env=extra_env)
 
 
-def _assert_private_preflight_refused(
-    result: subprocess.CompletedProcess[str], archive: str | Path
-) -> None:
-    assert result.returncode != 0
-    output = result.stdout + result.stderr
-    assert "Switchyard source archive validation failed" in output
-    if archive:
-        assert str(archive) not in output
+class TestAStoppedScanStopsItsBuild:
+    """A signal that stops the gate stops the ``docker build`` it started.
 
+    The Switchyard build compiles upstream source for minutes. A caller that
+    times out or is cancelled signals the script; if ``docker build`` ran as an
+    unowned child it kept building after the caller gave up. The fake docker
+    here blocks in ``build`` and records whether it was terminated.
+    """
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
-class TestSwitchyardArchivePreflight:
     @pytest.fixture()
     def binroot(self, tmp_path: Path) -> Path:
         directory = tmp_path / "bin"
         directory.mkdir()
+        log = tmp_path / "docker-signals.log"
+        _shim(
+            directory,
+            "docker",
+            f"""
+            case "$1" in
+              info|images|tag|rmi) exit 0 ;;
+              build) ;;
+              *) exit 0 ;;
+            esac
+            sleep 120 &
+            waiter=$!
+            trap 'echo terminated >> "{log}"; kill "$waiter"; exit 143' TERM
+            echo started >> "{log}"
+            wait "$waiter"
+            echo finished >> "{log}"
+            """,
+        )
+        stamp = (
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        _shim(
+            directory,
+            "trivy",
+            f"""
+            if [ "$1" = "--version" ]; then echo "Version: {_PINNED_TRIVY}"; exit 0; fi
+            if printf '%s\\n' "$@" | grep -q -- --download-db-only; then exit 0; fi
+            if [ "$1" = "version" ]; then
+              echo '{{"VulnerabilityDB":{{"UpdatedAt":"{stamp}"}}}}'
+              exit 0
+            fi
+            exit 0
+            """,
+        )
         return directory
 
-    def test_valid_owned_private_input_passes_validation_only(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == ""
-
-    def test_prefix_sharing_sibling_is_outside_the_context(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path, repository_name="project")
-        sibling = tmp_path / "project-sibling"
-        archive = _private_archive(sibling)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        assert result.returncode == 0, result.stderr
+    @staticmethod
+    def _wait_for(log: Path, line: str, deadline: float = 60.0) -> None:
+        end = time.monotonic() + deadline
+        while time.monotonic() < end:
+            if log.exists() and line in log.read_text().split():
+                return
+            time.sleep(0.05)
+        raise AssertionError(f"{log.name} never logged {line!r}")
 
     @pytest.mark.parametrize(
-        "spelling",
-        [
-            "relative.tar",
-            "{private}/./source.tar",
-            "{private}/../private-input/source.tar",
-        ],
+        ("arguments", "opt_in"),
+        [(("--build-switchyard-only",), "1"), ((), "")],
+        ids=["build-switchyard-only", "scan-loop"],
     )
-    def test_relative_or_ambiguous_path_is_rejected(
-        self, tmp_path: Path, binroot: Path, spelling: str
+    @pytest.mark.parametrize(
+        ("delivered", "status"),
+        [(signal.SIGTERM, 143), (signal.SIGINT, 130), (signal.SIGHUP, 129)],
+        ids=["TERM", "INT", "HUP"],
+    )
+    def test_signalling_the_script_terminates_the_docker_build(
+        self,
+        binroot: Path,
+        tmp_path: Path,
+        arguments: tuple[str, ...],
+        opt_in: str,
+        delivered: signal.Signals,
+        status: int,
     ) -> None:
         script = _synthetic_scan_script(tmp_path)
-        private = _private_archive(tmp_path).parent
-        archive = spelling.format(private=private)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
+        pin_stub_trivy(script.parent.parent, binroot / "trivy")
+        log = tmp_path / "docker-signals.log"
+        env = {**os.environ, "PATH": f"{binroot}:{os.environ['PATH']}"}
+        env["KEW_SWITCHYARD_IMAGE"] = opt_in
+        process = subprocess.Popen(
+            ["bash", str(script), *arguments],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            start_new_session=True,
         )
-
-        _assert_private_preflight_refused(result, archive)
-
-    def test_missing_input_is_rejected(self, tmp_path: Path, binroot: Path) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        private = _private_archive(tmp_path).parent
-        archive = private / "missing.tar"
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, archive)
-
-    def test_unset_input_is_rejected_without_reaching_runtime(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-
-        result = _run_scan_script(
-            script,
-            binroot,
-            archive,
-            "--validate-switchyard-source",
-            extra_env={"KEW_SWITCHYARD_SOURCE_ARCHIVE": ""},
-        )
-
-        _assert_private_preflight_refused(result, "")
-        assert "input is missing" in result.stderr
-
-    def test_missing_descriptor_api_fails_closed(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-        content = script.read_text().replace(
-            'required_flags = ("O_DIRECTORY", "O_NOFOLLOW")',
-            'required_flags = ("O_DIRECTORY", "O_NOFOLLOW", "O_IMPOSSIBLE")',
-        )
-        assert "O_IMPOSSIBLE" in content
-        script.write_text(content)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, archive)
-        assert "descriptor APIs unavailable" in result.stderr
-
-    @pytest.mark.parametrize("link_kind", ["parent", "leaf"])
-    def test_symbolic_links_are_rejected(
-        self, tmp_path: Path, binroot: Path, link_kind: str
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-        if link_kind == "parent":
-            linked_parent = tmp_path / "linked-private"
-            linked_parent.symlink_to(archive.parent, target_is_directory=True)
-            candidate = linked_parent / archive.name
-        else:
-            candidate = archive.parent / "linked-source.tar"
-            candidate.symlink_to(archive)
-
-        result = _run_scan_script(
-            script, binroot, candidate, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, candidate)
-
-    def test_hard_linked_leaf_is_rejected(self, tmp_path: Path, binroot: Path) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-        candidate = archive.parent / "hard-linked-source.tar"
-        os.link(archive, candidate)
-
-        result = _run_scan_script(
-            script, binroot, candidate, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, candidate)
-
-    def test_context_containment_is_rejected(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(script.parent.parent)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, archive)
-
-    @pytest.mark.parametrize("permissive", ["parent", "leaf"])
-    def test_group_or_other_permissions_are_rejected(
-        self, tmp_path: Path, binroot: Path, permissive: str
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-        target = archive.parent if permissive == "parent" else archive
-        target.chmod(0o755 if permissive == "parent" else 0o640)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, archive)
-
-    @pytest.mark.parametrize("binding", ["length", "digest"])
-    def test_wrong_length_or_digest_is_rejected(
-        self, tmp_path: Path, binroot: Path, binding: str
-    ) -> None:
-        expected = _SYNTHETIC_ARCHIVE
-        script = _synthetic_scan_script(tmp_path, archive_bytes=expected)
-        actual = expected + b"x" if binding == "length" else b"X" + expected[1:]
-        archive = _private_archive(tmp_path, archive_bytes=actual)
-
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, archive)
-
-    @pytest.mark.parametrize("leaf_kind", ["directory", "fifo"])
-    def test_special_leaf_is_rejected(
-        self, tmp_path: Path, binroot: Path, leaf_kind: str
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        private = _private_archive(tmp_path).parent
-        candidate = private / leaf_kind
-        if leaf_kind == "directory":
-            candidate.mkdir()
-        else:
-            os.mkfifo(candidate, mode=0o600)
-
-        result = _run_scan_script(
-            script, binroot, candidate, "--validate-switchyard-source"
-        )
-
-        _assert_private_preflight_refused(result, candidate)
-
-    def test_leaf_replacement_during_validation_is_rejected(
-        self, tmp_path: Path, binroot: Path
-    ) -> None:
-        script = _synthetic_scan_script(tmp_path)
-        first_pass = tmp_path / "first-pass-complete"
-        replaced = tmp_path / "replaced"
-        marker = (
-            f"    first = source.stream()\n    open({str(first_pass)!r}, 'w').close()"
-        )
-        # The second pass waits for the replacement, so the leaf has changed
-        # between the passes on any machine, not only within a sleep's window.
-        handshake = (
-            f"    _until = __import__('time').monotonic() + 60\n"
-            f"    while not __import__('os').path.exists({str(replaced)!r}):\n"
-            f"        assert __import__('time').monotonic() < _until\n"
-            f"        __import__('time').sleep(0.01)\n"
-            f"    second = source.stream()"
-        )
-        instrumented = (
-            script.read_text()
-            .replace(
-                "    first = source.stream()",
-                marker,
-            )
-            .replace("    second = source.stream()", handshake)
-        )
-        script.write_text(instrumented)
-        archive = _private_archive(tmp_path)
-        replacement = archive.parent / "replacement.tar"
-        replacement.write_bytes(_SYNTHETIC_ARCHIVE)
-        replacement.chmod(0o600)
-
-        def replace_leaf() -> None:
-            deadline = time.monotonic() + 60
-            while not first_pass.exists() and time.monotonic() < deadline:
-                threading.Event().wait(0.005)
-            os.replace(replacement, archive)
-            replaced.touch()
-
-        replacer = threading.Thread(target=replace_leaf)
-        replacer.start()
         try:
-            result = _run_scan_script(
-                script, binroot, archive, "--validate-switchyard-source"
-            )
+            self._wait_for(log, "started")
+            # Only the script: the build client is reached through it.
+            os.kill(process.pid, delivered)
+            process.wait(timeout=30)
+            # Checked before the cleanup below, which would kill a survivor.
+            self._wait_for(log, "terminated", deadline=30.0)
         finally:
-            replacer.join(timeout=65)
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=10)
+        assert process.returncode == status
+        assert "finished" not in log.read_text().split()
 
-        assert first_pass.exists()
-        _assert_private_preflight_refused(result, archive)
-        assert "changed during validation" in result.stderr
-
-    def test_parent_metadata_change_during_validation_is_rejected(
-        self, tmp_path: Path, binroot: Path
+    def test_a_timed_out_build_launch_stops_the_whole_group(
+        self, binroot: Path, tmp_path: Path
     ) -> None:
+        """The launcher the opted-in image test uses kills the group, not
+        only the script, when its deadline passes."""
         script = _synthetic_scan_script(tmp_path)
-        private_root = tmp_path / "private-root"
-        archive = _private_archive(private_root)
-        private_root.chmod(0o700)
-        mutation = f"    os.chmod({str(private_root)!r}, 0o755)\n"
-        content = script.read_text().replace(
-            "    second = source.stream()",
-            f"{mutation}    second = source.stream()",
-        )
-        script.write_text(content)
+        log = tmp_path / "docker-signals.log"
 
-        result = _run_scan_script(
-            script, binroot, archive, "--validate-switchyard-source"
-        )
+        with pytest.raises(AssertionError, match="build timed out"):
+            _run_in_own_session(
+                ["bash", str(script), "--build-switchyard-only"],
+                timeout=5,
+                failure="build timed out",
+                env={
+                    **os.environ,
+                    "PATH": f"{binroot}:{os.environ['PATH']}",
+                    "KEW_SWITCHYARD_IMAGE": "1",
+                },
+            )
 
-        _assert_private_preflight_refused(result, archive)
-        assert "changed during validation" in result.stderr
+        self._wait_for(log, "terminated", deadline=30.0)
+        assert "finished" not in log.read_text().split()
+
+    @pytest.mark.parametrize(
+        ("delivered", "status"),
+        [(signal.SIGTERM, 143), (signal.SIGINT, 130), (signal.SIGHUP, 129)],
+        ids=["TERM", "INT", "HUP"],
+    )
+    def test_a_signal_during_trivy_stops_trivy_before_the_exit_cleanup(
+        self, tmp_path: Path, delivered: signal.Signals, status: int
+    ) -> None:
+        """A signal to the script alone, while trivy reads an image.
+
+        The script must stop trivy, then exit 128+signal, and only then run its
+        EXIT cleanup, which removes the run's reference to the image trivy was
+        reading. INT matters most: a background child of a non-interactive
+        shell ignores it, so a script that leaves trivy in charge of INT scans
+        on and can exit 0 after a cancel. The script starts in a new session
+        with default dispositions, as a caller's subprocess does.
+        """
+        binroot = tmp_path / "bin"
+        binroot.mkdir()
+        events = tmp_path / "events.log"
+        _shim(
+            binroot,
+            "docker",
+            f"""
+            case "$1" in
+              build)
+                for a in "$@"; do
+                  if [ "$prev" = "--iidfile" ]; then
+                    echo "sha256:{"a" * 64}" > "$a"
+                  fi
+                  prev="$a"
+                done ;;
+              rmi) echo "docker-rmi $2" >> "{events}" ;;
+            esac
+            exit 0
+            """,
+        )
+        stamp = (
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        _shim(
+            binroot,
+            "trivy",
+            f"""
+            if [ "$1" = "--version" ]; then echo "Version: {_PINNED_TRIVY}"; exit 0; fi
+            if printf '%s\\n' "$@" | grep -q -- --download-db-only; then exit 0; fi
+            if [ "$1" = "version" ]; then
+              echo '{{"VulnerabilityDB":{{"UpdatedAt":"{stamp}"}}}}'
+              exit 0
+            fi
+            sleep 120 &
+            waiter=$!
+            trap 'echo trivy-terminated >> "{events}"; kill "$waiter"; exit 143' TERM
+            echo trivy-scanning >> "{events}"
+            wait "$waiter"
+            echo trivy-finished >> "{events}"
+            """,
+        )
+        script = _synthetic_scan_script(tmp_path)
+        pin_stub_trivy(script.parent.parent, binroot / "trivy")
+        env = {**os.environ, "PATH": f"{binroot}:{os.environ['PATH']}"}
+        env["KEW_SWITCHYARD_IMAGE"] = ""
+        process = subprocess.Popen(
+            ["bash", str(script)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            start_new_session=True,
+        )
+        try:
+            self._wait_for(events, "trivy-scanning")
+            os.kill(process.pid, delivered)
+            # trivy sleeps for 120 seconds: ending within 15 is not waiting.
+            process.wait(timeout=15)
+            # Checked before the cleanup below, which would kill a survivor.
+            self._wait_for(events, "trivy-terminated", deadline=5.0)
+        finally:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=10)
+        assert process.returncode == status
+        lines = events.read_text().splitlines()
+        assert "trivy-finished" not in lines
+        removals = [
+            index
+            for index, line in enumerate(lines)
+            if line.startswith("docker-rmi kew-agent:scan-run-")
+        ]
+        assert removals, "the EXIT cleanup did not remove the run's reference"
+        assert lines.index("trivy-terminated") < removals[0], lines
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
@@ -2382,11 +2368,9 @@ class TestThePinnedToolPreflight:
         log = tmp_path / "docker-calls.log"
         _shim(binroot, "docker", f'printf \'%s\\n\' "$*" >> "{log}"\nexit 0\n')
         script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
         result = _run_scan_script(
             script,
             binroot,
-            archive,
             "--check-tools",
             # The stub directory and the system tools only: a developer machine
             # with its own trivy must not stand in for the host under test.
@@ -2465,7 +2449,6 @@ class TestThePinnedToolPreflight:
         result = _run_scan_script(
             script,
             binroot,
-            _private_archive(tmp_path),
             "--check-tools",
             extra_env={"PATH": f"{binroot}{os.pathsep}/usr/bin{os.pathsep}/bin"},
         )
@@ -2763,6 +2746,7 @@ def _gate_binroot(tmp_path: Path) -> Path:
         case "$1" in
           info) exit 0 ;;
           build)
+            printf '%s\n' "$*" >> "$(dirname "$0")/docker-build-argv.log"
             shift
             tag=
             iidfile=
@@ -2944,9 +2928,9 @@ def _image_refs(binroot: Path) -> dict[str, str]:
 def _switchyard_rust_packages(count: int = 50) -> list[dict[str, str]]:
     packages = [
         {
-            "ID": "switchyard-server@0.1.0",
+            "ID": f"switchyard-server@{_SWITCHYARD_VERSION}",
             "Name": "switchyard-server",
-            "Version": "0.1.0",
+            "Version": _SWITCHYARD_VERSION,
             "Relationship": "root",
         }
     ]
@@ -3251,9 +3235,7 @@ class TestTheGateActuallyGates:
         are ``digest_for(key)``, run with this machine's ``uname``."""
         script = _synthetic_scan_script(tmp_path)
         pin_trivy_binaries(script.parent.parent, digest_for)
-        return _run_scan_script(
-            script, binroot, _private_archive(tmp_path), pin_stub=False
-        )
+        return _run_scan_script(script, binroot, pin_stub=False)
 
     def test_only_this_platforms_binary_pin_is_the_one_the_gate_checks(
         self, binroot: Path, tmp_path: Path
@@ -3314,9 +3296,9 @@ class TestTheGateActuallyGates:
         """
         self._trivy(binroot, gate_exit=0, log=tmp_path / "calls.log")
 
-        # The default run: every machine without the private Switchyard input
-        # takes this branch, and it is the branch whose certification named a
-        # number.
+        # The default run: every machine that has not opted into the
+        # Switchyard layer takes this branch, and it is the branch whose
+        # certification named a number.
         result = _run_gate(binroot, {"KEW_SWITCHYARD_IMAGE": ""})
 
         assert result.returncode == 0, result.stderr
@@ -3346,7 +3328,7 @@ class TestTheGateActuallyGates:
         assert mutated != original, "the build step moved; re-point this mutation"
         script.write_text(mutated)
 
-        result = _run_scan_script(script, binroot, _private_archive(tmp_path))
+        result = _run_scan_script(script, binroot)
 
         assert result.returncode != 0, result.stdout
         assert "Refusing to certify a partial run" in result.stderr
@@ -3374,6 +3356,60 @@ class TestTheGateActuallyGates:
             "kew-agent-codex:ci-scan": 1,
             "kew-switchyard:ci-scan": 0,
         }
+
+    def test_the_proxy_build_reads_nothing_but_the_build_context(
+        self, binroot: Path, tmp_path: Path
+    ) -> None:
+        """The proxy source is public and fetched by the Dockerfile itself, so
+        its build takes no secret, build argument or extra context."""
+        self._trivy(binroot, gate_exit=0, log=tmp_path / "calls.log")
+
+        result = _run_gate(binroot)
+
+        assert result.returncode == 0, result.stderr
+        proxy_builds = [
+            line.split()
+            for line in (binroot / "docker-build-argv.log").read_text().splitlines()
+            if "kew-switchyard:ci-scan" in line
+        ]
+        assert len(proxy_builds) == 1, proxy_builds
+        argv = proxy_builds[0]
+        assert argv[:5] == [
+            "build",
+            "-f",
+            "docker/switchyard.Dockerfile",
+            "-t",
+            "kew-switchyard:ci-scan",
+        ]
+        assert argv[5] == "--iidfile"
+        assert argv[7:] == ["."], argv
+
+    def test_build_switchyard_only_prints_only_the_built_image_id(
+        self, binroot: Path, tmp_path: Path
+    ) -> None:
+        script = _synthetic_scan_script(tmp_path)
+
+        result = _run_scan_script(script, binroot, "--build-switchyard-only")
+
+        assert result.returncode == 0, result.stderr
+        image_id = "sha256:" + hashlib.sha256(b"kew-switchyard:ci-scan").hexdigest()
+        assert result.stdout == f"{image_id}\n"
+        builds = (binroot / "docker-build-args.log").read_text().splitlines()
+        # Uncached: the image the opted-in test starts is built from the pins
+        # as they are now, not from a layer an earlier build left behind.
+        assert builds == ["kew-switchyard:ci-scan 1"]
+
+    def test_build_switchyard_only_fails_without_an_image_id_when_the_build_fails(
+        self, binroot: Path, tmp_path: Path
+    ) -> None:
+        _shim(binroot, "docker", 'echo "build exploded" >&2\nexit 1\n')
+        script = _synthetic_scan_script(tmp_path)
+
+        result = _run_scan_script(script, binroot, "--build-switchyard-only")
+
+        assert result.returncode != 0
+        assert result.stdout == ""
+        assert "docker build of docker/switchyard.Dockerfile failed" in result.stderr
 
     def _check_switchyard_scan_gates_all_high_and_critical_findings(
         self, binroot: Path, tmp_path: Path
@@ -3564,57 +3600,6 @@ class TestTheGateActuallyGates:
 
         assert result.returncode != 0
         assert "only 49 Rust packages" in result.stderr
-
-    @pytest.mark.parametrize("mutation", ["missing", "changed"])
-    def test_cached_build_still_revalidates_private_input(
-        self, binroot: Path, tmp_path: Path, mutation: str
-    ) -> None:
-        log = tmp_path / "calls.log"
-        self._trivy(binroot, gate_exit=0, log=log)
-        script = _synthetic_scan_script(tmp_path)
-        archive = _private_archive(tmp_path)
-        first = _run_scan_script(script, binroot, archive)
-        assert first.returncode == 0, first.stderr
-        prior_builds = (binroot / "docker-builds.log").read_text()
-        if mutation == "missing":
-            archive.unlink()
-        else:
-            archive.write_bytes(b"X" + _SYNTHETIC_ARCHIVE[1:])
-            archive.chmod(0o600)
-
-        second = _run_scan_script(script, binroot, archive)
-
-        assert second.returncode != 0
-        assert (binroot / "docker-builds.log").read_text() == prior_builds
-        assert "Switchyard source archive validation failed" in second.stderr
-
-    def test_proxy_build_gets_a_second_private_input_preflight(
-        self, binroot: Path, tmp_path: Path
-    ) -> None:
-        log = tmp_path / "calls.log"
-        self._trivy(binroot, gate_exit=0, log=log)
-        original = (binroot / "docker").read_text()
-        mutation = """
-            if [ "$tag" = "kew-agent-opencode:ci-scan" ]; then
-              printf 'X' > "$KEW_SWITCHYARD_SOURCE_ARCHIVE"
-            fi
-        """
-        (binroot / "docker").write_text(
-            original.replace(
-                "            exit 0 ;;", textwrap.dedent(mutation) + "exit 0 ;;", 1
-            )
-        )
-        (binroot / "docker").chmod(0o755)
-
-        result = _run_gate(binroot)
-
-        assert result.returncode != 0
-        builds = (binroot / "docker-builds.log").read_text()
-        assert "kew-agent:ci-scan" in builds
-        assert "kew-agent-opencode:ci-scan" in builds
-        assert "kew-agent-codex:ci-scan" in builds
-        assert "kew-switchyard:ci-scan" not in builds
-        assert "Switchyard source archive validation failed" in result.stderr
 
     def test_every_image_scan_targets_the_built_image_id(
         self, binroot: Path, tmp_path: Path
@@ -4312,926 +4297,3 @@ def test_switchyard_inventory_uses_os_and_rust_floors(
 
 def test_union_docker_digest_repins_both_stock_worker_tags() -> None:
     TestTheCommittedPinsAreNotStale().test_the_pins_name_the_current_build_inputs()
-
-
-_CHUNK_TEST_IID = "sha256:" + "a" * 64
-_CHUNK_TEST_PAYLOAD = (
-    b"".join(bytes([index]) * 491_520 for index in range(15)) + b"\x0f" * 81_920
-)
-
-
-@pytest.fixture()
-def chunk_module(monkeypatch):
-    import types
-
-    text = globals()["_SCAN_SCRIPT"].read_text()
-    source = text.split("# KEW_PRIVATE_SOURCE_PYTHON_BEGIN\n", 1)[1].split(
-        "# KEW_PRIVATE_SOURCE_PYTHON_END\n", 1
-    )[0]
-    module = types.ModuleType("synthetic_private_transport")
-    exec(compile(source, "<shared-private-source-lifecycle>", "exec"), module.__dict__)
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("unarranged subprocess or process-group effect")
-
-    monkeypatch.setattr(module.subprocess, "Popen", forbidden)
-    monkeypatch.setattr(module.os, "killpg", forbidden)
-    return module
-
-
-@pytest.fixture()
-def chunk_case(tmp_path, monkeypatch, chunk_module):
-    root = tmp_path.resolve()
-    repository = root / "context"
-    repository.mkdir(mode=0o700)
-    private = root / "private"
-    private.mkdir(mode=0o700)
-    archive = private / "PRIVATE_PATH_CANARY.tar"
-    archive.write_bytes(_CHUNK_TEST_PAYLOAD)
-    archive.chmod(0o600)
-    monkeypatch.setenv("KEW_SWITCHYARD_SOURCE_ARCHIVE", str(archive))
-    monkeypatch.setenv("TMPDIR", str(root))
-    argv = [
-        "-",
-        str(repository),
-        hashlib.sha256(_CHUNK_TEST_PAYLOAD).hexdigest(),
-        str(len(_CHUNK_TEST_PAYLOAD)),
-        "ci-scan",
-        "build-no-cache",
-    ]
-    monkeypatch.setattr(sys, "argv", argv)
-    state = {
-        "calls": [],
-        "stage": None,
-        "hook": None,
-        "wait_hook": None,
-        "status": 0,
-        "iid": _CHUNK_TEST_IID.encode(),
-        "signals": [],
-        "running": False,
-        "waits": [],
-    }
-
-    class FakeDocker:
-        pid = 123456789
-
-        def __init__(self, arguments, **kwargs):
-            state["calls"].append((arguments, kwargs))
-            assert arguments[:2] == ["docker", "build"]
-            assert kwargs["cwd"] == str(repository)
-            assert kwargs["start_new_session"] is True
-            assert (
-                kwargs["stdin"]
-                == kwargs["stdout"]
-                == kwargs["stderr"]
-                == subprocess.DEVNULL
-            )
-            assert "KEW_SWITCHYARD_SOURCE_ARCHIVE" not in kwargs["env"]
-            parts = [
-                Path(arg.split(",src=", 1)[1])
-                for arg in arguments
-                if arg.startswith("id=switchyard_source_archive_")
-            ]
-            assert len(parts) == 16
-            assert [part.stat().st_size for part in parts] == [491520] * 15 + [81920]
-            assert b"".join(part.read_bytes() for part in parts) == _CHUNK_TEST_PAYLOAD
-            assert (
-                len({hashlib.sha256(part.read_bytes()).digest() for part in parts[:15]})
-                == 15
-            )
-            assert all((part.stat().st_mode & 0o777) == 0o400 for part in parts)
-            stage = parts[0].parent
-            state["stage"] = stage
-            assert not stage.is_relative_to(repository)
-            assert (stage.stat().st_mode & 0o777) == 0o700
-            iid = Path(arguments[arguments.index("--iidfile") + 1])
-            assert not iid.exists(), "Buildx owns initial IID creation"
-            if state["iid"] is not None:
-                iid.write_bytes(state["iid"])
-            if state["hook"] is not None:
-                state["hook"](stage)
-            state["running"] = True
-
-        def wait(self, timeout):
-            state["waits"].append(timeout)
-            assert 0 < timeout <= chunk_module.DEADLINE_SECONDS
-            if state["wait_hook"] is not None:
-                callback = state["wait_hook"]
-                state["wait_hook"] = None
-                callback()
-            state["running"] = False
-            return state["status"]
-
-        def poll(self):
-            return None if state["running"] else state["status"]
-
-    monkeypatch.setattr(chunk_module.subprocess, "Popen", FakeDocker)
-
-    def signal_group(pid, kind):
-        if kind == 0:
-            if not state["running"]:
-                raise ProcessLookupError
-        else:
-            state["signals"].append((pid, kind))
-            state["running"] = False
-
-    monkeypatch.setattr(chunk_module.os, "killpg", signal_group)
-    return chunk_module, repository, archive, state
-
-
-def _chunk_assert_refused(module, capsys, *, category=None):
-    assert module.main() == 1
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert "PRIVATE_PATH_CANARY" not in captured.err
-    assert "Traceback" not in captured.err
-    assert "Switchyard source archive validation failed" in captured.err
-    if category:
-        assert category in captured.err
-
-
-def _inject_after_directory_stat(module, monkeypatch, directory, change):
-    original = module.os.stat
-    wanted = module.directory_identity(original(directory))
-    observation = {"before": None}
-
-    def stat_then_change(path, *args, **kwargs):
-        value = original(path, *args, **kwargs)
-        if observation["before"] is None and module.directory_identity(value) == wanted:
-            observation["before"] = value
-            change()
-        return value
-
-    monkeypatch.setattr(
-        module.os, "supports_dir_fd", module.os.supports_dir_fd | {stat_then_change}
-    )
-    monkeypatch.setattr(
-        module.os,
-        "supports_follow_symlinks",
-        module.os.supports_follow_symlinks | {stat_then_change},
-    )
-    monkeypatch.setattr(module.os, "stat", stat_then_change)
-    return observation, original
-
-
-@pytest.mark.parametrize("action", ["build", "build-no-cache"])
-def test_chunk_build_returns_only_exact_id_after_cleanup(chunk_case, capsys, action):
-    module, _repo, _archive, state = chunk_case
-    sys.argv[-1] = action
-    assert module.main() == 0
-    assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-    assert not state["stage"].exists()
-    assert ("--no-cache" in state["calls"][0][0]) == (action == "build-no-cache")
-
-
-def test_chunk_unrelated_source_directory_churn_survives_stat_open_binding(
-    chunk_case, monkeypatch, capsys
-):
-    module, _repo, archive, state = chunk_case
-    parent = archive.parent
-    sibling = parent / "unrelated-sibling"
-    observation, original_stat = _inject_after_directory_stat(
-        module, monkeypatch, parent, sibling.mkdir
-    )
-
-    assert module.main() == 0
-
-    assert observation["before"] is not None
-    after = original_stat(parent)
-    assert module.directory_identity(observation["before"]) == (
-        module.directory_identity(after)
-    )
-    assert module.fingerprint(observation["before"]) != module.fingerprint(after)
-    assert sibling.is_dir()
-    assert state["calls"]
-    assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-
-
-def test_chunk_source_directory_replacement_during_stat_open_binding_refuses(
-    chunk_case, monkeypatch, capsys
-):
-    module, _repo, archive, state = chunk_case
-    parent = archive.parent
-    displaced = parent.with_name("displaced-private")
-
-    def replace_parent():
-        parent.rename(displaced)
-        parent.mkdir(mode=0o700)
-
-    observation, _original_stat = _inject_after_directory_stat(
-        module, monkeypatch, parent, replace_parent
-    )
-
-    _chunk_assert_refused(module, capsys, category="changed during validation")
-
-    assert observation["before"] is not None
-    assert not state["calls"]
-    assert (displaced / archive.name).is_file()
-
-
-def test_chunk_owner_readable_0400_is_valid(chunk_case, capsys):
-    module, _repo, archive, state = chunk_case
-    archive.chmod(0o400)
-    assert module.main() == 0
-    assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-    assert not state["stage"].exists()
-
-
-@pytest.mark.parametrize("target", ["same", "child", "alias"])
-def test_chunk_staging_inside_context_refuses_before_private_writes(
-    chunk_case, monkeypatch, capsys, target
-):
-    module, repo, _archive, state = chunk_case
-    temporary = repo
-    if target == "child":
-        temporary = repo / "temporary"
-        temporary.mkdir()
-    if target == "alias":
-        temporary = repo.parent / "linked-context"
-        temporary.symlink_to(repo, target_is_directory=True)
-    monkeypatch.setenv("TMPDIR", str(temporary))
-    _chunk_assert_refused(module, capsys, category="checkout containment")
-    assert not state["calls"]
-    assert not list(repo.rglob("kew-switchyard-chunks.*"))
-
-
-def test_chunk_staging_alias_uses_canonical_outside_path(
-    chunk_case, monkeypatch, capsys
-):
-    module, repo, _archive, state = chunk_case
-    link = repo.parent / "platform-temp-alias"
-    link.symlink_to(repo.parent, target_is_directory=True)
-    monkeypatch.setenv("TMPDIR", str(link))
-    assert module.main() == 0
-    assert state["stage"].parent == repo.parent
-    assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-
-
-@pytest.mark.parametrize(
-    "kind",
-    [
-        "missing",
-        "content",
-        "length",
-        "hardlink",
-        "leaf-link",
-        "parent-link",
-        "mode",
-        "fifo",
-    ],
-)
-def test_chunk_invalid_source_refuses_before_docker_even_when_cache_eligible(
-    chunk_case, monkeypatch, capsys, kind
-):
-    module, repo, archive, state = chunk_case
-    sys.argv[-1] = "build"
-    if kind == "missing":
-        archive.unlink()
-    elif kind == "content":
-        archive.write_bytes(b"Z" + _CHUNK_TEST_PAYLOAD[1:])
-    elif kind == "length":
-        archive.write_bytes(_CHUNK_TEST_PAYLOAD[:-1])
-    elif kind == "hardlink":
-        os.link(archive, archive.with_suffix(".link"))
-    elif kind == "leaf-link":
-        linked = archive.with_suffix(".link")
-        linked.symlink_to(archive)
-        monkeypatch.setenv("KEW_SWITCHYARD_SOURCE_ARCHIVE", str(linked))
-    elif kind == "parent-link":
-        linked = repo.parent / "linked-private"
-        linked.symlink_to(archive.parent, target_is_directory=True)
-        monkeypatch.setenv("KEW_SWITCHYARD_SOURCE_ARCHIVE", str(linked / archive.name))
-    elif kind == "mode":
-        archive.chmod(0o640)
-    else:
-        archive.unlink()
-        os.mkfifo(archive, 0o600)
-    _chunk_assert_refused(module, capsys)
-    assert not state["calls"]
-    assert not list(repo.parent.glob("kew-switchyard-chunks.*"))
-
-
-@pytest.mark.parametrize(
-    "replacement", ["empty-directory", "entry", "extra-entry", "stage-parent"]
-)
-def test_chunk_replacements_are_retained_and_never_accepted(
-    chunk_case, capsys, replacement
-):
-    module, repo, _archive, state = chunk_case
-    sentinels = []
-
-    def mutate(stage):
-        if replacement == "empty-directory":
-            moved = stage.with_name("retained-created-stage")
-            stage.rename(moved)
-            stage.mkdir(mode=0o700)
-            sentinels.extend((stage, moved / "part-00"))
-        elif replacement == "entry":
-            leaf = stage / "part-00"
-            leaf.rename(stage / "retained-original-part")
-            leaf.write_bytes(b"SENTINEL")
-            sentinels.append(leaf)
-        elif replacement == "extra-entry":
-            leaf = stage / "unowned-extra"
-            leaf.write_bytes(b"SENTINEL")
-            sentinels.append(leaf)
-        else:
-            moved = repo.parent.with_name(repo.parent.name + "-moved")
-            repo.parent.rename(moved)
-            repo.parent.mkdir(mode=0o700)
-            sentinels.extend((repo.parent, moved / stage.name / "part-00"))
-
-    state["hook"] = mutate
-    _chunk_assert_refused(module, capsys, category="cleanup unconfirmed")
-    assert all(path.exists() for path in sentinels)
-
-
-@pytest.mark.parametrize("kind", ["source-leaf", "source-parent"])
-def test_chunk_source_identity_remains_bound_after_build(chunk_case, capsys, kind):
-    module, _repo, archive, state = chunk_case
-
-    def mutate(_stage):
-        if kind == "source-leaf":
-            replacement = archive.with_suffix(".replacement")
-            replacement.write_bytes(_CHUNK_TEST_PAYLOAD)
-            replacement.chmod(0o600)
-            os.replace(replacement, archive)
-        else:
-            archive.parent.chmod(0o755)
-
-    state["hook"] = mutate
-    _chunk_assert_refused(module, capsys)
-
-
-@pytest.mark.parametrize(
-    "iid",
-    [
-        b"",
-        b"sha256:a",
-        b"sha256:" + b"a" * 64 + b"\nX",
-        b"sha256:" + b"a" * 64 + b" " * 4100,
-        None,
-    ],
-)
-def test_chunk_iid_requires_exact_bounded_bytes(chunk_case, capsys, iid):
-    module, _repo, _archive, state = chunk_case
-    state["iid"] = iid
-    _chunk_assert_refused(module, capsys)
-
-
-@pytest.mark.parametrize("kind", ["symlink", "hardlink", "mode"])
-def test_chunk_iid_metadata_refusals_keep_unknown_entry(chunk_case, capsys, kind):
-    module, _repo, _archive, state = chunk_case
-
-    def mutate(stage):
-        iid = stage / "image.iid"
-        if kind == "symlink":
-            iid.unlink()
-            iid.symlink_to(stage / "part-00")
-        elif kind == "hardlink":
-            os.link(iid, stage / "iid-link")
-        else:
-            iid.chmod(0o644)
-
-    state["hook"] = mutate
-    _chunk_assert_refused(module, capsys, category="cleanup unconfirmed")
-    assert (state["stage"] / "image.iid").exists()
-
-
-@pytest.mark.parametrize("kind", ["unlink", "rmdir", "partial-write"])
-def test_chunk_cleanup_or_write_failure_never_emits_id(
-    chunk_case, monkeypatch, capsys, kind
-):
-    module, _repo, _archive, state = chunk_case
-    if kind == "partial-write":
-        original = module.os.write
-        called = False
-
-        def fail(fd, data):
-            nonlocal called
-            if not called:
-                called = True
-                return original(fd, data[:5])
-            raise OSError("PRIVATE_PATH_CANARY partial write")
-
-        monkeypatch.setattr(module.os, "write", fail)
-    else:
-        original = getattr(module.os, kind)
-
-        def fail(path, **kwargs):
-            raise OSError("PRIVATE_PATH_CANARY cleanup")
-
-        monkeypatch.setattr(module.os, kind, fail)
-        monkeypatch.setattr(
-            module.os, "supports_dir_fd", module.os.supports_dir_fd | {fail}
-        )
-    _chunk_assert_refused(module, capsys)
-    if kind == "partial-write":
-        assert not state["calls"]
-        assert not list(_repo.parent.glob("kew-switchyard-chunks.*"))
-    else:
-        assert state["stage"].exists()
-
-
-@pytest.mark.parametrize("kind", [signal.SIGINT, signal.SIGTERM, signal.SIGALRM])
-def test_chunk_registered_cancellation_stops_owned_process_and_cleans(
-    chunk_case, capsys, kind
-):
-    module, _repo, _archive, state = chunk_case
-    previous = signal.getsignal(kind)
-
-    def cancel():
-        signal.getsignal(kind)(kind, None)
-
-    state["wait_hook"] = cancel
-    _chunk_assert_refused(module, capsys, category="interrupted")
-    assert state["signals"] == [(123456789, signal.SIGTERM)]
-    assert signal.getsignal(kind) == previous
-    assert not state["stage"].exists()
-
-
-def test_chunk_docker_failure_redacts_and_cleans(chunk_case, capsys):
-    module, _repo, _archive, state = chunk_case
-    state["status"] = 7
-    _chunk_assert_refused(module, capsys, category="build failed")
-    assert not state["stage"].exists()
-
-
-def test_chunk_timeout_kills_then_cleans(chunk_case, capsys):
-    module, _repo, _archive, state = chunk_case
-
-    def timeout():
-        raise subprocess.TimeoutExpired(
-            ["PRIVATE_PATH_CANARY"], 1, output=b"PRIVATE_BYTES_CANARY"
-        )
-
-    state["wait_hook"] = timeout
-    _chunk_assert_refused(module, capsys, category="build timed out")
-    assert state["signals"] == [(123456789, signal.SIGTERM)]
-    assert not state["stage"].exists()
-
-
-def test_chunk_constructor_signal_latches_until_process_is_owned(chunk_case, capsys):
-    module, _repo, _archive, state = chunk_case
-
-    def during_launch(_stage):
-        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-
-    state["hook"] = during_launch
-    _chunk_assert_refused(module, capsys, category="interrupted")
-    assert state["signals"] == [(123456789, signal.SIGTERM)]
-    assert not state["stage"].exists()
-
-
-def test_chunk_timeout_escalates_only_the_owned_group(chunk_case, monkeypatch, capsys):
-    module, _repo, _archive, state = chunk_case
-
-    def timeout():
-        raise subprocess.TimeoutExpired(["PRIVATE_PATH_CANARY"], 1)
-
-    def signal_group(pid, kind):
-        if kind == 0:
-            if not state["running"]:
-                raise ProcessLookupError
-        else:
-            state["signals"].append((pid, kind))
-            if kind == signal.SIGKILL:
-                state["running"] = False
-
-    monkeypatch.setattr(module.os, "killpg", signal_group)
-    monkeypatch.setattr(module, "TERMINATION_GRACE_SECONDS", 0.03)
-    state["wait_hook"] = timeout
-    _chunk_assert_refused(module, capsys)
-    assert state["signals"] == [
-        (123456789, signal.SIGTERM),
-        (123456789, signal.SIGKILL),
-    ]
-    assert not state["stage"].exists()
-
-
-class _ChunkVirtualClock:
-    def __init__(self, real_delay=0.0):
-        self.current = 0.0
-        self.real_delay = real_delay
-        self.sleeps = []
-
-    def monotonic(self):
-        return self.current
-
-    def sleep(self, seconds):
-        if self.real_delay:
-            threading.Event().wait(self.real_delay)
-        self.sleeps.append(seconds)
-        self.current += seconds
-
-
-def _chunk_virtual_clock(module, monkeypatch, *, real_delay=0.0):
-    clock = _ChunkVirtualClock(real_delay)
-    monkeypatch.setattr(module, "time", clock)
-    return clock
-
-
-def test_chunk_transient_probe_permission_after_kill_cleans(
-    chunk_case, monkeypatch, capsys
-):
-    module, _repo, _archive, state = chunk_case
-    clock = _chunk_virtual_clock(module, monkeypatch, real_delay=0.05)
-    observation = {"killed": False, "post_kill_probes": 0}
-
-    def cancel():
-        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-
-    def signal_group(pid, kind):
-        if kind == 0:
-            if observation["killed"]:
-                observation["post_kill_probes"] += 1
-                if observation["post_kill_probes"] == 1:
-                    raise PermissionError(errno.EPERM, "synthetic probe refusal")
-                raise ProcessLookupError
-            return
-        state["signals"].append((pid, kind))
-        if kind == signal.SIGKILL:
-            observation["killed"] = True
-            state["running"] = False
-
-    monkeypatch.setattr(module.os, "killpg", signal_group)
-    monkeypatch.setattr(module, "TERMINATION_GRACE_SECONDS", 0.03)
-    state["wait_hook"] = cancel
-
-    _chunk_assert_refused(module, capsys, category="interrupted")
-
-    assert state["signals"] == [
-        (123456789, signal.SIGTERM),
-        (123456789, signal.SIGKILL),
-    ]
-    assert observation["post_kill_probes"] == 2
-    assert clock.sleeps == [0.02, 0.02, 0.02]
-    assert not state["stage"].exists()
-
-
-def test_chunk_persistent_probe_permission_retains_uncertain_stage(
-    chunk_case, monkeypatch, capsys
-):
-    module, _repo, _archive, state = chunk_case
-    clock = _chunk_virtual_clock(module, monkeypatch)
-    probes = 0
-
-    def cancel():
-        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-
-    def signal_group(pid, kind):
-        nonlocal probes
-        if kind == 0:
-            probes += 1
-            raise PermissionError(errno.EPERM, "synthetic probe refusal")
-        state["signals"].append((pid, kind))
-
-    monkeypatch.setattr(module.os, "killpg", signal_group)
-    monkeypatch.setattr(module, "TERMINATION_GRACE_SECONDS", 0.03)
-    state["wait_hook"] = cancel
-
-    _chunk_assert_refused(module, capsys, category="cleanup unconfirmed")
-
-    assert state["signals"] == [
-        (123456789, signal.SIGTERM),
-        (123456789, signal.SIGKILL),
-    ]
-    assert probes == 6
-    assert clock.sleeps == [0.02, 0.02, 0.02, 0.02]
-    assert state["stage"].exists()
-
-
-@pytest.mark.parametrize("failed_signal", [signal.SIGTERM, signal.SIGKILL])
-def test_chunk_signal_send_permission_refuses_cleanup(
-    chunk_case, monkeypatch, capsys, failed_signal
-):
-    module, _repo, _archive, state = chunk_case
-    clock = _chunk_virtual_clock(module, monkeypatch)
-
-    def cancel():
-        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-
-    def signal_group(pid, kind):
-        if kind == 0:
-            return
-        state["signals"].append((pid, kind))
-        if kind == failed_signal:
-            raise PermissionError(errno.EPERM, "synthetic send refusal")
-
-    monkeypatch.setattr(module.os, "killpg", signal_group)
-    monkeypatch.setattr(module, "TERMINATION_GRACE_SECONDS", 0.03)
-    state["wait_hook"] = cancel
-
-    _chunk_assert_refused(module, capsys, category="cleanup unconfirmed")
-
-    expected = [signal.SIGTERM]
-    if failed_signal == signal.SIGKILL:
-        expected.append(signal.SIGKILL)
-    assert state["signals"] == [(123456789, kind) for kind in expected]
-    expected_sleeps = [0.02, 0.02] if failed_signal == signal.SIGKILL else []
-    assert clock.sleeps == expected_sleeps
-    assert state["stage"].exists()
-
-
-@pytest.mark.parametrize("refusal", [False, True])
-def test_chunk_all_opened_descriptors_close_on_success_or_refusal(
-    chunk_case, monkeypatch, capsys, refusal
-):
-    module, _repo, archive, _state = chunk_case
-    opened = []
-    original = module.os.open
-
-    def tracked(*args, **kwargs):
-        fd = original(*args, **kwargs)
-        opened.append(fd)
-        return fd
-
-    monkeypatch.setattr(module.os, "open", tracked)
-    monkeypatch.setattr(
-        module.os, "supports_dir_fd", module.os.supports_dir_fd | {tracked}
-    )
-    if refusal:
-        archive.chmod(0o644)
-        _chunk_assert_refused(module, capsys)
-    else:
-        assert module.main() == 0
-        assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-    assert opened
-    for fd in set(opened):
-        with pytest.raises(OSError):
-            os.fstat(fd)
-
-
-@pytest.mark.parametrize("mutation", ["order", "duplicate"])
-def test_chunk_retained_reconstruction_digest_detects_full_chunk_substitution(
-    chunk_case, monkeypatch, capsys, mutation
-):
-    module, _repo, _archive, state = chunk_case
-    original = module.Stage.write_chunk
-
-    def write(stage, index, data):
-        source_index = index
-        if mutation == "order" and index in (0, 1):
-            source_index = 1 - index
-        if mutation == "duplicate" and index == 1:
-            source_index = 0
-        return original(stage, index, bytes([source_index]) * len(data))
-
-    monkeypatch.setattr(module.Stage, "write_chunk", write)
-    _chunk_assert_refused(module, capsys, category="digest mismatch")
-    assert not state["calls"]
-
-
-def test_chunk_preparation_and_build_share_one_deadline(
-    chunk_case, monkeypatch, capsys
-):
-    module, _repo, _archive, state = chunk_case
-    values = iter((100.0, 1600.0))
-    monkeypatch.setattr(module.time, "monotonic", lambda: next(values))
-    assert module.main() == 0
-    assert capsys.readouterr().out == _CHUNK_TEST_IID + "\n"
-    assert state["calls"]
-    assert state["waits"] == [150.0]
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        "",
-        "missing-first",
-        "missing-final",
-        "short-first",
-        "short-final",
-        "long-final",
-        "reordered-full",
-        "duplicated-full",
-        "preexisting-output",
-    ],
-    ids=lambda mutation: mutation or "intact",
-)
-def test_chunk_dockerfile_reassembly_checks_shape_and_original_digest(
-    tmp_path, mutation
-):
-    import shlex
-
-    digest_tool = shutil.which("gsha256sum") or shutil.which("sha256sum")
-    if digest_tool is None or shutil.which("bash") is None:
-        pytest.skip("requires bash and sha256sum for the exact reassembly fragment")
-    version = subprocess.run(
-        [digest_tool, "--version"],
-        capture_output=True,
-        text=True,
-        timeout=5,
-        check=False,
-    )
-    # The fragment needs `--check --status` reading `<digest>  <path>` lines
-    # from stdin: GNU (the Debian builder) and uutils (newer Ubuntu) both
-    # give that the same exit codes and silence; a BSD one may not.
-    coreutils = ("GNU coreutils", "uutils coreutils")
-    if version.returncode != 0 or not any(c in version.stdout for c in coreutils):
-        pytest.skip("requires a GNU or uutils sha256sum with --check --status")
-    if "_CHUNK_PRIVATE_SOURCE" in globals():
-        program = (
-            globals()["_CHUNK_PRIVATE_SOURCE"]
-            .with_name("scimg_chunk_v3_reassembly.sh")
-            .read_text()
-        )
-        original_digest = (
-            "a53aac972293ceef2ac2f5a84da92e022cc1d4a903521761cc90f18655cfb31e"
-        )
-    else:
-        content = globals()["_SWITCHYARD_DOCKERFILE"].read_text()
-        start = content.index("    umask 077;")
-        end = content.index("    python3 -I -B -c", start)
-        program = content[start:end].replace("\\\n", "")
-        original_digest = globals()["_SWITCHYARD_ARCHIVE_SHA256"]
-    root = tmp_path.resolve()
-    assert " " not in str(root)
-    mounts = root / "secret-mounts"
-    mounts.mkdir(mode=0o700)
-    private = root / "private-tmpfs"
-    private.mkdir(mode=0o700)
-    for index in range(16):
-        wanted = 491_520 if index < 15 else 81_920
-        (mounts / f"switchyard_source_archive_{index:02d}").write_bytes(
-            bytes([index]) * wanted
-        )
-    first = mounts / "switchyard_source_archive_00"
-    second = mounts / "switchyard_source_archive_01"
-    final = mounts / "switchyard_source_archive_15"
-    if mutation == "missing-first":
-        first.unlink()
-    elif mutation == "missing-final":
-        final.unlink()
-    elif mutation == "short-first":
-        first.write_bytes(first.read_bytes()[:-1])
-    elif mutation == "short-final":
-        final.write_bytes(final.read_bytes()[:-1])
-    elif mutation == "long-final":
-        final.write_bytes(final.read_bytes() + b"X")
-    elif mutation == "reordered-full":
-        first_bytes, second_bytes = first.read_bytes(), second.read_bytes()
-        first.write_bytes(second_bytes)
-        second.write_bytes(first_bytes)
-    elif mutation == "duplicated-full":
-        second.write_bytes(first.read_bytes())
-    elif mutation == "preexisting-output":
-        (private / "source.tar").write_bytes(b"SENTINEL")
-    assert program.count(original_digest) == 1
-    program = program.replace(
-        original_digest, hashlib.sha256(_CHUNK_TEST_PAYLOAD).hexdigest()
-    )
-    assert program.count("sha256sum --check --status") == 1
-    program = program.replace(
-        "sha256sum --check --status", shlex.quote(digest_tool) + " --check --status"
-    )
-    program = program.replace("/private-source", str(private)).replace(
-        "/run/secrets", str(mounts)
-    )
-    accepted = root / "validation-complete"
-    program += f"\nprintf accepted > {accepted}\n"
-    result = subprocess.run(
-        ["bash", "-c", program], capture_output=True, text=True, timeout=15, check=False
-    )
-    assert result.stdout == ""
-    if mutation:
-        assert result.returncode != 0
-        assert not accepted.exists()
-        assert str(root) not in result.stderr
-        if mutation in ("reordered-full", "duplicated-full"):
-            assert "digest mismatch" in result.stderr
-        if mutation == "preexisting-output":
-            assert (private / "source.tar").read_bytes() == b"SENTINEL"
-    else:
-        assert result.returncode == 0, result.stderr
-        assert accepted.exists()
-        assert (private / "source.tar").read_bytes() == _CHUNK_TEST_PAYLOAD
-        assert (private / "source.tar").stat().st_mode & 0o777 == 0o600
-
-
-@pytest.mark.serial
-@pytest.mark.parametrize("delivery", ["pid-term", "pid-int", "group-term", "alarm"])
-def test_chunk_shipped_wrapper_real_cancellation_leaves_no_fake_docker_group(
-    tmp_path, delivery
-):
-    import contextlib
-    import shlex
-    import time
-
-    root = tmp_path.resolve()
-    repository = root / "repository"
-    scripts = repository / "scripts"
-    scripts.mkdir(parents=True)
-    private = root / "private"
-    private.mkdir(mode=0o700)
-    archive = private / "synthetic.tar"
-    archive.write_bytes(_CHUNK_TEST_PAYLOAD)
-    archive.chmod(0o600)
-    staging = root / "staging"
-    staging.mkdir(mode=0o700)
-    origin = globals().get("_CHUNK_PRIVATE_SCRIPT", globals().get("_SCAN_SCRIPT"))
-    content = origin.read_text()
-    original_digest = "a53aac972293ceef2ac2f5a84da92e022cc1d4a903521761cc90f18655cfb31e"
-    assert content.count(original_digest) == 1
-    content = content.replace(
-        original_digest, hashlib.sha256(_CHUNK_TEST_PAYLOAD).hexdigest()
-    )
-    assert content.count("TERMINATION_GRACE_SECONDS = 10") == 1
-    content = content.replace(
-        "TERMINATION_GRACE_SECONDS = 10", "TERMINATION_GRACE_SECONDS = 0.5"
-    )
-    script = scripts / "scan-agent-image.sh"
-    script.write_text(content)
-    _plant_trivy_pin(repository)
-    binaries = root / "bin"
-    binaries.mkdir()
-    (binaries / "python3").symlink_to(sys.executable)
-    record = root / "fake-docker.json"
-    fake = """import json,os,signal,subprocess,sys,time
-from pathlib import Path
-assert sys.argv[1:3] == ["build", "-f"]
-parts = [Path(a.split(",src=",1)[1]) for a in sys.argv
-         if a.startswith("id=switchyard_source_archive_")]
-assert len(parts) == 16
-assert [p.stat().st_size for p in parts] == [491520] * 15 + [81920]
-assert all(p.read_bytes() == bytes([i]) * (491520 if i < 15 else 81920)
-           for i,p in enumerate(parts))
-record = Path(os.environ["SCIMG_FAKE_RECORD"])
-child_ready = record.with_suffix(".child-ready")
-child_code = ("import signal,sys,time;from pathlib import Path;"
-              "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
-              "Path(sys.argv[1]).touch();time.sleep(15)")
-child = subprocess.Popen([sys.executable,"-I","-B","-S","-c",
-                          child_code,str(child_ready)])
-while not child_ready.exists(): time.sleep(0.005)
-temporary = record.with_suffix(".temporary")
-temporary.write_text(json.dumps({"pid":os.getpid(),"pgid":os.getpgrp(),
-                                 "child":child.pid,"stage":str(parts[0].parent)}))
-os.replace(temporary, record)
-while True: time.sleep(1)
-"""
-    docker = binaries / "docker"
-    docker.write_text(
-        "#!/bin/sh\nexec "
-        + shlex.quote(sys.executable)
-        + " -I -B -S -c "
-        + shlex.quote(fake)
-        + ' "$@"\n'
-    )
-    docker.chmod(0o700)
-    environment = {
-        "PATH": str(binaries) + ":/usr/bin:/bin",
-        "LANG": "C",
-        # --build-switchyard-only is a Switchyard-only action, and those are
-        # refused unless the run opts in (tests/test_switchyard_image_skip.py).
-        "KEW_SWITCHYARD_IMAGE": "1",
-        "KEW_SWITCHYARD_SOURCE_ARCHIVE": str(archive),
-        "TMPDIR": str(staging),
-        "SCIMG_FAKE_RECORD": str(record),
-    }
-    producer = subprocess.Popen(
-        ["/bin/bash", str(script), "--build-switchyard-only"],
-        env=environment,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-    )
-    observed = None
-    try:
-        # The producer must reach fake Docker: late passes, never fails.
-        limit = time.monotonic() + 60
-        while (
-            not record.exists() and producer.poll() is None and time.monotonic() < limit
-        ):
-            time.sleep(0.01)
-        assert record.exists(), "synthetic producer did not reach fake Docker"
-        observed = json.loads(record.read_text())
-        assert observed["pid"] == observed["pgid"]
-        assert observed["pid"] != producer.pid
-        assert Path(observed["stage"]).parent == staging
-        if delivery == "pid-term":
-            os.kill(producer.pid, signal.SIGTERM)
-        elif delivery == "pid-int":
-            os.kill(producer.pid, signal.SIGINT)
-        elif delivery == "group-term":
-            os.killpg(producer.pid, signal.SIGTERM)
-        else:
-            os.kill(producer.pid, signal.SIGALRM)
-        output, error = producer.communicate(timeout=8)
-        assert producer.returncode == 1
-        assert output == ""
-        assert "interrupted" in error
-        assert str(archive) not in error and "Traceback" not in error
-        assert not Path(observed["stage"]).exists()
-        assert not list(staging.iterdir())
-        with pytest.raises(ProcessLookupError):
-            os.killpg(observed["pgid"], 0)
-    finally:
-        # Only these newly created synthetic process groups are eligible for cleanup.
-        if producer.poll() is None:
-            os.killpg(producer.pid, signal.SIGKILL)
-            producer.wait(timeout=5)
-        if observed is not None:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(observed["pgid"], signal.SIGKILL)

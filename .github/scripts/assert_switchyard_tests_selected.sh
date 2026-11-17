@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The opted-in run must really select the Switchyard image tests.
 #
-# KEW_SWITCHYARD_IMAGE=1 declares that this machine holds the pinned private
-# Switchyard source input, so the tests marked requires_switchyard_image
+# KEW_SWITCHYARD_IMAGE=1 declares that this run builds the kew-switchyard image
+# from the upstream commit docker/switchyard.Dockerfile pins (slow, and it
+# fetches that source over the network), so the tests marked requires_switchyard_image
 # (kew/tests/conftest.py) run here — they are the sidecar packet
 # certification. The image tooling is opt-in, so a drifting marker, a broken
 # deselection or a mistyped switch would quietly empty that set in a job that

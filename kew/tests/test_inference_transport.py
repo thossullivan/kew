@@ -141,6 +141,9 @@ def test_managed_switchyard_defers_admission_to_run_owned_supervisor(tmp_path) -
         'id = "switchyard/llm_classifier"\n'
         'type = "llm_classifier"\n'
         'classifier_target = "strong"\n'
+        'strong_target = "strong"\n'
+        'weak_target = "strong"\n'
+        "base_threshold = 0.5\n"
     )
     config = DispatchConfig(
         inference_transport={
@@ -187,6 +190,9 @@ def _managed_adaptive_config(tmp_path, **switchyard_overrides):
         'id = "switchyard/llm_classifier"\n'
         'type = "llm_classifier"\n'
         'classifier_target = "strong"\n'
+        'strong_target = "strong"\n'
+        'weak_target = "strong"\n'
+        "base_threshold = 0.5\n"
     )
     settings = {
         "endpoint": "http://127.0.0.1:4000",

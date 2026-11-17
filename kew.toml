@@ -187,12 +187,12 @@ anomaly_floor_multiple = 6.0
 # `bash scripts/build-check-image.sh --print-tag` prints; it moves whenever the
 # Dockerfile, frontend/package.json, a lock or the base pin does, so rebuild
 # and re-pin together.
-check_image = "kew-check:dbaf17b794bb"
+check_image = "kew-check:5caee2bde91c"
 
 [sandbox.images]
-claude-code = "kew-agent:docker-d148816b388f"
-codex = "kew-agent-codex:docker-d148816b388f"
-opencode = "kew-agent-opencode:docker-d148816b388f"
+claude-code = "kew-agent:docker-236e8d2ed49d"
+codex = "kew-agent-codex:docker-236e8d2ed49d"
+opencode = "kew-agent-opencode:docker-236e8d2ed49d"
 
 [security]
 # blocked_prefix_patterns = []

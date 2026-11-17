@@ -79,11 +79,13 @@
     {
       "name": "operate-kew",
       "kind": "skill",
-      "version": 1,
+      "version": 2,
       "source": "_skills/operate-kew/SKILL.md",
       "target": ".claude/skills/operate-kew/SKILL.md",
-      "sha256": "5d8347443147f2d77048f8863e35b17dce9ead30c3b5ee0bb6722013b05f9eeb",
-      "previous_sha256": []
+      "sha256": "cee01da4c6d43b3bff4afe009285c9d4cd20adfff76af51efcbb437184866f63",
+      "previous_sha256": [
+        "5d8347443147f2d77048f8863e35b17dce9ead30c3b5ee0bb6722013b05f9eeb"
+      ]
     },
     {
       "name": "adversarial-reviewer",

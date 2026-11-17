@@ -14,13 +14,13 @@ I treat every agent as an untrusted author, and that includes what it might do
 on your machine while it works. So I would rather tell you which shapes
 the hook misses than let a pattern list pass for a wall.
 
-The security hook runs as a Claude Code `PreToolUse` handler on the **Bash**, **Write**, and **Edit** tools. In a Claude Code session it runs before each of those tool calls, even with `--dangerously-skip-permissions` enabled. It runs for Claude Code only. Other runners do not load it.
+The security hook is opt-in: `kew setup --guard-hook` or `kew init --guard-hook` installs it, since it then runs in every Claude Code session in the repository, not only kew's agents. It runs as a Claude Code `PreToolUse` handler on the **Bash**, **Write**, and **Edit** tools. In a Claude Code session it runs before each of those tool calls, even with `--dangerously-skip-permissions` enabled. It runs for Claude Code only. Other runners do not load it.
 
 **This is defense-in-depth, not a security boundary.** The hook is a pattern match against known-destructive shell commands; it *catches* casual and accidental damage, it does not *prevent* a sufficiently motivated or prompt-injected agent from working around it. The actual isolation boundary is [container or runner-native containment](#sandboxed-dispatch-credential-posture) — run the guard alongside containment, not instead of it.
 
 **Write/Edit protection (dispatched agents only):**
 
-- Blocks every Write/Edit under any `.claude/` directory (hooks, settings, permissions, installed [skills](skills.md), and the guard script itself) with path canonicalization to prevent symlink/relative-path bypasses. The rule is keyed on the `AGENT_ASSIGNED_WORKTREE` marker, which kew sets on the agent's process environment. `kew setup` installs the same hook at the project root, so in your own interactive session (no marker) Write/Edit of `.claude/settings.json` or the hook is **allowed** — otherwise you could not edit your own hooks. Contained dispatch sets the same marker inside the container as the mount path (`-e AGENT_ASSIGNED_WORKTREE=/work`, #1691), so this rule and the cross-checkout ref rule apply to contained agents too. The Bash-side `.claude` write rules below apply in every session.
+- Blocks every Write/Edit under any `.claude/` directory (hooks, settings, permissions, installed [skills](skills.md), and the guard script itself) with path canonicalization to prevent symlink/relative-path bypasses. The rule is keyed on the `AGENT_ASSIGNED_WORKTREE` marker, which kew sets on the agent's process environment. `kew setup --guard-hook` installs the same hook at the project root, so in your own interactive session (no marker) Write/Edit of `.claude/settings.json` or the hook is **allowed** — otherwise you could not edit your own hooks. Contained dispatch sets the same marker inside the container as the mount path (`-e AGENT_ASSIGNED_WORKTREE=/work`, #1691), so this rule and the cross-checkout ref rule apply to contained agents too. The Bash-side `.claude` write rules below apply in every session.
 
 **Bash command blocking:**
 
@@ -85,7 +85,7 @@ blocked_prefix_patterns = ["kubectl delete"]
 blocked_exact_patterns = ["DROP DATABASE"]
 ```
 
-The guard is managed through [`kew skills`](cli/skills.md) like any other shipped artifact (`kew setup` installs it initially). `kew skills update security-guard` re-renders the hook from your current `kew.toml`, so custom patterns are re-applied rather than lost — see [Guard updates preserve your config](skills.md#guard-updates-preserve-your-config).
+The guard is managed through [`kew skills`](cli/skills.md) like any other shipped artifact (`kew setup --guard-hook` installs it initially; without the flag no hook is installed, and a dispatch records `command_guard` as `absent`). `kew skills update security-guard` re-renders the hook from your current `kew.toml`, so custom patterns are re-applied rather than lost — see [Guard updates preserve your config](skills.md#guard-updates-preserve-your-config).
 
 ## Untrusted content in agent prompts
 
@@ -1789,9 +1789,9 @@ A missing or unavailable matrix refuses a sidecar launch before agent execution.
 A health response or filter readback cannot replace this matrix.
 
 Default CI does not exercise this packet certification.
-The Switchyard image tooling is opt-in: the tests that prove the matrix need the `kew-switchyard` image, which builds only from a pinned private source input.
+The Switchyard image tooling is opt-in: the tests that prove the matrix need the `kew-switchyard` image, which compiles upstream's public Switchyard source at a pinned commit, slowly and over the network.
 They are marked `requires_switchyard_image` and are deselected unless a run sets `KEW_SWITCHYARD_IMAGE=1`.
-Only opted-in runs — the private runner, and a local run on a machine that holds the input — exercise the certification.
+Only opted-in runs — the private runner, and a local run that sets the switch — exercise the certification.
 An opted-in job asserts the marked tests are still selected before running them, so the certification cannot silently stop running.
 The runner rule and the switch are in [Public repository runner rule](operations.md#public-repository-runner-rule).
 
@@ -1807,7 +1807,7 @@ It appends certification only after every packet control passes and exact cleanu
 Unavailable proof, cleanup, ledger access, or append confirmation fails the gate.
 Without the explicit environment variable, the test writes only its temporary test ledger.
 The printed certification names the exact immutable image IDs and filter-policy digest.
-The worker tag is `SandboxConfig().image`, currently `kew-agent:docker-d148816b388f`.
+The worker tag is `SandboxConfig().image`, currently `kew-agent:docker-236e8d2ed49d`.
 The proxy tag uses the same suffix with the `kew-switchyard` image name.
 This gate does not certify a different mapped worker image, including an OpenCode image.
 An unproved image pair refuses admission; this node adds no runner or authentication support.

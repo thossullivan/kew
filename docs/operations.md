@@ -96,6 +96,27 @@ kew audit ledger-rebind --target /path/to/dispatch.db \
   --reason "adopt verified legacy ledger" --yes
 ```
 
+If the registry names a database that no longer exists, the open refuses with
+`WRONG-LEDGER: configured path mismatch; registered database <path> is missing`
+and prints the recovery. Earlier releases could create the ledger inside a
+linked worktree, so removing the worktree also removed the ledger. Put the
+ledger back at the configured path from a `kew backup` archive or a surviving
+copy. Then register it there with the ledger UUID the refusal names:
+
+```bash
+kew audit ledger-rebind --target /path/to/configured/dispatch.db \
+  --expected-ledger-id <ledger UUID from the refusal> \
+  --reason "recover ledger lost with a removed worktree" --yes
+```
+
+If an earlier release registered the ledger inside a linked worktree that still
+exists, the worktree and the main checkout now both resolve a relative
+`logging.dir` to the main checkout, and the open refuses with
+`WRONG-LEDGER: configured path mismatch; registered path exists at <path>`.
+Stop kew, move the registered `dispatch.db` (with any `dispatch.db-wal` and
+`dispatch.db-shm` beside it) to the configured path the refusal names, and
+register it there with the same `ledger-rebind` command.
+
 `ledger-rebind` is an explicit recovery or adoption decision, never a way to
 merge, splice, or reconcile two chains. It requires exactly one full expected
 identity (`--expected-ledger-id`) or legacy anchor hash
@@ -638,20 +659,21 @@ human, see [Agent PR CI approval](#agent-pr-ci-approval).
 
 ### The Switchyard image on the hosted runner
 
-The `kew-switchyard` image builds only from its pinned source input. That
-input exists on the private runner alone, because the pinned Switchyard input
-includes unreleased upstream patches; it builds on the private runner until
-they are public. So the Switchyard image tooling is **opt-in**:
-`KEW_SWITCHYARD_IMAGE=1` runs it, and unset or empty — the default on every
-machine that does not hold the input, which is the hosted runner, the GCP
-verify VM and a contributor's laptop — skips three things, each printing that
-reason:
+The `kew-switchyard` image builds from upstream's public Switchyard source:
+`main` at the commit `docker/switchyard.Dockerfile` pins, which reports
+version 0.3.0 but is not the tagged v0.3.0 release. The build fetches that
+commit by its full SHA and checks the commit, its tree and its lockfile digest
+before it reads the source. Building it compiles that
+source, which is slow and needs the network, so the Switchyard image tooling
+is **opt-in**: `KEW_SWITCHYARD_IMAGE=1` runs it, and unset or empty — the
+default on the hosted runner, the GCP verify VM and a contributor's laptop —
+skips three things, each printing that reason (building the Switchyard image
+compiles the pinned upstream source, which is slow and needs the network):
 
 - the tests marked `requires_switchyard_image` (the Switchyard topology tests
   and the pinned proxy build), deselected by `kew/tests/conftest.py`;
 - the Switchyard image check in the release `serial-tests` prerequisites;
-- the Switchyard layer of `scripts/scan-agent-image.sh`, which on a default
-  run never even validates the private source archive.
+- the Switchyard layer of `scripts/scan-agent-image.sh`.
 
 Any other value is a usage error on all three paths, so a typo cannot opt in
 or out silently. Nothing else skips: a default run builds the `kew-allowlist`
@@ -659,27 +681,24 @@ network and the pinned agent image
 (`.github/scripts/provision_hosted_docker_inputs.sh`), runs every other serial
 test, and scans every agent image.
 
-`ci.yml` and `release.yml` opt in exactly where the input exists — the private
-runner — with this line at the top of each:
+`ci.yml` and `release.yml` opt in on the private runner with this line at the
+top of each:
 
 ```yaml
 KEW_SWITCHYARD_IMAGE: ${{ github.event.repository.visibility == 'private' && '1' || '' }}
 ```
 
-The archive secret is mapped only into the steps that line opts in, so a
-default run never receives it. Because the marked tests are absent from every
-default run, an empty selection would otherwise be invisible: each opted-in
-job runs `.github/scripts/assert_switchyard_tests_selected.sh` before its
-suite, which fails when `KEW_SWITCHYARD_IMAGE=1` but no marked test was
+No secret reaches the Switchyard build. Because the marked tests are absent
+from every default run, an empty selection would otherwise be invisible: each
+opted-in job runs `.github/scripts/assert_switchyard_tests_selected.sh` before
+its suite, which fails when `KEW_SWITCHYARD_IMAGE=1` but no marked test was
 selected. Default runs do not exercise the sidecar packet certification at
 all — see
 [Worker namespace filter proof](security.md#worker-namespace-filter-proof).
 
-To opt the hosted runner in, once the patches are public, change that
-expression to a plain `'1'` in both files (or delete the switch and the three
-skip branches outright). The hosted runner then needs the pinned source
-input: rebuild the archive from the public commit and check it against the
-digest pinned in `docker/switchyard.Dockerfile` before the build uses it.
+To opt the hosted runner in, change that expression to a plain `'1'` in both
+files (or delete the switch and the three skip branches outright). The build
+fetches its own source, so the hosted runner needs only network access.
 
 Every `uses:` in the workflows is pinned to a full commit SHA with its tag in a
 trailing comment, and the gitleaks and trivy downloads are checked against
@@ -688,9 +707,9 @@ SHA-256 values copied from their releases' checksum files.
 ## Agent PR CI approval
 
 While the repository is private, `ci.yml` runs its `test` and
-`agent-image-scan` jobs on the self-hosted runner (a maintainer's machine), with a
-secret in the environment. An agent-authored PR can add an ordinary test file,
-so those jobs do not run for an agent PR until a human approves it (#2033).
+`agent-image-scan` jobs on the self-hosted runner (a maintainer's machine). An
+agent-authored PR can add an ordinary test file, so those jobs do not run for
+an agent PR until a human approves it (#2033).
 
 - An agent PR is one labelled `agent-pr` (`labels.agent_pr`), or one whose
   head branch starts with `agent/issue-` (`branches.prefix`). kew opens the PR

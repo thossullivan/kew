@@ -20,12 +20,6 @@ BOUNDARY_CONDITION = (
 )
 SERIAL_COMMAND = "uv run pytest -m serial"
 NONSERIAL_COMMAND = 'uv run pytest -n auto -m "not serial"'
-# The Switchyard image tooling is opt-in, and the private source input is
-# useless without it, so the secret is mapped only into opted-in steps.
-ARCHIVE_SECRET = (
-    "${{ env.KEW_SWITCHYARD_IMAGE == '1' "
-    "&& secrets.KEW_SWITCHYARD_SOURCE_ARCHIVE || '' }}"
-)
 RELEASE_CONDITION = (
     "needs.canonical.outputs.canonical == 'true' && "
     "(github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')"
@@ -149,14 +143,9 @@ def _assert_release_serial_gate(data: dict) -> None:
 
     assert tests.get("working-directory") == "kew"
     assert tests.get("run") == SERIAL_COMMAND
-    assert tests.get("env") == {"KEW_SWITCHYARD_SOURCE_ARCHIVE": ARCHIVE_SECRET}
-    assert "KEW_SWITCHYARD_SOURCE_ARCHIVE" not in str(tests.get("run", ""))
-    all_run_text = "\n".join(
-        str(step.get("run", ""))
-        for job in jobs.values()
-        for step in job.get("steps", [])
-    )
-    assert "KEW_SWITCHYARD_SOURCE_ARCHIVE" not in all_run_text
+    # The serial tests read no secret: the Switchyard image they opt into is
+    # built from public source.
+    assert "env" not in tests
 
     commands = _pytest_commands(data)
     assert commands.count((SERIAL_JOB, SERIAL_COMMAND)) == 1
@@ -298,14 +287,9 @@ def _duplicate_serial_tests(data: dict) -> None:
     step["run"] += f"\n{SERIAL_COMMAND}"
 
 
-def _drop_archive_mapping(data: dict) -> None:
+def _map_a_secret_into_serial_tests(data: dict) -> None:
     step = _named_step(data["jobs"][SERIAL_JOB], "Run serial tests")
-    step.pop("env", None)
-
-
-def _print_archive_value(data: dict) -> None:
-    step = _named_step(data["jobs"][SERIAL_JOB], "Run serial tests")
-    step["run"] += '\necho "$KEW_SWITCHYARD_SOURCE_ARCHIVE"'
+    step["env"] = {"SERIAL_SECRET": "${{ secrets.SERIAL_SECRET }}"}
 
 
 @pytest.mark.parametrize(
@@ -333,8 +317,7 @@ def _print_archive_value(data: dict) -> None:
         _run_prerequisites_without_errexit,
         _run_release_after_failed_dependency,
         _duplicate_serial_tests,
-        _drop_archive_mapping,
-        _print_archive_value,
+        _map_a_secret_into_serial_tests,
     ],
 )
 def test_release_serial_gate_mutations_fail_assertions(
@@ -412,8 +395,8 @@ def test_testpypi_rehearsal_gated_on_registered_publisher():
 
 
 SKIP_REASON = (
-    "the pinned Switchyard input includes unreleased upstream patches; "
-    "it builds on the private runner until they are public"
+    "building the Switchyard image compiles the pinned upstream source, "
+    "which is slow and needs the network"
 )
 
 

@@ -2002,12 +2002,18 @@ def _raise_loop_verification_failure(reason: str | None) -> None:
         raise typer.Exit(1)
 
 
-def _setup_artifacts(config: DispatchConfig) -> dict[str, str]:
-    """Install every shipped artifact; a locally modified one is ``skipped``."""
+def _setup_artifacts(config: DispatchConfig, *, guard_hook: bool) -> dict[str, str]:
+    """Install every shipped artifact; a locally modified one is ``skipped``.
+
+    The hook artifact is the security guard, so it is installed only when
+    ``guard_hook`` asked for it (#3577).
+    """
     from kew.skills_catalog import LocallyModifiedError, apply_artifact, load_manifest
 
     artifacts: dict[str, str] = {}
     for artifact in load_manifest():
+        if artifact.kind == "hook" and not guard_hook:
+            continue
         try:
             action = apply_artifact(artifact, Path.cwd(), config)
         except LocallyModifiedError:
@@ -2017,6 +2023,38 @@ def _setup_artifacts(config: DispatchConfig) -> dict[str, str]:
             artifacts[artifact.name] = action
             _log(f"skill {artifact.name}: {action}")
     return artifacts
+
+
+#: Where ``kew setup --guard-hook`` writes the security guard, and wires it.
+GUARD_HOOK_PATH = Path(".claude/hooks/security-guard.sh")
+CLAUDE_SETTINGS_PATH = Path(".claude/settings.json")
+
+#: The action ``kew setup --json`` reports for a write nobody asked for.
+NOT_REQUESTED = "not requested"
+
+
+def _setup_guard_hook(config: DispatchConfig) -> str:
+    """Write the security guard and wire it as a PreToolUse hook (#3577)."""
+    from kew.security import generate_security_hook, wire_hook_into_settings
+
+    generate_security_hook(GUARD_HOOK_PATH, config)
+    wire_hook_into_settings(CLAUDE_SETTINGS_PATH)
+    _log(f"Security guard: {GUARD_HOOK_PATH} wired into {CLAUDE_SETTINGS_PATH}")
+    return "installed"
+
+
+def _setup_opt_ins(
+    config: DispatchConfig, *, guard_hook: bool, agents_md: bool
+) -> tuple[str, str]:
+    """The guard hook's and the AGENTS.md block's actions, each written on request."""
+    guard = _setup_guard_hook(config) if guard_hook else NOT_REQUESTED
+    agents_md_action = _setup_agents_md() if agents_md else NOT_REQUESTED
+    if not (guard_hook and agents_md):
+        _log(
+            "Tip: `kew setup --guard-hook` installs the security guard and "
+            "`kew setup --agents-md` writes kew's AGENTS.md block."
+        )
+    return guard, agents_md_action
 
 
 def _setup_agents_md() -> str:
@@ -2048,8 +2086,28 @@ def setup(
             "--json", help="Print one JSON document of what setup did on stdout."
         ),
     ] = False,
+    guard_hook: Annotated[
+        bool,
+        typer.Option(
+            "--guard-hook",
+            help=(
+                "Install the security-guard hook in .claude/settings.json; "
+                "it runs in every Claude session in the repo."
+            ),
+        ),
+    ] = False,
+    agents_md: Annotated[
+        bool,
+        typer.Option(
+            "--agents-md",
+            help=(
+                "Write kew's block into AGENTS.md; it tells every agent in the "
+                "repo never to approve, label or merge."
+            ),
+        ),
+    ] = False,
 ) -> None:
-    """Create labels, security hooks, and directories."""
+    """Create labels and directories; the guard hook and AGENTS.md block on request."""
     config = load_config()
     preflight_tools()
 
@@ -2070,15 +2128,11 @@ def setup(
         _error(exception_text(exc))
         raise typer.Exit(2) from exc
 
-    # Generate security hook
-    from kew.security import generate_security_hook, wire_hook_into_settings
+    guard, agents_md_action = _setup_opt_ins(
+        config, guard_hook=guard_hook, agents_md=agents_md
+    )
 
-    hook_path = Path(".claude/hooks/security-guard.sh")
-    generate_security_hook(hook_path, config)
-    wire_hook_into_settings(Path(".claude/settings.json"))
-    agents_md = _setup_agents_md()
-
-    artifacts = _setup_artifacts(config) if with_skills else {}
+    artifacts = _setup_artifacts(config, guard_hook=guard_hook) if with_skills else {}
     if not with_skills:
         _log("Tip: `kew skills install --all` provisions kew's agent skills.")
     skipped_artifacts = sum(action == "skipped" for action in artifacts.values())
@@ -2090,19 +2144,20 @@ def setup(
     worktree_dir.mkdir(parents=True, exist_ok=True)
 
     _log(f"Log directory: {log_dir}")
-    ok = not (result.failed or skipped_artifacts or agents_md == "skipped")
+    ok = not (result.failed or skipped_artifacts or agents_md_action == "skipped")
     if json_output:
         document = {
             "schema": SETUP_SCHEMA_VERSION,
             "repo": config.project.repo,
             "labels": result.names,
-            "hook_path": str(hook_path.resolve()),
-            "settings_path": str(Path(".claude/settings.json").resolve()),
+            "hook_path": str(GUARD_HOOK_PATH.resolve()),
+            "settings_path": str(CLAUDE_SETTINGS_PATH.resolve()),
+            "guard_hook": guard,
             "directories": {"logs": str(log_dir), "worktrees": str(worktree_dir)},
             "artifacts": artifacts,
             "agents_md": {
                 "path": str(Path("AGENTS.md").resolve()),
-                "action": agents_md,
+                "action": agents_md_action,
             },
             "ok": ok,
         }
@@ -2110,7 +2165,7 @@ def setup(
     if not ok:
         _warn(
             f"Setup findings: {result.failed} label(s) failed, "
-            f"{skipped_artifacts} artifact(s) skipped, AGENTS.md {agents_md}"
+            f"{skipped_artifacts} artifact(s) skipped, AGENTS.md {agents_md_action}"
         )
         raise typer.Exit(FINDINGS_EXIT_CODE)
     _success("Setup complete!")

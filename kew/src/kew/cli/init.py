@@ -80,6 +80,39 @@ def _run_setup() -> bool:
     return True
 
 
+#: Each opt-in write: its flag, and the question that says what it changes (#3577).
+_OPT_INS: tuple[tuple[str, str], ...] = (
+    (
+        "--guard-hook",
+        "Install the security-guard hook? It runs before every Bash, Write and "
+        "Edit in every Claude session in this repo, not only kew's agents",
+    ),
+    (
+        "--agents-md",
+        "Add kew's block to AGENTS.md? It tells every agent in this repo never "
+        "to approve, label or merge",
+    ),
+)
+
+
+def _choose_opt_ins(given: dict[str, bool], *, interactive: bool) -> list[str]:
+    """The opt-in flags this run writes: given ones, plus those a person accepts."""
+    return [
+        flag
+        for flag, question in _OPT_INS
+        if given[flag] or (interactive and typer.confirm(question, default=False))
+    ]
+
+
+def _write_opt_ins(config: DispatchConfig, opt_ins: list[str]) -> list[str]:
+    """Write the chosen opt-ins; the issue ids of those that could not be written."""
+    if "--guard-hook" in opt_ins:
+        _c._setup_guard_hook(config)
+    if "--agents-md" in opt_ins and _c._setup_agents_md() == "skipped":
+        return ["agents-md"]
+    return []
+
+
 def _readiness(config: DispatchConfig) -> list[CheckResult]:
     """Every ``kew doctor`` check, ``runner-credential`` among them."""
     return run_checks(config)
@@ -202,19 +235,24 @@ def _offer_fixes(results: list[CheckResult], runner: str) -> None:
 
 
 def _finish(
-    config: DispatchConfig, chosen: dict[Field, object], *, interactive: bool
+    config: DispatchConfig,
+    chosen: dict[Field, object],
+    opt_ins: list[str],
+    *,
+    interactive: bool,
 ) -> None:
-    """Setup, the readiness checks, and the closing summary."""
+    """Setup, the opt-in writes, the readiness checks, and the closing summary."""
     setup_ok = _run_setup()
+    unwritten = _write_opt_ins(config, opt_ins)
     if interactive:
         from kew.runners.registry import resolve_runner
 
         _offer_fixes(_readiness(config), resolve_runner(config).runner.name)
     issues = _report(_readiness(config))
-    if not setup_ok:
-        issues.insert(0, "setup")
+    issues[:0] = (["setup"] if not setup_ok else []) + unwritten
     if interactive:
-        _log(f"To repeat this without prompts: {onboarding.replay_command(chosen)}")
+        replay = onboarding.replay_command(chosen, opt_ins)
+        _log(f"To repeat this without prompts: {replay}")
     if issues:
         _warn(f"kew init: {len(issues)} issue(s) to fix: {', '.join(issues)}")
         _log("Then run: kew doctor")
@@ -259,6 +297,26 @@ def init(
     force: Annotated[
         bool, typer.Option("--force", help="Overwrite an existing kew.toml.")
     ] = False,
+    guard_hook: Annotated[
+        bool,
+        typer.Option(
+            "--guard-hook",
+            help=(
+                "Install the security-guard hook; it runs in every Claude "
+                "session in the repo."
+            ),
+        ),
+    ] = False,
+    agents_md: Annotated[
+        bool,
+        typer.Option(
+            "--agents-md",
+            help=(
+                "Write kew's AGENTS.md block; it tells every agent in the repo "
+                "never to approve, label or merge."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Write kew.toml from detection, flags and answers, then run setup and doctor."""
     _check_runner(runner)
@@ -296,4 +354,8 @@ def init(
         _error(f"{path} already exists; pass --force to overwrite it")
         raise typer.Exit(COULD_NOT_RUN_EXIT_CODE) from None
     _success(f"Wrote {path}")
-    _finish(_c.load_config(path), chosen, interactive=interactive)
+    opt_ins = _choose_opt_ins(
+        {"--guard-hook": guard_hook, "--agents-md": agents_md},
+        interactive=interactive,
+    )
+    _finish(_c.load_config(path), chosen, opt_ins, interactive=interactive)

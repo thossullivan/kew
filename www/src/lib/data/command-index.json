@@ -1557,6 +1557,20 @@
           ],
           "is_flag": true,
           "required": false
+        },
+        {
+          "flags": [
+            "--guard-hook"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--agents-md"
+          ],
+          "is_flag": true,
+          "required": false
         }
       ]
     },
@@ -2860,7 +2874,7 @@
       "path": [
         "setup"
       ],
-      "help": "Create labels, security hooks, and directories.",
+      "help": "Create labels and directories; the guard hook and AGENTS.md block on request.",
       "arguments": [],
       "options": [
         {
@@ -2873,6 +2887,20 @@
         {
           "flags": [
             "--json"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--guard-hook"
+          ],
+          "is_flag": true,
+          "required": false
+        },
+        {
+          "flags": [
+            "--agents-md"
           ],
           "is_flag": true,
           "required": false

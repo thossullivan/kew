@@ -917,6 +917,28 @@ def test_attest_refuses_a_branch_with_more_than_one_tracker_item(
     assert "more than one tracker item" in str(raised.value)
 
 
+def test_attest_on_a_branch_with_no_run_says_kew_has_no_run_there(
+    store: SqliteRunStore,
+) -> None:
+    """A branch no kew run ever used is not reported as naming two items."""
+    _producer_on_branch(store)
+
+    with pytest.raises(HeadAttestationRefused) as raised:
+        attest_published_head(
+            store,
+            branch="feat/hand-made",
+            head_sha=HEAD,
+            item_id="7",
+            **_readers(),
+        )
+
+    message = str(raised.value)
+    assert "kew has no run on 'feat/hand-made'" in message
+    assert "kew finalize <run-id>" in message
+    assert "more than one" not in message
+    assert not store.list_audit_events(event="publication_head_attested")
+
+
 @pytest.mark.parametrize(
     ("branch", "sha", "item", "base"),
     [

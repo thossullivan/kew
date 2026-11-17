@@ -461,7 +461,7 @@ def _refused_launcher():
             failure_layer="image",
             error_category="sandbox_refused",
             reason=(
-                "image kew-agent:docker-d148816b388f is not present in the "
+                "image kew-agent:docker-236e8d2ed49d is not present in the "
                 "local container runtime"
             ),
         )

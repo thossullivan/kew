@@ -66,14 +66,14 @@ def _metadata(api):
     )
 
 
-def _metrics(requests: int, *, model: int, tier: int, tokens: int, seconds: float):
+def _metrics(requests: int, *, model: int, tokens: int, milliseconds: float):
+    """A /metrics body in the shape the pinned Switchyard build emits."""
     return parse_switchyard_metrics(
-        f'switchyard_requests_total{{route="switchyard/passthrough"}} {requests}\n'
-        f'switchyard_model_selections_total{{model="gpt-5.6-sol"}} {model}\n'
-        f'switchyard_tier_selections_total{{tier="passthrough"}} {tier}\n'
+        f'switchyard_requests_total{{model="gpt-5.6-sol"}} {requests}\n'
+        "switchyard_decisions_total"
+        f'{{algorithm="passthrough",selected_model="gpt-5.6-sol"}} {model}\n'
         f'switchyard_prompt_tokens_total{{model="gpt-5.6-sol"}} {tokens}\n'
-        "switchyard_request_duration_seconds_sum"
-        f'{{route="switchyard/passthrough"}} {seconds}\n'
+        f'switchyard_total_latency_ms_sum{{model="gpt-5.6-sol"}} {milliseconds}\n'
     )
 
 
@@ -127,8 +127,8 @@ def test_benchmark_runs_direct_then_passthrough_and_records_runner_authority(tmp
         corpus=corpus,
         metadata=_metadata(api),
         execute=execute,
-        proxy_baseline=_metrics(7, model=7, tier=7, tokens=100, seconds=2.0),
-        proxy_final=_metrics(10, model=10, tier=10, tokens=145, seconds=2.6),
+        proxy_baseline=_metrics(7, model=7, tokens=100, milliseconds=2000.0),
+        proxy_final=_metrics(10, model=10, tokens=145, milliseconds=2600.0),
         exclusive_use=True,
         unrelated_traffic=False,
     )
@@ -162,11 +162,13 @@ def test_benchmark_runs_direct_then_passthrough_and_records_runner_authority(tmp
         "runner_reported_usage"
     )
     assert payload["proxy_observations"]["model_selections"] == [
-        {"labels": {"model": "gpt-5.6-sol"}, "value": 3.0}
+        {
+            "labels": {"algorithm": "passthrough", "selected_model": "gpt-5.6-sol"},
+            "value": 3.0,
+        }
     ]
-    assert payload["proxy_observations"]["tier_selections"] == [
-        {"labels": {"tier": "passthrough"}, "value": 3.0}
-    ]
+    # The pinned Switchyard build emits no tier metric, so the report claims none.
+    assert "tier_selections" not in payload["proxy_observations"]
 
 
 @pytest.mark.parametrize(
@@ -196,10 +198,8 @@ def test_proxy_observations_are_all_invalid_when_window_is_not_isolated(
         corpus=api["load_benchmark_corpus"](corpus_path),
         metadata=_metadata(api),
         execute=execute,
-        proxy_baseline=_metrics(7, model=7, tier=7, tokens=100, seconds=2.0),
-        proxy_final=_metrics(
-            final_requests, model=10, tier=10, tokens=145, seconds=2.6
-        ),
+        proxy_baseline=_metrics(7, model=7, tokens=100, milliseconds=2000.0),
+        proxy_final=_metrics(final_requests, model=10, tokens=145, milliseconds=2600.0),
         exclusive_use=exclusive_use,
         unrelated_traffic=unrelated_traffic,
     )
@@ -208,8 +208,48 @@ def test_proxy_observations_are_all_invalid_when_window_is_not_isolated(
     assert observations["valid"] is False
     assert observations["invalid_reason"] == reason
     assert observations["model_selections"] == []
-    assert observations["tier_selections"] == []
+    assert "tier_selections" not in observations
     assert observations["samples"] == []
+
+
+def test_a_failed_harness_call_cannot_hide_an_outside_success(tmp_path):
+    """The pinned Switchyard build counts a successful final call in
+    ``switchyard_requests_total`` and a failed one in ``switchyard_errors_total``.
+
+    The corpus expects three calls. One of the harness's calls fails and one
+    call from outside the harness succeeds, so successes alone still add up to
+    three; counting both families shows four and invalidates the window.
+    """
+    api = _benchmark_api()
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+
+    def execute(mode, case):
+        return api["BenchmarkExecution"](
+            response_text=case.quality_checks[0].contains,
+            latency_ms=1,
+            usage=api["BenchmarkUsage"](input_tokens=1, output_tokens=1),
+        )
+
+    report = api["run_benchmark"](
+        corpus=api["load_benchmark_corpus"](corpus_path),
+        metadata=_metadata(api),
+        execute=execute,
+        proxy_baseline=parse_switchyard_metrics(
+            'switchyard_requests_total{model="gpt-5.6-sol"} 7\n'
+        ),
+        proxy_final=parse_switchyard_metrics(
+            'switchyard_requests_total{model="gpt-5.6-sol"} 10\n'
+            'switchyard_errors_total{model="gpt-5.6-sol"} 1\n'
+        ),
+        exclusive_use=True,
+        unrelated_traffic=False,
+    )
+    observations = report.to_json()["proxy_observations"]
+
+    assert observations["valid"] is False
+    assert observations["invalid_reason"] == "request_count_mismatch"
+    assert observations["observed_requests"] == 4
 
 
 def test_json_rendering_is_canonical_and_contains_version_digests(tmp_path):
@@ -228,8 +268,8 @@ def test_json_rendering_is_canonical_and_contains_version_digests(tmp_path):
         corpus=api["load_benchmark_corpus"](corpus_path),
         metadata=_metadata(api),
         execute=execute,
-        proxy_baseline=_metrics(0, model=0, tier=0, tokens=0, seconds=0.0),
-        proxy_final=_metrics(3, model=3, tier=3, tokens=6, seconds=0.5),
+        proxy_baseline=_metrics(0, model=0, tokens=0, milliseconds=0.0),
+        proxy_final=_metrics(3, model=3, tokens=6, milliseconds=500.0),
         exclusive_use=True,
         unrelated_traffic=False,
     )
@@ -263,8 +303,8 @@ def test_failed_quality_check_sets_report_exit_one_without_emitting_response(tmp
             latency_ms=5,
             usage=api["BenchmarkUsage"](),
         ),
-        proxy_baseline=_metrics(0, model=0, tier=0, tokens=0, seconds=0),
-        proxy_final=_metrics(3, model=3, tier=3, tokens=0, seconds=1),
+        proxy_baseline=_metrics(0, model=0, tokens=0, milliseconds=0),
+        proxy_final=_metrics(3, model=3, tokens=0, milliseconds=1000),
         exclusive_use=True,
         unrelated_traffic=False,
     )
@@ -292,8 +332,8 @@ def test_switchyard_benchmark_cli_emits_only_harness_json(tmp_path):
         corpus=corpus,
         metadata=_metadata(api),
         execute=execute,
-        proxy_baseline=_metrics(0, model=0, tier=0, tokens=0, seconds=0),
-        proxy_final=_metrics(3, model=3, tier=3, tokens=0, seconds=1),
+        proxy_baseline=_metrics(0, model=0, tokens=0, milliseconds=0),
+        proxy_final=_metrics(3, model=3, tokens=0, milliseconds=1000),
         exclusive_use=True,
         unrelated_traffic=False,
     )
@@ -359,8 +399,8 @@ def test_switchyard_benchmark_cli_preserves_failed_report_exit_one(tmp_path):
             latency_ms=1,
             usage=api["BenchmarkUsage"](),
         ),
-        proxy_baseline=_metrics(0, model=0, tier=0, tokens=0, seconds=0),
-        proxy_final=_metrics(3, model=3, tier=3, tokens=0, seconds=1),
+        proxy_baseline=_metrics(0, model=0, tokens=0, milliseconds=0),
+        proxy_final=_metrics(3, model=3, tokens=0, milliseconds=1000),
         exclusive_use=True,
         unrelated_traffic=False,
     )

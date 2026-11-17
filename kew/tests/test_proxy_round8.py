@@ -376,7 +376,9 @@ def test_other_retained_identifiers_are_safe(monkeypatch, caplog, field):
     _assert_safe(retained + caplog.text, SECRET)
 
 
-@pytest.mark.parametrize("field", ["model", "provider", "tier"])
+# Every identifier label kew retains. The pinned Switchyard build emits no ``tier``
+# label, so kew no longer retains one (test_switchyard_metrics pins the drop).
+@pytest.mark.parametrize("field", ["model", "provider", "selected_model", "algorithm"])
 def test_proxy_metric_identifiers_do_not_bypass_retention_check(
     monkeypatch, caplog, field
 ):

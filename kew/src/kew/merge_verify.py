@@ -13,13 +13,10 @@ nothing of its own invention:
   a host that already has them rebuilds nothing.
 * ``bash scripts/verify.sh``, the one local gate that mirrors PR-gating CI
   (``tests/test_verify_parity.py`` is what keeps the two the same). The
-  private Switchyard layer inside it stays opt-in through
-  ``KEW_SWITCHYARD_IMAGE``, and the opt-in is forwarded only to a host that
-  can build from the private input at all
-  (:attr:`~kew.hosts.provider.HostProvider.builds_private_images`) and only
-  together with ``KEW_SWITCHYARD_SOURCE_ARCHIVE``, the path at which that
-  host finds the input. The archive itself never leaves the operator machine;
-  only the operator machine is ever told where it is.
+  Switchyard layer inside it, which compiles the pinned upstream source,
+  stays opt-in through ``KEW_SWITCHYARD_IMAGE``, and the opt-in is forwarded
+  only to the operator machine
+  (:attr:`~kew.hosts.provider.HostProvider.builds_private_images`).
 * ``npm run ui-check`` when, and only when, ``frontend/`` differs from the
   base. A console change verified without a browser is the failure mode that
   rule exists for; a backend change does not pay for a browser run. It runs
@@ -193,16 +190,10 @@ VERIFY_EVENT = "verify_completed"
 #: in the host's lock diagnostics.
 JOB_NAME = "merge-verify"
 
-#: The opt-in switch for the private Switchyard image layer, read by
+#: The opt-in switch for the Switchyard image layer, read by
 #: ``scripts/scan-agent-image.sh`` and ``tests/conftest.py``. Forwarded only to
-#: a host that can build from the private input.
+#: the operator machine.
 SWITCHYARD_IMAGE_ENV = "KEW_SWITCHYARD_IMAGE"
-
-#: Where ``scripts/scan-agent-image.sh`` finds the pinned private input the
-#: opt-in asks it to build from. A path on the operator machine, not the
-#: archive: the bytes never move. The gate refuses with ``input is missing``
-#: when the opt-in is set and this is not, so the two travel as a pair.
-SWITCHYARD_ARCHIVE_ENV = "KEW_SWITCHYARD_SOURCE_ARCHIVE"
 
 #: The base ``scripts/check_memory_channel.py`` classifies commits against.
 #: Passed as the resolved base sha, because the bundle carries the candidate's
@@ -1258,26 +1249,16 @@ def ui_check_modules(candidate: VerifyCandidate) -> list[str] | None:
 def switchyard_variables(
     source: Mapping[str, str], *, builds_private_images: bool
 ) -> dict[str, str]:
-    """The private-layer opt-in and the input it needs, or nothing at all.
+    """The Switchyard-layer opt-in, or nothing at all.
 
-    The opt-in alone is not an opt-in the gate can honour: with
-    ``KEW_SWITCHYARD_IMAGE=1`` and no ``KEW_SWITCHYARD_SOURCE_ARCHIVE``,
-    ``scripts/scan-agent-image.sh`` refuses with ``input is missing`` and the
-    verification is attested as a *failed* verdict the candidate never earned.
-    So the two are forwarded together or not at all: a host holding the input
-    runs that layer, and a host without it skips that layer exactly as every
-    machine without the input already does.
-
-    Neither reaches a host that cannot build from the private input, whatever
-    this machine's environment says — that is what keeps the archive's
-    whereabouts on the operator machine.
+    Forwarded only when this machine opted in with exactly ``"1"`` and the
+    host is the operator machine; a remote verify host skips that layer
+    whatever this machine's environment says. The layer needs nothing beside
+    the switch: the proxy image builds from public upstream source.
     """
     if not builds_private_images or source.get(SWITCHYARD_IMAGE_ENV, "") != "1":
         return {}
-    archive = source.get(SWITCHYARD_ARCHIVE_ENV, "").strip()
-    if not archive:
-        return {}
-    return {SWITCHYARD_IMAGE_ENV: "1", SWITCHYARD_ARCHIVE_ENV: archive}
+    return {SWITCHYARD_IMAGE_ENV: "1"}
 
 
 def job_environment(
@@ -2171,7 +2152,7 @@ def run_host_job(
 
     What the nightly's bisect probes and image scan run (:mod:`kew.nightly`).
     Nothing is recorded here; the caller records what it reads off the result.
-    The job carries the private-layer opt-in a merge verify would forward to
+    The job carries the Switchyard opt-in a merge verify would forward to
     this host (:func:`switchyard_variables`): PR verifies leave the image scan
     to the nightly, so the nightly's scan must cover that layer too.
     """

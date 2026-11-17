@@ -18,7 +18,7 @@ import signal
 import stat
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -197,7 +197,6 @@ class ProxyWindowEvidence:
             if self.valid
             else [],
             "scope": "exclusive_process_window",
-            "tier_selections": self._family("tier_selection"),
             "valid": self.valid,
         }
 
@@ -374,8 +373,23 @@ def _proxy_deltas(
     return tuple(deltas), counter_reset
 
 
+# Every call attempt the proxy finished. The pinned Switchyard build counts a
+# successful call in switchyard_requests_total and every failed one, each
+# failed fallback attempt included, in switchyard_errors_total, so the sum
+# counts call attempts, not client requests: a request that fails over once and
+# then succeeds counts twice. ``expected_requests``/``observed_requests`` keep
+# their names in the report but hold this attempt count.
+_FINAL_CALL_FAMILIES = frozenset({"requests", "errors"})
+
+
+def _final_calls(samples: Iterable[ProxyMetricSample]) -> float:
+    return sum(
+        sample.value for sample in samples if sample.family in _FINAL_CALL_FAMILIES
+    )
+
+
 def _request_count(samples: tuple[ProxyMetricSample, ...]) -> int | float:
-    value = sum(sample.value for sample in samples if sample.family == "requests")
+    value = _final_calls(samples)
     return int(value) if value.is_integer() else value
 
 
@@ -677,9 +691,7 @@ def _snapshot(endpoint: str) -> ProxyMetricsObservation:
 
 
 def _requests(observation: ProxyMetricsObservation) -> float:
-    return sum(
-        sample.value for sample in observation.samples if sample.family == "requests"
-    )
+    return _final_calls(observation.samples)
 
 
 @contextmanager

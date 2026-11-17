@@ -1,12 +1,13 @@
 """The kew-switchyard image tooling is opt-in; the default skips only it.
 
-The image builds from a pinned private source input that exists on the private
-runner alone, so nothing Switchyard runs unless KEW_SWITCHYARD_IMAGE is "1".
-ci.yml and release.yml set it exactly when the repository is private (pinned in
-tests/test_workflow_runner_visibility.py). These tests pin what the default
-does: exactly the tests marked ``requires_switchyard_image`` are deselected,
-and scripts/scan-agent-image.sh drops only its Switchyard layer and never
-reaches the private archive. "1" runs everything, and any other value refuses.
+The image compiles upstream's public source at a pinned commit, which is slow
+and fetches that source over the network, so nothing Switchyard runs unless
+KEW_SWITCHYARD_IMAGE is "1". ci.yml and release.yml set it exactly when the
+repository is private (pinned in tests/test_workflow_runner_visibility.py).
+These tests pin what the default does: exactly the tests marked
+``requires_switchyard_image`` are deselected, and scripts/scan-agent-image.sh
+drops only its Switchyard layer. "1" runs everything, and any other value
+refuses.
 """
 
 from __future__ import annotations
@@ -40,12 +41,12 @@ AGENT_DOCKERFILES = tuple(
 MARKER = "requires_switchyard_image"
 RUN_ENV = "KEW_SWITCHYARD_IMAGE"
 REASON = (
-    "the pinned Switchyard input includes unreleased upstream patches; "
-    "it builds on the private runner until they are public"
+    "building the Switchyard image compiles the pinned upstream source, "
+    "which is slow and needs the network"
 )
 
 # Every test that starts the SC-0 topology (it resolves the kew-switchyard
-# image) or builds that image from the pinned private source input.
+# image) or builds that image from the pinned upstream source.
 EXPECTED_MARKED = {
     "tests/test_agent_image_scan_gate.py::"
     "test_proxy_image_builds_from_exact_pinned_revision",
@@ -172,15 +173,10 @@ def test_every_real_image_test_is_marked_and_no_other() -> None:
             if not reaches:
                 assert test not in marked_names, f"{test} needs no image"
                 continue
-            # The chunk-cancellation tests drive the build path against a
-            # fake Docker; they need no real image.
-            if test.startswith("test_chunk_shipped_wrapper_real_cancellation"):
-                assert test not in marked_names
-                continue
             assert test in marked_names, f"{name}::{test} reaches the image"
 
 
-SWITCHYARD_ONLY_ACTIONS = ("--build-switchyard-only", "--validate-switchyard-source")
+SWITCHYARD_ONLY_ACTIONS = ("--build-switchyard-only",)
 
 
 def _direct_scan_launches(path: Path) -> list[tuple[str, str, str]]:
@@ -286,7 +282,8 @@ def test_the_opt_in_never_reaches_a_scan_script_under_test() -> None:
     proc = _pytest(
         [
             "-q",
-            "tests/test_agent_image_scan_gate.py::TestSwitchyardArchivePreflight",
+            "tests/test_switchyard_image_skip.py::"
+            "test_the_default_scan_gates_every_agent_image_and_skips_only_switchyard",
             "tests/test_serial_phase.py::"
             "test_the_serial_set_is_exactly_the_pilot_modules_plus_the_pinned_tests",
         ],
@@ -305,10 +302,11 @@ def test_any_other_value_is_a_usage_error(value: str) -> None:
 
 def test_the_reason_is_one_string_everywhere() -> None:
     conftest = (TESTS_DIR / "conftest.py").read_text(encoding="utf-8")
-    assert '"the pinned Switchyard input includes unreleased upstream patches; "' in (
-        conftest
+    assert (
+        '"building the Switchyard image compiles the pinned upstream source, "'
+        in conftest
     )
-    assert '"it builds on the private runner until they are public"' in conftest
+    assert '"which is slow and needs the network"' in conftest
     for path in (
         SCAN_SCRIPT,
         REPO_ROOT / ".github" / "workflows" / "release.yml",
@@ -382,9 +380,6 @@ def _scan(
 ) -> subprocess.CompletedProcess[str]:
     env = _env(opt_in)
     env["PATH"] = f"{binroot}{os.pathsep}{env['PATH']}"
-    # A machine that has not opted in holds no private input; the secret is
-    # mapped only into opted-in steps, so it resolves empty.
-    env["KEW_SWITCHYARD_SOURCE_ARCHIVE"] = ""
     # The trivy here is a stub, so the scan runs from a synthetic checkout
     # whose pin names the stub's digest wherever it pins binaries (#3258); the
     # shipped pin is never rewritten.
@@ -432,16 +427,27 @@ def test_the_default_scan_gates_every_agent_image_and_skips_only_switchyard(
     assert (
         f"\u2713 all {len(AGENT_DOCKERFILES)} agent images passed" in result.stdout
     ), result.stdout
-    # The default never reaches the private source input at all: with no
-    # archive present, any validation attempt would have failed the run.
-    assert "Switchyard source archive" not in result.stdout + result.stderr
 
 
-def test_the_opted_in_scan_still_requires_the_source_input(fake_tools: Path) -> None:
+def test_the_opted_in_scan_builds_and_gates_the_switchyard_image(
+    fake_tools: Path,
+) -> None:
+    """Opting in builds the proxy from the build context alone and sends it
+    through the proxy gate; this fake trivy reports no Switchyard crates, so
+    the proxy's inventory check fails the run."""
     result = _scan(fake_tools, "1")
+    builds = [
+        line
+        for line in (fake_tools.parent / "docker.log").read_text().splitlines()
+        if line.startswith("build ")
+    ]
+    assert len(builds) == len(AGENT_DOCKERFILES) + 1
+    proxy = [line for line in builds if "-f docker/switchyard.Dockerfile " in line]
+    assert len(proxy) == 1, builds
+    assert "--secret" not in proxy[0]
+    assert "==> skipping docker/switchyard.Dockerfile" not in result.stdout
     assert result.returncode != 0
-    assert "Switchyard source archive validation failed" in result.stderr
-    assert not (fake_tools.parent / "docker.log").exists()
+    assert "Switchyard Rust inventory result is missing" in result.stderr
 
 
 @pytest.mark.parametrize("value", ["true", "0", "yes"])
@@ -452,9 +458,7 @@ def test_scan_refuses_any_other_value(fake_tools: Path, value: str) -> None:
     assert not (fake_tools.parent / "docker.log").exists()
 
 
-@pytest.mark.parametrize(
-    "action", ["--build-switchyard-only", "--validate-switchyard-source"]
-)
+@pytest.mark.parametrize("action", SWITCHYARD_ONLY_ACTIONS)
 def test_the_default_scan_refuses_switchyard_only_actions(
     fake_tools: Path, action: str
 ) -> None:

@@ -27,6 +27,51 @@ set -euo pipefail
 # verify.sh. Resolve rather than assume.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+# Every slow step — each `docker build` and each trivy call — runs as a
+# background child this script records and waits on (run_step), never in the
+# foreground. A caller that gives up signals the script (TERM, INT or HUP), and
+# the handlers below, installed once for the whole run, stop that child first:
+# they send it TERM, wait for it, remove this run's temporary files and exit
+# 128+signal, so the EXIT trap runs only after the child is gone and never
+# removes an image a still-running trivy is reading. A docker build client
+# cancels its BuildKit build when terminated. A background child of a
+# non-interactive shell ignores INT, which is why the child is always sent
+# TERM. A foreground child would hold a trapped signal until it finished, so
+# no slow step runs in the foreground; quick ones (docker info, tag, rmi)
+# still do.
+step_child=""
+step_output=""
+iidfile=""
+on_signal() {
+    if [ -n "$step_child" ]; then
+        kill -TERM "$step_child" 2>/dev/null || true
+        wait "$step_child" 2>/dev/null || true
+        step_child=""
+    fi
+    if [ -n "$iidfile" ]; then rm -f "$iidfile"; fi
+    if [ -n "$step_output" ]; then rm -f "$step_output"; fi
+    exit "$1"
+}
+trap 'on_signal 143' TERM
+trap 'on_signal 130' INT
+trap 'on_signal 129' HUP
+# run_step CMD [ARG...]: run CMD as the recorded background child, wait for it
+# and return its exit status. Redirect the call to capture its output.
+run_step() {
+    local status=0
+    "$@" &
+    # A signal that lands between the fork above and this assignment finds
+    # step_child empty, so the script exits without stopping that child. The
+    # window is a few instructions wide and is accepted.
+    step_child=$!
+    wait "$step_child" || status=$?
+    step_child=""
+    return "$status"
+}
+docker_build() {
+    run_step env DOCKER_BUILDKIT=1 docker build "$@"
+}
+
 # The scanner version IS the gate, so a mismatch REFUSES rather than warning: a
 # gate run by an unknown scanner has proven nothing, and "it printed a warning
 # and passed" is indistinguishable from a pass (round-1 review, Major 3).
@@ -106,7 +151,16 @@ check_pinned_tools() {
     fi
     # Deliberately not `local`: the certification line printed after the
     # database check names the scanner this gate ran as, and it reads this.
-    found="$(trivy --version | awk '/^Version:/ {print $2}')"
+    step_output="$(mktemp)"
+    if ! run_step trivy --version > "$step_output"; then
+        rm -f "$step_output"
+        step_output=""
+        echo "scan-agent-image.sh: trivy --version failed. $TRIVY_INSTALL_HINT" >&2
+        return 1
+    fi
+    found="$(awk '/^Version:/ {print $2}' "$step_output")"
+    rm -f "$step_output"
+    step_output=""
     if [ "$found" != "$TRIVY_VERSION" ]; then
         echo "scan-agent-image.sh: trivy ${found:-<unknown>} is not the pinned $TRIVY_VERSION — a different scanner version is a different gate, so this refuses rather than gating with an unknown one. $TRIVY_INSTALL_HINT" >&2
         return 1
@@ -138,12 +192,6 @@ MIN_OS_PACKAGES=50
 MIN_NPM_PACKAGES=50
 MIN_SWITCHYARD_OS_PACKAGES=50
 MIN_SWITCHYARD_RUST_PACKAGES=50
-
-# Reviewed private source binding. The archive is never copied into the build
-# context. This host check runs before every build, including a cache hit where
-# BuildKit would not re-read secret contents.
-SWITCHYARD_SOURCE_ARCHIVE_SHA256="a53aac972293ceef2ac2f5a84da92e022cc1d4a903521761cc90f18655cfb31e"
-SWITCHYARD_SOURCE_ARCHIVE_SIZE=7454720
 
 # Every agent image, not just the reference one: agent-opencode.Dockerfile is
 # what the `simple` routing tier dispatches into, so leaving it unscanned would
@@ -233,646 +281,17 @@ image_failed() {
     fi
 }
 
-private_switchyard_source() {
-    if ! command -v python3 >/dev/null 2>&1; then
-        echo "scan-agent-image.sh: Switchyard source archive validation failed: isolated Python unavailable." >&2
-        return 1
-    fi
-    local -a source_command=(python3)
-    # Startup's caller owns this PID. Replace Bash so cancellation reaches the producer.
-    if [ "$1" = build-no-cache ]; then source_command=(exec python3); fi
-    "${source_command[@]}" -I -B - "$REPO_ROOT" "$SWITCHYARD_SOURCE_ARCHIVE_SHA256" \
-        "$SWITCHYARD_SOURCE_ARCHIVE_SIZE" "$SCAN_TAG" "$1" <<'PY'
-# KEW_PRIVATE_SOURCE_PYTHON_BEGIN
-"""Shared isolated source validation and bounded private BuildKit transport."""
-
-import contextlib
-import hashlib
-import os
-import re
-import secrets
-import signal
-import stat
-import subprocess
-import sys
-import time
-
-CHUNK_SIZE = 491520
-CHUNK_COUNT = 16
-DEADLINE_SECONDS = 1650
-TERMINATION_GRACE_SECONDS = 10
-DIRECTORY_FLAGS = (
-    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
-)
-FILE_FLAGS = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-
-
-class Refusal(Exception):
-    pass
-
-
-def refuse(category="path or descriptor operation failed"):
-    raise Refusal(category)
-
-
-def fingerprint(value):
-    return (
-        value.st_dev,
-        value.st_ino,
-        value.st_mode,
-        value.st_nlink,
-        value.st_uid,
-        value.st_gid,
-        value.st_size,
-        value.st_mtime_ns,
-        value.st_ctime_ns,
-    )
-
-
-def directory_identity(value):
-    return (value.st_dev, value.st_ino, value.st_mode, value.st_uid, value.st_gid)
-
-
-def components_of(path):
-    if not isinstance(path, str) or not path.startswith("/"):
-        refuse("path is not absolute and unambiguous")
-    if path == "/":
-        return []
-    values = path.split("/")[1:]
-    if any(value in ("", ".", "..") for value in values) or any(
-        ord(c) < 32 for c in path
-    ):
-        refuse("path is not absolute and unambiguous")
-    return values
-
-
-def require_descriptor_apis():
-    required_flags = ("O_DIRECTORY", "O_NOFOLLOW")
-    if any(not hasattr(os, name) for name in required_flags):
-        refuse("descriptor APIs unavailable")
-    if any(
-        fn not in os.supports_dir_fd
-        for fn in (os.open, os.stat, os.mkdir, os.unlink, os.rmdir)
-    ):
-        refuse("descriptor APIs unavailable")
-    if os.stat not in os.supports_follow_symlinks or os.listdir not in os.supports_fd:
-        refuse("descriptor APIs unavailable")
-
-
-class Directory:
-    """Retain every no-follow pathname component until the operation finishes."""
-
-    def __init__(self, path):
-        self.path = path
-        self.names = components_of(path)
-        self.fds = []
-        self.identities = []
-        try:
-            self.fds.append(os.open("/", DIRECTORY_FLAGS))
-            self.identities.append(directory_identity(os.fstat(self.fds[-1])))
-            for name in self.names:
-                before = os.stat(name, dir_fd=self.fd, follow_symlinks=False)
-                if not stat.S_ISDIR(before.st_mode):
-                    refuse("linked or invalid parent")
-                child = os.open(name, DIRECTORY_FLAGS, dir_fd=self.fd)
-                self.fds.append(child)
-                opened = os.fstat(child)
-                if directory_identity(before) != directory_identity(opened):
-                    refuse("changed during validation")
-                self.identities.append(directory_identity(opened))
-            self.check()
-        except BaseException:
-            self.close()
-            raise
-
-    @property
-    def fd(self):
-        return self.fds[-1]
-
-    def check(self):
-        for index, fd in enumerate(self.fds):
-            if directory_identity(os.fstat(fd)) != self.identities[index]:
-                refuse("changed during validation")
-            if (
-                index
-                and directory_identity(
-                    os.stat(
-                        self.names[index - 1],
-                        dir_fd=self.fds[index - 1],
-                        follow_symlinks=False,
-                    )
-                )
-                != self.identities[index]
-            ):
-                refuse("changed during validation")
-
-    def close(self):
-        while self.fds:
-            os.close(self.fds.pop())
-
-
-class Source:
-    def __init__(self, path, repo, digest, size):
-        self.fd = None
-        self.parent = None
-        self.repo, self.digest, self.size = repo, digest, size
-        values = components_of(path)
-        if not values:
-            refuse("input is missing")
-        self.leaf = values[-1]
-        if os.path.commonpath((path, repo.path)) == repo.path:
-            refuse("checkout containment")
-        try:
-            self.parent = Directory("/" + "/".join(values[:-1]))
-            if repo.identities[-1][:2] in {item[:2] for item in self.parent.identities}:
-                refuse("checkout containment")
-            parent = os.fstat(self.parent.fd)
-            if parent.st_uid != os.geteuid() or parent.st_mode & 0o077:
-                refuse("immediate parent is not owned and private")
-            before = os.stat(self.leaf, dir_fd=self.parent.fd, follow_symlinks=False)
-            if not stat.S_ISREG(before.st_mode):
-                refuse("linked or special leaf")
-            self.fd = os.open(self.leaf, FILE_FLAGS, dir_fd=self.parent.fd)
-            value = os.fstat(self.fd)
-            if fingerprint(before) != fingerprint(value):
-                refuse("changed during validation")
-            if value.st_nlink != 1:
-                refuse("hard-linked leaf")
-            if (
-                value.st_uid != os.geteuid()
-                or not value.st_mode & stat.S_IRUSR
-                or value.st_mode & 0o077
-            ):
-                refuse("leaf is not owned, readable, and private")
-            if value.st_size != size:
-                refuse("length mismatch")
-            self.identity = fingerprint(value)
-            self.check()
-        except BaseException:
-            self.close()
-            raise
-
-    def check(self):
-        self.repo.check()
-        self.parent.check()
-        if (
-            fingerprint(os.fstat(self.fd)) != self.identity
-            or fingerprint(
-                os.stat(self.leaf, dir_fd=self.parent.fd, follow_symlinks=False)
-            )
-            != self.identity
-        ):
-            refuse("changed during validation")
-
-    def stream(self, consume=None):
-        self.check()
-        os.lseek(self.fd, 0, os.SEEK_SET)
-        digest = hashlib.sha256()
-        remaining = self.size
-        for index in range(CHUNK_COUNT):
-            wanted = min(CHUNK_SIZE, remaining)
-            data = bytearray()
-            while len(data) < wanted:
-                block = os.read(self.fd, wanted - len(data))
-                if not block:
-                    refuse("length mismatch")
-                data.extend(block)
-            digest.update(data)
-            remaining -= len(data)
-            if consume is not None:
-                consume(index, data)
-        if remaining or os.read(self.fd, 1):
-            refuse("length mismatch")
-        self.check()
-        if digest.hexdigest() != self.digest:
-            refuse("digest mismatch")
-        return self.identity
-
-    def close(self):
-        if self.fd is not None:
-            os.close(self.fd)
-            self.fd = None
-        if self.parent is not None:
-            self.parent.close()
-
-
-def validate_source(source):
-    first = source.stream()
-    second = source.stream()
-    if first != second:
-        refuse("changed during validation")
-
-
-class Stage:
-    def __init__(self, repo, temporary):
-        self.parent = None
-        self.fd = None
-        self.entries = {}
-        self.repo = repo
-        created = False
-        try:
-            self.parent = Directory(temporary)
-            if "," in temporary or repo.identities[-1][:2] in {
-                item[:2] for item in self.parent.identities
-            }:
-                refuse("checkout containment")
-            self.parent.check()
-            for _ in range(128):
-                self.name = "kew-switchyard-chunks." + secrets.token_hex(12)
-                try:
-                    os.mkdir(self.name, 0o700, dir_fd=self.parent.fd)
-                    created = True
-                    break
-                except FileExistsError:
-                    continue
-            else:
-                refuse()
-            before = os.stat(self.name, dir_fd=self.parent.fd, follow_symlinks=False)
-            self.fd = os.open(self.name, DIRECTORY_FLAGS, dir_fd=self.parent.fd)
-            opened = os.fstat(self.fd)
-            if fingerprint(before) != fingerprint(opened):
-                refuse("changed during validation")
-            self.identity = directory_identity(opened)
-            if opened.st_uid != os.geteuid() or stat.S_IMODE(opened.st_mode) != 0o700:
-                refuse()
-            self.path = temporary.rstrip("/") + "/" + self.name
-            self.check()
-        except BaseException:
-            # No recursive cleanup occurs when initial directory ownership is uncertain.
-            self.close()
-            if created:
-                refuse("cleanup unconfirmed")
-            raise
-
-    def check(self):
-        self.repo.check()
-        self.parent.check()
-        if (
-            directory_identity(os.fstat(self.fd)) != self.identity
-            or directory_identity(
-                os.stat(self.name, dir_fd=self.parent.fd, follow_symlinks=False)
-            )
-            != self.identity
-        ):
-            refuse("changed during validation")
-
-    def check_entry(self, name):
-        fd, created, sealed = self.entries[name]
-        opened = os.fstat(fd)
-        path = os.stat(name, dir_fd=self.fd, follow_symlinks=False)
-        if (
-            fingerprint(opened) != fingerprint(path)
-            or opened.st_dev != created.st_dev
-            or opened.st_ino != created.st_ino
-            or opened.st_uid != created.st_uid
-            or opened.st_gid != created.st_gid
-            or not stat.S_ISREG(opened.st_mode)
-            or opened.st_nlink != 1
-            or opened.st_mode & 0o077
-        ):
-            refuse("changed during validation")
-        if sealed is not None and fingerprint(opened) != sealed:
-            refuse("changed during validation")
-
-    def check_entries(self):
-        self.check()
-        if set(os.listdir(self.fd)) != set(self.entries):
-            refuse("changed during validation")
-        for name in self.entries:
-            self.check_entry(name)
-
-    def write_chunk(self, index, data):
-        self.check_entries()
-        name = f"part-{index:02d}"
-        fd = os.open(
-            name,
-            os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=self.fd,
-        )
-        try:
-            self.entries[name] = (fd, os.fstat(fd), None)
-        except BaseException:
-            os.close(fd)
-            raise
-        view = memoryview(data)
-        while view:
-            count = os.write(fd, view)
-            if count <= 0:
-                refuse()
-            view = view[count:]
-        os.fsync(fd)
-        os.fchmod(fd, 0o400)
-        self.entries[name] = (fd, self.entries[name][1], fingerprint(os.fstat(fd)))
-        self.check_entry(name)
-
-    def verify_chunks(self, source):
-        self.check_entries()
-        digest = hashlib.sha256()
-        for index in range(CHUNK_COUNT):
-            name = f"part-{index:02d}"
-            fd = self.entries[name][0]
-            wanted = min(CHUNK_SIZE, max(0, source.size - index * CHUNK_SIZE))
-            if os.fstat(fd).st_size != wanted:
-                refuse("length mismatch")
-            os.lseek(fd, 0, os.SEEK_SET)
-            remaining = wanted
-            while remaining:
-                block = os.read(fd, remaining)
-                if not block:
-                    refuse("length mismatch")
-                remaining -= len(block)
-                digest.update(block)
-            if os.read(fd, 1):
-                refuse("length mismatch")
-            self.check_entry(name)
-        if digest.hexdigest() != source.digest:
-            refuse("digest mismatch")
-        source.check()
-
-    def adopt_iid(self, required=False):
-        self.check()
-        if "image.iid" in self.entries:
-            self.check_entry("image.iid")
-            return
-        try:
-            before = os.stat("image.iid", dir_fd=self.fd, follow_symlinks=False)
-        except FileNotFoundError:
-            if required:
-                refuse("build failed")
-            return
-        if (
-            not stat.S_ISREG(before.st_mode)
-            or before.st_uid != os.geteuid()
-            or before.st_nlink != 1
-            or before.st_mode & 0o077
-            or not before.st_mode & stat.S_IRUSR
-            or before.st_size > 4096
-        ):
-            refuse("build failed")
-        fd = os.open("image.iid", FILE_FLAGS, dir_fd=self.fd)
-        self.entries["image.iid"] = (fd, before, fingerprint(before))
-        self.check_entry("image.iid")
-
-    def image_id(self):
-        self.adopt_iid(required=True)
-        fd = self.entries["image.iid"][0]
-        if os.fstat(fd).st_size not in (71, 72):
-            refuse("build failed")
-        os.lseek(fd, 0, os.SEEK_SET)
-        value = os.read(fd, 73)
-        if not re.fullmatch(rb"sha256:[0-9a-f]{64}\n?", value) or os.read(fd, 1):
-            refuse("build failed")
-        self.check_entry("image.iid")
-        return value.rstrip(b"\n").decode("ascii")
-
-    def cleanup(self):
-        # Check the complete set first. Retain uncertain entries.
-        self.check_entries()
-        for name in list(self.entries):
-            self.check()
-            self.check_entry(name)
-            os.unlink(name, dir_fd=self.fd)
-            os.close(self.entries.pop(name)[0])
-        self.check_entries()
-        os.rmdir(self.name, dir_fd=self.parent.fd)
-        try:
-            os.stat(self.name, dir_fd=self.parent.fd, follow_symlinks=False)
-        except FileNotFoundError:
-            return
-        refuse("cleanup unconfirmed")
-
-    def close(self):
-        for fd, _created, _sealed in self.entries.values():
-            os.close(fd)
-        self.entries.clear()
-        if self.fd is not None:
-            os.close(self.fd)
-            self.fd = None
-        if self.parent is not None:
-            self.parent.close()
-
-
-def group_exists(process):
-    try:
-        os.killpg(process.pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
-def terminate(process):
-    if process is None:
-        return
-    for kind in (signal.SIGTERM, signal.SIGKILL):
-        status = process.poll()
-        if not group_exists(process):
-            if status is None:
-                process.wait(timeout=TERMINATION_GRACE_SECONDS)
-            return
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(process.pid, kind)
-        limit = time.monotonic() + TERMINATION_GRACE_SECONDS
-        while time.monotonic() < limit:
-            status = process.poll()
-            if not group_exists(process):
-                if status is None:
-                    process.wait(timeout=TERMINATION_GRACE_SECONDS)
-                return
-            time.sleep(0.02)
-    refuse("cleanup unconfirmed")
-
-
-def main():
-    repo = source = stage = process = None
-    image_id = None
-    failure = None
-    launching = cancelled = False
-
-    def interrupt(_signum, _frame):
-        nonlocal cancelled
-        cancelled = True
-        if not launching:
-            refuse("interrupted")
-
-    old_handlers = {}
-    previous_umask = os.umask(0o077)
-    deadline = time.monotonic() + DEADLINE_SECONDS
-    try:
-        for kind in (signal.SIGALRM, signal.SIGINT, signal.SIGTERM):
-            old_handlers[kind] = signal.signal(kind, interrupt)
-        signal.alarm(DEADLINE_SECONDS)
-        require_descriptor_apis()
-        if len(sys.argv) != 6:
-            refuse("reviewed binding is invalid")
-        repo_path, digest, size, tag, action = sys.argv[1:]
-        size = int(size)
-        if (
-            not re.fullmatch(r"[0-9a-f]{64}", digest)
-            or not 0 < size <= CHUNK_SIZE * CHUNK_COUNT
-            or not re.fullmatch(r"ci-scan|docker-[0-9a-f]{12}", tag)
-            or action not in ("validate", "build", "build-no-cache")
-        ):
-            refuse("reviewed binding is invalid")
-        archive = os.environ.get("KEW_SWITCHYARD_SOURCE_ARCHIVE", "")
-        if not archive:
-            refuse("input is missing")
-        repo = Directory(repo_path)
-        source = Source(archive, repo, digest, size)
-        validate_source(source)
-        if action != "validate":
-            temporary = os.environ.get("TMPDIR") or (
-                "/private/tmp" if sys.platform == "darwin" else "/tmp"
-            )
-            temporary = temporary.rstrip("/") or "/"
-            components_of(temporary)
-            # Only the staging-root policy resolves platform aliases such as macOS /var.
-            # The source path never resolves links. Docker receives the canonical path.
-            stage = Stage(repo, os.path.realpath(temporary))
-            source.stream(stage.write_chunk)
-            stage.verify_chunks(source)
-            argv = [
-                "docker",
-                "build",
-                "-f",
-                "docker/switchyard.Dockerfile",
-                "-t",
-                "kew-switchyard:" + tag,
-                "--iidfile",
-                stage.path + "/image.iid",
-            ]
-            if action == "build-no-cache":
-                argv.append("--no-cache")
-            for index in range(CHUNK_COUNT):
-                argv.extend(
-                    (
-                        "--secret",
-                        f"id=switchyard_source_archive_{index:02d},src={stage.path}/part-{index:02d}",
-                    )
-                )
-            argv.append(".")
-            stage.check_entries()
-            source.check()
-            environment = dict(os.environ)
-            environment.pop("KEW_SWITCHYARD_SOURCE_ARCHIVE", None)
-            environment["DOCKER_BUILDKIT"] = "1"
-            # Latch cancellation until the newly created process has an owned handle.
-            launching = True
-            try:
-                process = subprocess.Popen(
-                    argv,
-                    cwd=repo.path,
-                    env=environment,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-            finally:
-                launching = False
-            if cancelled:
-                refuse("interrupted")
-            status = process.wait(timeout=max(0.001, deadline - time.monotonic()))
-            source.check()
-            stage.adopt_iid(required=not status)
-            stage.verify_chunks(source)
-            if status:
-                refuse("build failed")
-            image_id = stage.image_id()
-    except subprocess.TimeoutExpired:
-        failure = Refusal("build timed out")
-    except BaseException as error:
-        failure = error
-    finally:
-        signal.alarm(0)
-        for kind in old_handlers:
-            signal.signal(kind, signal.SIG_IGN)
-        try:
-            terminate(process)
-            if stage is not None:
-                stage.adopt_iid()
-                stage.cleanup()
-        except BaseException:
-            failure = Refusal("cleanup unconfirmed")
-        if source is not None:
-            try:
-                source.check()
-            except BaseException as error:
-                if failure is None:
-                    failure = error
-        for resource in (stage, source, repo):
-            if resource is not None:
-                try:
-                    resource.close()
-                except BaseException:
-                    failure = Refusal("cleanup unconfirmed")
-        os.umask(previous_umask)
-        for kind, handler in old_handlers.items():
-            signal.signal(kind, handler)
-    if failure is not None:
-        categories = {
-            "input is missing",
-            "descriptor APIs unavailable",
-            "path is not absolute and unambiguous",
-            "linked or invalid parent",
-            "linked or special leaf",
-            "changed during validation",
-            "immediate parent is not owned and private",
-            "hard-linked leaf",
-            "leaf is not owned, readable, and private",
-            "length mismatch",
-            "digest mismatch",
-            "checkout containment",
-            "reviewed binding is invalid",
-            "build failed",
-            "build timed out",
-            "interrupted",
-            "cleanup unconfirmed",
-        }
-        category = (
-            failure.args[0] if isinstance(failure, Refusal) and failure.args else None
-        )
-        if category not in categories:
-            category = "path or descriptor operation failed"
-        print(
-            "scan-agent-image.sh: Switchyard source archive validation failed: "
-            + category
-            + ".",
-            file=sys.stderr,
-        )
-        return 1
-    if image_id is not None:
-        print(image_id)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-# KEW_PRIVATE_SOURCE_PYTHON_END
-PY
-}
-
-validate_switchyard_source() {
-    private_switchyard_source validate
-}
-
-build_switchyard_image() {
-    private_switchyard_source "$1"
-}
-
 # Opt-in switch. The Switchyard layer runs only when KEW_SWITCHYARD_IMAGE is
-# "1": the pinned private source input exists on the private runner alone, so
-# the default — every machine without it, including the verify VM, a hosted
-# runner and a contributor's laptop — skips that layer, and only that layer,
-# with SWITCHYARD_IMAGE_SKIP_REASON. Every agent image is still built and
-# gated, and the default never touches the private source input: it does not
-# even validate the archive. ci.yml sets "1" exactly when the repository is
+# "1". Its image compiles upstream's public source at the commit
+# docker/switchyard.Dockerfile pins, which takes far longer than every agent
+# image together and fetches that source over the network, so the default —
+# the verify VM, a hosted runner, a contributor's laptop — skips that layer,
+# and only that layer, with SWITCHYARD_IMAGE_SKIP_REASON. Every agent image is
+# still built and gated. ci.yml sets "1" exactly when the repository is
 # private.
 # Any other value refuses, so a typo cannot opt in or out silently.
 # docs/operations.md ("Public repository runner rule") records the switch.
-SWITCHYARD_IMAGE_SKIP_REASON="the pinned Switchyard input includes unreleased upstream patches; it builds on the private runner until they are public"
+SWITCHYARD_IMAGE_SKIP_REASON="building the Switchyard image compiles the pinned upstream source, which is slow and needs the network"
 case "${KEW_SWITCHYARD_IMAGE:-}" in
     "") run_switchyard_image=0 ;;
     1) run_switchyard_image=1 ;;
@@ -886,16 +305,25 @@ if [ "$run_switchyard_image" = 0 ] && [ "$#" -ne 0 ]; then
     exit 1
 fi
 
-# The build-only action shares all validation, staging, and cleanup logic.
-# It emits only the immutable IID after confirmed cleanup. It never skips cache validation.
+# Build the proxy image alone, without the cache, and print its full image ID
+# and nothing else on stdout; docker's own output goes to stderr. The opted-in
+# image test starts the proxy from exactly the image this built.
 if [ "$#" -eq 1 ] && [ "$1" = "--build-switchyard-only" ]; then
-    build_switchyard_image build-no-cache
-    exit 0
-fi
-if [ "$run_switchyard_image" = 1 ]; then
-    validate_switchyard_source
-fi
-if [ "${1:-}" = "--validate-switchyard-source" ] && [ "$#" -eq 1 ]; then
+    cd "$REPO_ROOT"
+    iidfile="$(mktemp)"
+    if ! docker_build --no-cache -f docker/switchyard.Dockerfile \
+        -t "kew-switchyard:${SCAN_TAG}" --iidfile "$iidfile" . >&2; then
+        rm -f "$iidfile"
+        echo "scan-agent-image.sh: docker build of docker/switchyard.Dockerfile failed." >&2
+        exit 1
+    fi
+    image_id="$(cat "$iidfile")"
+    rm -f "$iidfile"
+    if [[ ! "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+        echo "scan-agent-image.sh: the build of docker/switchyard.Dockerfile did not report a full image digest (--iidfile held ${image_id:-<empty>})." >&2
+        exit 1
+    fi
+    printf '%s\n' "$image_id"
     exit 0
 fi
 if [ "$#" -ne 0 ]; then
@@ -920,12 +348,18 @@ check_pinned_tools
 # refused every fresh machine (round-2 review, Major 2). This also self-heals a
 # cache that has gone stale. It is the only network operation the gate performs.
 echo "==> ensuring the vulnerability database is present and current"
-if ! trivy image --skip-version-check --download-db-only; then
+if ! run_step trivy image --skip-version-check --download-db-only; then
     echo "scan-agent-image.sh: could not download trivy's vulnerability database. The gate cannot run without it — a scanner with no advisories reports no findings on any image." >&2
     exit 1
 fi
 
-db_age_seconds="$(trivy version --format json | python3 -c '
+step_output="$(mktemp)"
+if ! run_step trivy version --format json > "$step_output"; then
+    rm -f "$step_output"
+    echo "scan-agent-image.sh: trivy could not report its vulnerability database." >&2
+    exit 1
+fi
+if ! db_age_seconds="$(python3 -c '
 import datetime, json, sys
 
 # Use datetime.timezone.utc, never the datetime.UTC alias. This runs under
@@ -968,7 +402,13 @@ if updated.tzinfo is None:
 # shell refuse on it.
 age = (datetime.datetime.now(datetime.timezone.utc) - updated).total_seconds()
 print("future" if age < 0 else int(age))
-')"
+' < "$step_output")"; then
+    rm -f "$step_output"
+    echo "scan-agent-image.sh: could not read trivy's vulnerability database metadata." >&2
+    exit 1
+fi
+rm -f "$step_output"
+step_output=""
 if [ "$db_age_seconds" = "missing" ]; then
     echo "scan-agent-image.sh: trivy reports no vulnerability database even after a download attempt — it would find nothing in any image, and a gate that finds nothing passes everything." >&2
     exit 1
@@ -1007,6 +447,7 @@ iidfile=""
 release_run_refs() {
     local ref
     if [ -n "$iidfile" ]; then rm -f "$iidfile"; fi
+    if [ -n "$step_output" ]; then rm -f "$step_output"; fi
     # The guarded expansion: bash 3.2 reads an empty array as unbound under -u.
     for ref in ${run_refs[@]+"${run_refs[@]}"}; do
         if [[ "$ref" == *":${run_tag}" ]] && ! docker rmi "$ref" >/dev/null; then
@@ -1070,28 +511,29 @@ for entry in "${IMAGES[@]}"; do
         echo "==> skipping $dockerfile -> $tag: $SWITCHYARD_IMAGE_SKIP_REASON"
         continue
     fi
-    if [ "$policy" = "switchyard" ]; then
-        validate_switchyard_source
-    fi
 
     # --iidfile binds every step below to the image this build PRODUCED, not to
     # whatever the tag happens to point at by the time trivy reads it. Scanning
     # by tag let a concurrent retag substitute a clean image for a vulnerable
     # one between build and scan (round-1 review, Major 4). The tag is still
     # applied, for a human reading `docker images`.
+    #
+    # The proxy build keeps the cache: its Rust compile is the slow step, and
+    # the pinned commit, tree and lockfile digests are part of that RUN
+    # instruction, so a changed pin never reuses an old layer.
     echo "==> building $dockerfile -> $tag"
+    iidfile="$(mktemp)"
     if [ "$policy" = "switchyard" ]; then
-        image_id="$(build_switchyard_image build)"
+        build_args=(-f "$dockerfile" -t "$tag" --iidfile "$iidfile" .)
     else
-        iidfile="$(mktemp)"
-        build_args=(build --no-cache -f "$dockerfile" -t "$tag"
+        build_args=(--no-cache -f "$dockerfile" -t "$tag"
             --label "$inputs_label" --iidfile "$iidfile" .)
-        if ! DOCKER_BUILDKIT=1 docker "${build_args[@]}"; then
-            image_failed "docker build of $dockerfile failed"
-            continue
-        fi
-        image_id="$(cat "$iidfile")"
     fi
+    if ! docker_build "${build_args[@]}"; then
+        image_failed "docker build of $dockerfile failed"
+        continue
+    fi
+    image_id="$(cat "$iidfile")"
     # mktemp creates the file empty and `cat` of an empty file exits 0, so a
     # builder that returns success without writing an ID would leave every
     # trivy call below with an empty target — the opposite of the immutable-ID
@@ -1124,9 +566,11 @@ for entry in "${IMAGES[@]}"; do
     # is an npm finding (round-4 review, Major 3). Both ecosystems must be
     # present, each above its own floor.
     echo "==> proving the scan reads $image_id"
-    if ! counts="$(trivy image --skip-version-check --scanners vuln --list-all-pkgs \
-        --format json "$image_id" \
-        | python3 -I -B -c '
+    step_output="$(mktemp)"
+    inventory_status=0
+    run_step trivy image --skip-version-check --scanners vuln --list-all-pkgs \
+        --format json "$image_id" > "$step_output" || inventory_status=$?
+    if ! counts="$(python3 -I -B -c '
 import json, sys
 
 def refuse(detail):
@@ -1196,9 +640,9 @@ if sys.argv[1] == "switchyard":
     if len(package_ids) != len(set(package_ids)):
         refuse("Switchyard Rust inventory contains duplicate package IDs")
     expected_root = {
-        "ID": "switchyard-server@0.1.0",
+        "ID": "switchyard-server@0.3.0",
         "Name": "switchyard-server",
-        "Version": "0.1.0",
+        "Version": "0.3.0",
         "Relationship": "root",
     }
     if len(roots) != 1 or any(
@@ -1207,10 +651,14 @@ if sys.argv[1] == "switchyard":
         refuse("Switchyard Rust inventory root package mismatch")
     rust_pkgs = len(package_ids)
 print(os_pkgs, npm_pkgs, rust_pkgs)
-' "$policy")"; then
+' "$policy" < "$step_output")" || [ "$inventory_status" -ne 0 ]; then
+        rm -f "$step_output"
+        step_output=""
         image_failed "trivy could not inventory $image_id"
         continue
     fi
+    rm -f "$step_output"
+    step_output=""
     read -r os_pkgs npm_pkgs rust_pkgs <<< "$counts"
     if [ "$policy" = "switchyard" ]; then
         if [ "${os_pkgs:-0}" -lt "$MIN_SWITCHYARD_OS_PACKAGES" ]; then
@@ -1226,7 +674,7 @@ print(os_pkgs, npm_pkgs, rust_pkgs)
         echo "    scanner read $os_pkgs OS and $rust_pkgs Rust packages"
         echo "==> gate: every CRITICAL/HIGH in $tag ($image_id)"
         gate_status=0
-        trivy image --skip-version-check --scanners vuln \
+        run_step trivy image --skip-version-check --scanners vuln \
             --severity CRITICAL,HIGH --exit-code "$GATE_FINDINGS_EXIT" \
             --format table "$image_id" || gate_status=$?
         record_gate "$gate_status"
@@ -1244,7 +692,7 @@ print(os_pkgs, npm_pkgs, rust_pkgs)
         echo "    scanner read $os_pkgs OS and $npm_pkgs npm packages"
         echo "==> gate: CRITICAL/HIGH with a fix available in $tag ($image_id)"
         gate_status=0
-        trivy image --skip-version-check --scanners vuln \
+        run_step trivy image --skip-version-check --scanners vuln \
             --ignore-unfixed --severity CRITICAL,HIGH \
             --exit-code "$GATE_FINDINGS_EXIT" --format table "$image_id" \
             || gate_status=$?
@@ -1252,14 +700,14 @@ print(os_pkgs, npm_pkgs, rust_pkgs)
     fi
 
     echo "==> triage input: all CRITICAL/HIGH in $tag (not a gate)"
-    trivy image --skip-version-check --scanners vuln \
+    run_step trivy image --skip-version-check --scanners vuln \
         --severity CRITICAL,HIGH --exit-code 0 --format table "$image_id"
 
     if [ "$policy" != "switchyard" ]; then
         agent_images_gated=$((agent_images_gated + 1))
-        rm -f "$iidfile"
-        iidfile=""
     fi
+    rm -f "$iidfile"
+    iidfile=""
 done
 
 if [ $((agent_images_gated + agent_images_failed)) -ne "$AGENT_IMAGES_DECLARED" ]; then

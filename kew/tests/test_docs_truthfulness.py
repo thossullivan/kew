@@ -3977,7 +3977,7 @@ class TestMigrationDocumentationDrift:
         ("project.name", 0): "my-project",
         ("agent.max_budget_usd", 0): 10.0,
         ("inference_transport.switchyard.route", 0): "switchyard/passthrough",
-        ("inference_transport.switchyard.expected_version", 0): "0.1.0",
+        ("inference_transport.switchyard.expected_version", 0): "0.3.0",
         ("inference_transport.switchyard.managed", 0): False,
         (
             "inference_transport.switchyard.config_path",
@@ -4010,11 +4010,11 @@ class TestMigrationDocumentationDrift:
         ("routing.simple.model", 0): "gpt-5.6-sol",
         ("agent.codex.reasoning_effort", 1): "high",
         ("agent.codex.service_tier", 0): "fast",
-        ("sandbox.images.opencode", 0): "kew-agent-opencode:docker-d148816b388f",
-        ("sandbox.images.codex", 0): "kew-agent-codex:docker-d148816b388f",
-        ("sandbox.images.claude-code", 0): "kew-agent:docker-d148816b388f",
-        ("sandbox.images.opencode", 1): "kew-agent-opencode:docker-d148816b388f",
-        ("sandbox.images.codex", 1): "kew-agent-codex:docker-d148816b388f",
+        ("sandbox.images.opencode", 0): "kew-agent-opencode:docker-236e8d2ed49d",
+        ("sandbox.images.codex", 0): "kew-agent-codex:docker-236e8d2ed49d",
+        ("sandbox.images.claude-code", 0): "kew-agent:docker-236e8d2ed49d",
+        ("sandbox.images.opencode", 1): "kew-agent-opencode:docker-236e8d2ed49d",
+        ("sandbox.images.codex", 1): "kew-agent-codex:docker-236e8d2ed49d",
         ("sandbox.openshell.providers.claude-code", 0): "kew-claude-code",
     }
     CONDITIONAL_TOML_VALUES = {
@@ -5280,17 +5280,17 @@ class TestMigrationDocumentationDrift:
         ("declaration", "replacement", "path"),
         (
             (
-                '    claude-code = "kew-agent:docker-d148816b388f"',
+                '    claude-code = "kew-agent:docker-236e8d2ed49d"',
                 '    claude-code = "kew-agent:changed"',
                 "sandbox.images.claude-code",
             ),
             (
-                '    opencode = "kew-agent-opencode:docker-d148816b388f"',
+                '    opencode = "kew-agent-opencode:docker-236e8d2ed49d"',
                 '    opencode = "kew-agent-opencode:changed"',
                 "sandbox.images.opencode",
             ),
             (
-                '    codex = "kew-agent-codex:docker-d148816b388f"',
+                '    codex = "kew-agent-codex:docker-236e8d2ed49d"',
                 '    codex = "kew-agent-codex:changed"',
                 "sandbox.images.codex",
             ),
@@ -8314,7 +8314,7 @@ class TestPlacementRunbook:
         launch = RemoteLaunch(
             host="gcp",
             instance="agent-1",
-            image="kew-agent:docker-d148816b388f",
+            image="kew-agent:docker-236e8d2ed49d",
             runner="claude-code",
             credential_names=("CLAUDE_CODE_OAUTH_TOKEN",),
         )
@@ -8777,3 +8777,84 @@ class TestPromptProfilesDoc:
             "docs/security.md",
         ):
             assert "(prompts.md)" in _read(page), page
+
+
+_TABLE_SEPARATOR = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
+
+
+def _table_blocks(page: str) -> list[list[str]]:
+    """Every run of consecutive ``|`` lines outside fenced code."""
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    fenced = False
+    for line in [*page.splitlines(), ""]:
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        if not fenced and line.startswith("|"):
+            current.append(line)
+            continue
+        if current:
+            blocks.append(current)
+            current = []
+    return blocks
+
+
+def _cells(row: str) -> list[str]:
+    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+
+
+def _table_layout_problems(page: str) -> list[str]:
+    """Rows a Markdown ``tables`` renderer would print as text.
+
+    A ``|`` line counts as a table row only inside a block that opens with a
+    header and a ``---`` separator; a paragraph dropped between rows splits the
+    table, and every row after it loses that header and renders as text.
+    """
+    problems = []
+    for block in _table_blocks(page):
+        if len(block) < 2 or not _TABLE_SEPARATOR.match(block[1]):
+            problems.append(f"rows without a header: {block[0][:60]!r}")
+            continue
+        width = len(_cells(block[0]))
+        problems.extend(
+            f"row with {len(_cells(row))} cells, header has {width}: {row[:60]!r}"
+            for row in block[2:]
+            if len(_cells(row)) != width
+        )
+    return problems
+
+
+def _metric_rows(page: str) -> set[str]:
+    """The metric names the switchyard page's ``| Metric |`` table lists."""
+    (table,) = [b for b in _table_blocks(page) if _cells(b[0])[0] == "Metric"]
+    return {
+        name for row in table[2:] for name in re.findall(r"`([a-z_]+)`", _cells(row)[0])
+    }
+
+
+class TestTheSwitchyardMetricsTable:
+    PAGE = "docs/cli/switchyard.md"
+
+    def test_every_table_on_the_page_renders_as_a_table(self) -> None:
+        assert _table_layout_problems(_read(self.PAGE)) == []
+
+    def test_every_metric_kew_reads_has_a_row(self) -> None:
+        from kew.switchyard_metrics import _DOCUMENTED_FAMILIES
+
+        assert _metric_rows(_read(self.PAGE)) == set(_DOCUMENTED_FAMILIES)
+
+    def test_a_paragraph_between_rows_is_caught(self) -> None:
+        """The layout that shipped once: a note dropped inside the table."""
+        page = _read(self.PAGE)
+        row = next(
+            line
+            for line in page.splitlines()
+            if line.startswith("| `switchyard_errors_total`")
+        )
+        broken = page.replace(
+            row + "\n", row + "\n\nA note about those two counters.\n", 1
+        )
+
+        assert broken != page
+        problems = _table_layout_problems(broken)
+        assert problems and "rows without a header" in problems[0]

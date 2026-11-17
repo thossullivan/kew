@@ -57,7 +57,9 @@ order. The harness does not mutate global runner configuration.
 
 The corpus is bounded JSON with no unknown fields. Case IDs and quality-check
 names must be unique. `expected_proxy_requests` is explicit because a case may
-legitimately require more than one inference request.
+legitimately require more than one inference request. It is compared with the
+proxy's call-attempt count (successful calls plus failed attempts), so a case
+whose call fails over counts every attempt.
 
 ```json
 {
@@ -94,11 +96,43 @@ Prometheus values are labeled as process-wide proxy observations and never
 substitute for runner-reported task usage or independently establish task
 billing. A managed dispatch brackets its fresh, run-owned proxy with baseline
 and final snapshots; only the positive counter delta is attributed to that run
-for served-model, tier, and classifier-overhead reconciliation.
+for served-model and classifier-overhead reconciliation.
 
-For a managed adaptive route, Kew may reconcile a bounded selected model and
-tier from the structured runner response or unambiguous Switchyard selection
-metrics. The run record and audit evidence keep that served identity separate
+Kew reads these families from the pinned server's `/metrics` body and ignores
+every other sample:
+
+| Metric | Labels | Used as |
+| --- | --- | --- |
+| `switchyard_requests_total` | `model` | successful calls, per served model |
+| `switchyard_errors_total` | `model` | failed calls, per model, each failed fallback attempt included |
+| `switchyard_decisions_total` | `algorithm`, `selected_model` | routing decisions: the model the router picked, which a fallback can replace |
+| `switchyard_prompt_tokens_total`, `switchyard_completion_tokens_total` | `model` | proxy-observed input and output tokens |
+| `switchyard_total_latency_ms` | `model` | full-turn latency, in milliseconds |
+| `switchyard_routing_overhead_ms` | `algorithm` | time spent routing, in milliseconds |
+
+The benchmark's proxy count is the sum of the requests and errors counters, so
+it counts call attempts, not client requests: a request that fails over once
+and then succeeds counts twice.
+
+The `kew-switchyard` sidecar image compiles upstream Switchyard's `main` at
+commit `46331725daebda02b83781f63bb9c94db9059a1e`, the commit
+`docker/switchyard.Dockerfile` pins, from public source. That build reports
+version 0.3.0, so set `expected_version = "0.3.0"` for it, but the version
+cannot tell it from the tagged v0.3.0 release or another `main` build: the
+image's `org.opencontainers.image.revision` label names the commit, and
+`binary_sha256` and `compatibility_record_path` bind a managed binary.
+
+For a managed adaptive route, Kew may reconcile a bounded served model from
+the structured runner response, the one model whose proxy token totals equal
+the runner's usage, or a routing decision that agrees with the successful
+calls: `switchyard_decisions_total` names the model the router picked, and a
+fallback can serve another, so a decision counts only when it and
+`switchyard_requests_total` each name the same single model. Otherwise the
+served model is left unresolved. The pinned server labels no metric with a
+tier and writes no structured classifier records (described below), so tier
+evidence is currently unavailable from it and a governed adaptive event is
+`unreconciled`; adaptive routing stays on HOLD. The run record and audit
+evidence keep that served identity separate
 from the admitted route alias. A classifier route may also show separately
 observed classifier input/output tokens and cost; those values are never
 silently presented as task usage. The normal report exposes the route, served
@@ -110,8 +144,10 @@ alias itself is never used as the pricing identity when a served model was
 observed.
 
 When a classifier-enabled Switchyard route emits a structured classifier
-record, the corresponding case result may also contain a
-`classifier_evidence` object. It contains only sanitized routing facts:
+record (a `classifier_signals=` or `classifier_evidence=` stderr line), the
+corresponding case result may also contain a `classifier_evidence` object. The
+pinned Rust server writes no such line, so this object, and the tier it
+carries, is currently absent. It contains only sanitized routing facts:
 
 ```json
 {
@@ -161,16 +197,16 @@ For the passthrough window, Kew:
 1. takes an exclusive per-endpoint lock;
 2. starts a fresh managed Switchyard process;
 3. takes an initial snapshot, runs the direct corpus, then takes the baseline
-   and requires proxy request counters to have stayed idle;
+   and requires the proxy's call counters to have stayed idle;
 4. runs every passthrough case sequentially;
 5. takes two final snapshots and again checks for overlapping traffic; and
 6. terminates and reaps the owned process (and removes Codex sessions created
    by either leg).
 
-The proxy evidence is valid only when exclusive use was proven and the request
-counter delta exactly equals the corpus's expected total. A counter reset,
-unexpected request count, or traffic outside the harness invalidates **all**
-model, tier, latency, token, and other proxy deltas. Runner-authoritative usage
+The proxy evidence is valid only when exclusive use was proven and the
+call-attempt delta exactly equals the corpus's expected total. A counter reset,
+unexpected call count, or traffic outside the harness invalidates **all**
+model, latency, token, and other proxy deltas. Runner-authoritative usage
 remains present so an invalid proxy window cannot be mistaken for missing
 runner accounting.
 

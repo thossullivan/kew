@@ -425,6 +425,12 @@ def _require_scope_the_lookup_reads(
         # The lookup reads a mixed branch under every item its runs name, so a
         # claim under the owning item is read back (#3193).
         return
+    if scoped is None and not _branch_has_runs(store, branch=branch):
+        raise HeadAttestationRefused(
+            f"kew has no run on {branch!r}, so no tracker item owns the branch "
+            "to attest under; for work published by hand on another branch, "
+            "record it on its run with `kew finalize <run-id>`"
+        )
     if scoped is None:
         raise HeadAttestationRefused(
             f"the runs on {branch!r} name more than one tracker item, so no one "
@@ -436,6 +442,24 @@ def _require_scope_the_lookup_reads(
             f"{branch!r} belongs to item {scoped or '(none)'}, not {item_id!r}; "
             "a claim under another item would never be read"
         )
+
+
+def _branch_has_runs(store: RunStore, *, branch: str) -> bool:
+    """Whether kew retains any run on *branch* (#3589).
+
+    The one-item read answers ``None`` both for a branch whose runs name more
+    than one item and for a branch with no run at all; only this tells them
+    apart, so the refusal names the case the operator is actually in.
+    """
+    from kew.publication_credentials import publication_branch_runs
+
+    try:
+        return bool(publication_branch_runs(store, branch=branch))
+    except (CredentialPublicationRefused, PublicationHeld) as exc:
+        raise HeadAttestationRefused(
+            f"the runs on {branch!r} could not be read, so no claim on it can "
+            f"be read back: {exc}"
+        ) from None
 
 
 def _owner_beside_its_prs(store: RunStore, *, branch: str) -> str | None:
