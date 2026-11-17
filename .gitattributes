@@ -17,6 +17,9 @@ www/PLAYBOOK.md export-ignore
 .claude/skills/ship-pr export-ignore
 # The pre-release feature-freeze test; the freeze ends with the first release.
 .claude/skills/freeze-boundary export-ignore
+# Dependency updates run on the development repository. On the public
+# repository they open pull requests that are never merged there.
+.github/dependabot.yml export-ignore
 # Maintainer-only scan data; scripts/make-public-snapshot.sh runs this
 # checkout's copy against the snapshot.
 kew/tests/test_private_names.py export-ignore
