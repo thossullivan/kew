@@ -688,11 +688,29 @@ top of each:
 KEW_SWITCHYARD_IMAGE: ${{ github.event.repository.visibility == 'private' && '1' || '' }}
 ```
 
+This condition keeps public CI from paying the Rust compile and network cost.
+It does not protect a private source input. The image uses public upstream
+source.
+
+`kew verify` also limits this layer to an image-building host. A local verify
+enables it when a candidate changes a Switchyard input. These inputs are:
+
+- either Switchyard Dockerfile;
+- a top-level `switchyard*.py` module;
+- either module with `requires_switchyard_image` tests;
+- `scripts/scan-agent-image.sh`.
+
+A renamed file counts by its old path and its new path.
+An operator can set `KEW_SWITCHYARD_IMAGE=1` to enable every local candidate.
+When the layer is on, the local gate builds the current
+`kew-switchyard:docker-<digest12>` image before pytest, if docker is present
+and the image is missing. A remote verify host always skips the layer.
+
 No secret reaches the Switchyard build. Because the marked tests are absent
 from every default run, an empty selection would otherwise be invisible: each
-opted-in job runs `.github/scripts/assert_switchyard_tests_selected.sh` before
-its suite, which fails when `KEW_SWITCHYARD_IMAGE=1` but no marked test was
-selected. Default runs do not exercise the sidecar packet certification at
+opted-in CI job runs `.github/scripts/assert_switchyard_tests_selected.sh`
+before its suite, which fails when `KEW_SWITCHYARD_IMAGE=1` but no marked test
+was selected. `kew verify` does not run that assertion. Default runs do not exercise the sidecar packet certification at
 all — see
 [Worker namespace filter proof](security.md#worker-namespace-filter-proof).
 

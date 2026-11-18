@@ -13,9 +13,10 @@ nothing of its own invention:
   a host that already has them rebuilds nothing.
 * ``bash scripts/verify.sh``, the one local gate that mirrors PR-gating CI
   (``tests/test_verify_parity.py`` is what keeps the two the same). The
-  Switchyard layer inside it, which compiles the pinned upstream source,
-  stays opt-in through ``KEW_SWITCHYARD_IMAGE``, and the opt-in is forwarded
-  only to the operator machine
+  Switchyard layer inside it compiles the pinned upstream source and needs
+  network access. The operator can opt in through ``KEW_SWITCHYARD_IMAGE``.
+  A Switchyard input change opts in automatically. Both paths apply only to
+  the operator machine
   (:attr:`~kew.hosts.provider.HostProvider.builds_private_images`).
 * ``npm run ui-check`` when, and only when, ``frontend/`` differs from the
   base. A console change verified without a browser is the failure mode that
@@ -576,7 +577,8 @@ def resolve_candidate(
         base_sha=base_sha,
         frontend_changed=touches_ui_check(both_sides),
         image_inputs_changed=image_inputs_changed(paths),
-        changed_paths=tuple(paths),
+        # Both sides of a rename: a Switchyard input moved away still changed.
+        changed_paths=tuple(path for path in both_sides if path),
         ref_tree=_git(repo_root, "rev-parse", f"{ref_sha}^{{tree}}"),
         held_out=_held_out_selection(repo_root, base_sha, ref_sha),
         ref_parents=commit_parents(repo_root, ref_sha),
@@ -847,6 +849,22 @@ IMAGE_INPUTS = (
     "uv.lock",
 )
 
+#: Exact files that change the Switchyard image or its scan.
+SWITCHYARD_IMAGE_INPUTS = (
+    "docker/switchyard.Dockerfile",
+    "kew/src/kew/_docker/docker/switchyard.Dockerfile",
+    "scripts/scan-agent-image.sh",
+)
+
+#: Top-level modules beginning with this prefix are Switchyard image inputs.
+_SWITCHYARD_MODULE_PREFIX = "kew/src/kew/switchyard"
+
+#: The modules that contain every test needing the Switchyard image.
+SWITCHYARD_IMAGE_TEST_INPUTS = (
+    "kew/tests/test_agent_image_scan_gate.py",
+    "kew/tests/test_switchyard_sidecar.py",
+)
+
 #: How the job tells ``scripts/verify.sh`` to skip the image scan.
 IMAGE_SCAN_ENV = "KEW_VERIFY_IMAGE_SCAN"
 
@@ -858,6 +876,20 @@ def image_inputs_changed(paths: Iterable[str]) -> bool:
             return True
         if any(path.startswith(prefix) for prefix in IMAGE_INPUTS):
             return True
+    return False
+
+
+def switchyard_inputs_changed(paths: Iterable[str]) -> bool:
+    """Whether any path needs the Switchyard image verification layer."""
+    for path in paths:
+        if path in SWITCHYARD_IMAGE_INPUTS:
+            return True
+        if path in SWITCHYARD_IMAGE_TEST_INPUTS:
+            return True
+        if path.startswith(_SWITCHYARD_MODULE_PREFIX) and path.endswith(".py"):
+            suffix = path.removeprefix(_SWITCHYARD_MODULE_PREFIX)
+            if "/" not in suffix:
+                return True
     return False
 
 
@@ -877,6 +909,32 @@ def _image_lines(images: list[tuple[str, str]]) -> list[str]:
             f"uv run kew sandbox build --runner {shlex.quote(runner)}"
             for runner, tag in images
         ),
+        "fi",
+    ]
+
+
+def _switchyard_image_lines(switchyard_image: bool) -> list[str]:
+    """Build the proxy tag the selected tests resolve, when they are selected.
+
+    *switchyard_image* is whether the job's environment carries the opt-in
+    (:func:`switchyard_variables`), which is also what selects the
+    ``requires_switchyard_image`` tests, so the build and the selection
+    cannot disagree. The sidecar tests derive their proxy tag from the
+    digest-tagged worker image. The image scan runs after pytest and builds
+    ``ci-scan``, so the digest tag is built here, before any test phase. A
+    host without docker builds nothing, as :func:`_image_lines` does.
+    """
+    if not switchyard_image:
+        return []
+    return [
+        "if command -v docker >/dev/null 2>&1 && [ -f src/kew/image_inputs.py ]; then",
+        '    kew_switchyard_label="$(python3 -I -B src/kew/image_inputs.py ..)"',
+        "    kew_switchyard_tag=\"docker-$(printf '%s\\n' "
+        '"${kew_switchyard_label#*=}" | cut -c1-12)"',
+        '    docker image inspect "kew-switchyard:${kew_switchyard_tag}" '
+        ">/dev/null 2>&1 || "
+        'KEW_SWITCHYARD_IMAGE=1 KEW_SCAN_TAG="${kew_switchyard_tag}" '
+        "bash ../scripts/scan-agent-image.sh --build-switchyard-only",
         "fi",
     ]
 
@@ -1113,7 +1171,12 @@ def stopped_phase(log: str) -> str | None:
     return opened[-1] if opened else None
 
 
-def job_script(candidate: VerifyCandidate, *, images: list[tuple[str, str]]) -> str:
+def job_script(
+    candidate: VerifyCandidate,
+    *,
+    images: list[tuple[str, str]],
+    switchyard_image: bool = False,
+) -> str:
     """The shell the host runs first: the cheap gates, then held-out (#3212).
 
     ``cd kew`` because the bundle's checkout root is the repository root and
@@ -1139,6 +1202,7 @@ def job_script(candidate: VerifyCandidate, *, images: list[tuple[str, str]]) -> 
     lines += [*environment_probe_lines(), *environment_record_lines()]
     lines += main_python_lines()
     lines += _image_lines(images)
+    lines += _switchyard_image_lines(switchyard_image)
     lines.append(_phase(PHASE_GATES))
     lines += probed_suite_lines(f"{STAGE_ENV}={STAGE_GATES} bash scripts/verify.sh")
     lines.append(_phase(PHASE_HELD_OUT))
@@ -1247,16 +1311,22 @@ def ui_check_modules(candidate: VerifyCandidate) -> list[str] | None:
 
 
 def switchyard_variables(
-    source: Mapping[str, str], *, builds_private_images: bool
+    source: Mapping[str, str],
+    *,
+    builds_private_images: bool,
+    changed_paths: Iterable[str] = (),
 ) -> dict[str, str]:
     """The Switchyard-layer opt-in, or nothing at all.
 
-    Forwarded only when this machine opted in with exactly ``"1"`` and the
-    host is the operator machine; a remote verify host skips that layer
-    whatever this machine's environment says. The layer needs nothing beside
-    the switch: the proxy image builds from public upstream source.
+    An image-building host receives it when the operator opted in with exactly
+    ``"1"`` or when a candidate changes a Switchyard input. A remote verify
+    host skips that layer in every case. The proxy image compiles public
+    upstream source and needs network access.
     """
-    if not builds_private_images or source.get(SWITCHYARD_IMAGE_ENV, "") != "1":
+    opted_in = source.get(SWITCHYARD_IMAGE_ENV, "") == "1"
+    if not builds_private_images or not (
+        opted_in or switchyard_inputs_changed(changed_paths)
+    ):
         return {}
     return {SWITCHYARD_IMAGE_ENV: "1"}
 
@@ -1274,7 +1344,11 @@ def job_environment(
     if not candidate.scans_images:
         environment[IMAGE_SCAN_ENV] = "skip"
     environment.update(
-        switchyard_variables(source, builds_private_images=builds_private_images)
+        switchyard_variables(
+            source,
+            builds_private_images=builds_private_images,
+            changed_paths=candidate.changed_paths,
+        )
     )
     if config.verify.deselect:
         environment["PYTEST_ADDOPTS"] = " ".join(
@@ -1291,14 +1365,19 @@ def build_job(
 ) -> Job:
     """The first job this host runs for this candidate (:func:`job_script`)."""
     ceiling = config.verify.timeout_seconds
+    environment = job_environment(
+        candidate,
+        config=config,
+        builds_private_images=provider.builds_private_images,
+    )
     return Job(
         name=JOB_NAME,
-        command=job_script(candidate, images=pinned_images(config)),
-        environment=job_environment(
+        command=job_script(
             candidate,
-            config=config,
-            builds_private_images=provider.builds_private_images,
+            images=pinned_images(config),
+            switchyard_image=environment.get(SWITCHYARD_IMAGE_ENV) == "1",
         ),
+        environment=environment,
         timeout_seconds=None if ceiling == 0 else float(ceiling),
     )
 
@@ -2621,12 +2700,20 @@ def _worker_cap() -> str:
     return f'export {XDIST_WORKERS_ENV}="${{{XDIST_WORKERS_ENV}:-{XDIST_WORKERS}}}"'
 
 
-def shard_job_script(index: int, total: int, candidate: VerifyCandidate) -> str:
+def shard_job_script(
+    index: int,
+    total: int,
+    candidate: VerifyCandidate,
+    *,
+    switchyard_image: bool = False,
+) -> str:
     """The parallel phase for one shard, and the count it is checked against.
 
     Only that phase: the serial phase and ``ui-check`` run once, in
     :func:`single_job_script`, on the first host of the pool, and the static
     gates and the held-out phase ran before any shard (:func:`job_script`).
+    A shard runs before the single-run job on its host, so it builds the
+    Switchyard proxy itself when the opt-in selects the tests that need it.
     """
     spec = f"{index}/{total}"
     return (
@@ -2636,6 +2723,7 @@ def shard_job_script(index: int, total: int, candidate: VerifyCandidate) -> str:
                 "umask 022",
                 phase_line(SETUP, "start"),
                 "cd kew",
+                *_switchyard_image_lines(switchyard_image),
                 _worker_cap(),
                 *collect_lines(spec),
                 phase_line("xdist", "start"),
@@ -2652,7 +2740,10 @@ def shard_job_script(index: int, total: int, candidate: VerifyCandidate) -> str:
 
 
 def single_job_script(
-    candidate: VerifyCandidate, *, images: list[tuple[str, str]]
+    candidate: VerifyCandidate,
+    *,
+    images: list[tuple[str, str]],
+    switchyard_image: bool = False,
 ) -> str:
     """Everything a sharded verification runs exactly once, on the first host.
 
@@ -2672,6 +2763,7 @@ def single_job_script(
     lines = ["set -eu", "umask 022", phase_line(SETUP, "start"), "cd kew"]
     lines += [PREFLIGHT_COMMAND, *collect_lines(None)]
     lines += _image_lines(images)
+    lines += _switchyard_image_lines(switchyard_image)
     lines += [
         _phase(PHASE_SUITE),
         f"{STAGE_ENV}={STAGE_SUITE} "
@@ -2713,12 +2805,15 @@ def shard_jobs(
         config=config,
         builds_private_images=provider.builds_private_images,
     )
+    switchyard_image = environment.get(SWITCHYARD_IMAGE_ENV) == "1"
     labelled = [
         (
             f"{index}/{shards}",
             Job(
                 name=f"{JOB_NAME}-shard-{index}-of-{shards}",
-                command=shard_job_script(index, shards, candidate),
+                command=shard_job_script(
+                    index, shards, candidate, switchyard_image=switchyard_image
+                ),
                 environment=environment,
                 timeout_seconds=timeout,
             ),
@@ -2730,7 +2825,11 @@ def shard_jobs(
             SINGLE_JOB,
             Job(
                 name=f"{JOB_NAME}-{SINGLE_JOB}",
-                command=single_job_script(candidate, images=pinned_images(config)),
+                command=single_job_script(
+                    candidate,
+                    images=pinned_images(config),
+                    switchyard_image=switchyard_image,
+                ),
                 environment=environment,
                 timeout_seconds=timeout,
             ),

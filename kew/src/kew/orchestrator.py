@@ -1953,16 +1953,16 @@ def _managed_classifier_records(managed: object | None) -> tuple[object, ...]:
     return records if isinstance(records, tuple) else ()
 
 
-def _proxy_request_count(
+def _proxy_decision_count(
     evidence: SwitchyardSelectionEvidence,
     route: str,
 ) -> int:
-    """Count requests attributed to the adaptive route in the managed delta."""
+    """Count routing decisions attributed to the adaptive route."""
     return round(
         sum(
             sample.value
             for sample in evidence.observation.samples
-            if sample.family == "requests"
+            if sample.family == "model_selection"
             and sample.labels.get("route") in {None, route}
         )
     )
@@ -1979,8 +1979,8 @@ def _classifier_accounting_reason(
         return "classifier_evidence_missing"
     if evidence is None:
         return None
-    request_count = _proxy_request_count(evidence, route)
-    if request_count and len(result.classifier_evidence) != request_count:
+    decision_count = _proxy_decision_count(evidence, route)
+    if decision_count and len(result.classifier_evidence) != decision_count:
         return "classifier_evidence_incomplete"
     return None
 

@@ -253,6 +253,61 @@ def test_partial_classifier_records_are_unreconciled(tmp_path):
     assert result.accounting_unreconciled_reasons == ["classifier_evidence_incomplete"]
 
 
+@pytest.mark.parametrize(
+    ("classifier_record_count", "expected_status", "expected_reasons"),
+    (
+        (2, "reconciled", None),
+        (1, "unreconciled", ["classifier_evidence_incomplete"]),
+    ),
+    ids=("complete", "incomplete"),
+)
+def test_classifier_evidence_completeness_uses_routing_decisions(
+    tmp_path,
+    classifier_record_count,
+    expected_status,
+    expected_reasons,
+):
+    from kew.orchestrator import reconcile_managed_switchyard_lifecycle
+
+    observation = parse_switchyard_metrics(
+        "\n".join(
+            (
+                'switchyard_requests_total{model="gpt-5.6-sol"} 1',
+                'switchyard_errors_total{model="gpt-5.6-luna"} 1',
+                "switchyard_decisions_total{"
+                'algorithm="llm_classifier",selected_model="gpt-5.6-sol"} 2',
+                'switchyard_prompt_tokens_total{model="gpt-5.6-luna"} 33',
+                'switchyard_completion_tokens_total{model="gpt-5.6-luna"} 7',
+            )
+        )
+        + "\n"
+    )
+    supervisor = MagicMock()
+    supervisor.accounting_evidence.return_value = observation.selection_evidence(
+        route="switchyard/llm_classifier"
+    )
+    classifier_record = parse_classifier_evidence(
+        {"confidence": 0.91, "selected_tier": "strong"},
+        ingress_format="openai_responses",
+        upstream_format="openai_chat",
+    )
+    supervisor.classifier_evidence = (classifier_record,) * classifier_record_count
+    result = DispatchResult(
+        exit_code=0,
+        issue_num=3599,
+        log_file=tmp_path / "dispatch.log",
+    )
+
+    reconcile_managed_switchyard_lifecycle(
+        supervisor,
+        result,
+        route="switchyard/llm_classifier",
+    )
+
+    assert result.accounting_status == expected_status
+    assert result.accounting_unreconciled_reasons == expected_reasons
+
+
 def test_missing_classifier_overhead_is_unreconciled(tmp_path):
     from kew.orchestrator import reconcile_managed_switchyard_lifecycle
 
@@ -540,13 +595,12 @@ def test_managed_adaptive_terminal_accounting_keeps_route_and_served_model(
             runner_output_tokens=45,
         )
     )
-    drained_classifier_evidence = (
-        parse_classifier_evidence(
-            {"confidence": 0.91, "selected_tier": "strong"},
-            ingress_format="openai_responses",
-            upstream_format="openai_chat",
-        ),
+    drained_classifier_record = parse_classifier_evidence(
+        {"confidence": 0.91, "selected_tier": "strong"},
+        ingress_format="openai_responses",
+        upstream_format="openai_chat",
     )
+    drained_classifier_evidence = (drained_classifier_record,) * 2
     supervisor.classifier_evidence = ()
     managed_context = MagicMock()
     managed_context.__enter__.return_value = supervisor

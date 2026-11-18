@@ -8783,19 +8783,24 @@ _TABLE_SEPARATOR = re.compile(r"^\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 
 
 def _table_blocks(page: str) -> list[list[str]]:
-    """Every run of consecutive ``|`` lines outside fenced code."""
+    """Every nonblank block containing a ``|`` line outside fenced code."""
     blocks: list[list[str]] = []
     current: list[str] = []
+    has_table_row = False
     fenced = False
     for line in [*page.splitlines(), ""]:
-        if line.lstrip().startswith("```"):
-            fenced = not fenced
-        if not fenced and line.startswith("|"):
-            current.append(line)
-            continue
-        if current:
-            blocks.append(current)
+        fence_marker = line.lstrip().startswith("```")
+        if fence_marker or (not fenced and not line.strip()):
+            if current and has_table_row:
+                blocks.append(current)
             current = []
+            has_table_row = False
+            if fence_marker:
+                fenced = not fenced
+            continue
+        if not fenced:
+            current.append(line)
+            has_table_row = has_table_row or line.startswith("|")
     return blocks
 
 
@@ -8804,11 +8809,12 @@ def _cells(row: str) -> list[str]:
 
 
 def _table_layout_problems(page: str) -> list[str]:
-    """Rows a Markdown ``tables`` renderer would print as text.
+    """Blocks or rows a Markdown ``tables`` renderer would misrender.
 
     A ``|`` line counts as a table row only inside a block that opens with a
     header and a ``---`` separator; a paragraph dropped between rows splits the
-    table, and every row after it loses that header and renders as text.
+    table, and every row after it loses that header and renders as text. Prose
+    attached below a table becomes a short table row.
     """
     problems = []
     for block in _table_blocks(page):
@@ -8830,6 +8836,16 @@ def _metric_rows(page: str) -> set[str]:
     return {
         name for row in table[2:] for name in re.findall(r"`([a-z_]+)`", _cells(row)[0])
     }
+
+
+def test_switchyard_classifier_record_completeness_uses_routing_decisions() -> None:
+    accounting = _read("docs/cli/switchyard.md").split(
+        "Every governed adaptive terminal event", 1
+    )[1]
+    accounting = accounting.split("For the passthrough window", 1)[0]
+
+    assert "`switchyard_decisions_total`" in accounting
+    assert "`switchyard_requests_total`" not in accounting
 
 
 class TestTheSwitchyardMetricsTable:
@@ -8858,3 +8874,25 @@ class TestTheSwitchyardMetricsTable:
         assert broken != page
         problems = _table_layout_problems(broken)
         assert problems and "rows without a header" in problems[0]
+
+    def test_text_directly_above_the_header_is_caught(self) -> None:
+        page = _read(self.PAGE)
+        header = "| Metric | Labels | Used as |"
+        broken = page.replace(header, "A note about the metrics.\n" + header, 1)
+
+        assert broken != page
+        problems = _table_layout_problems(broken)
+        assert problems and "rows without a header" in problems[0]
+
+    def test_text_directly_below_the_last_row_is_caught(self) -> None:
+        page = _read(self.PAGE)
+        row = next(
+            line
+            for line in page.splitlines()
+            if line.startswith("| `switchyard_routing_overhead_ms`")
+        )
+        broken = page.replace(row + "\n", row + "\nA note about the metrics.\n", 1)
+
+        assert broken != page
+        problems = _table_layout_problems(broken)
+        assert problems and "row with 1 cells" in problems[0]

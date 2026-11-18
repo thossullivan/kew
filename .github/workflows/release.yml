@@ -19,10 +19,10 @@ permissions:
 
 env:
   # The Switchyard image tooling is opt-in: "1" exactly when the repository is
-  # private, where serial-tests runs on the private runner. The kew-switchyard
-  # image compiles upstream's public source at the commit its Dockerfile pins,
-  # which is slow and fetches that source over the network, so every other
-  # path gets "" and skips that image's prerequisite and the tests marked
+  # private, where serial-tests runs on the operator runner. This condition
+  # keeps public release checks from compiling upstream Rust and requiring
+  # GitHub and crates.io access. Every other path gets "" and skips that
+  # image's prerequisite and the tests marked
   # requires_switchyard_image (tests/conftest.py), each printing why. Nothing
   # else is skipped. Opting the hosted runner in is the switch in
   # docs/operations.md ("Public repository runner rule").

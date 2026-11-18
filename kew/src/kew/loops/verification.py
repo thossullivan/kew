@@ -576,6 +576,7 @@ class CommandCondition:
             gid=os.getgid(),
             checkout_writable=self._needs_writes,
             scratch_paths=admission.scratch_paths,
+            exec_tmpdir=True,
         )
         try:
             result = run_container_with_cpu_cap_retry(

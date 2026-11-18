@@ -311,11 +311,15 @@ def test_a_check_image_run_gives_vite_a_writable_temp_on_a_read_only_root(
         "/tmp:size=1g",
         "--tmpfs",
         "/opt/kew-check/frontend/node_modules/.vite-temp:size=64m,mode=1777",
+        "--tmpfs",
+        f"/var/tmp:exec,size=1g,uid={os.getuid()},gid={os.getgid()},mode=0700",
         *sandbox.resource_limit_args(admission.runtime),
         "--user",
         f"{os.getuid()}:{os.getgid()}",
         "-e",
         "HOME=/tmp",
+        "-e",
+        "TMPDIR=/var/tmp",
         *[
             arg
             for proxy in ("HTTP", "HTTPS", "FTP", "ALL", "NO")
@@ -337,8 +341,8 @@ def test_a_check_image_run_gives_vite_a_writable_temp_on_a_read_only_root(
 def test_a_runner_image_run_mounts_nothing_writable_over_its_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tools: None
 ) -> None:
-    """Without a check image the scratch mount is not added: only ``/tmp`` is
-    writable in the runner image."""
+    """Without a check image the scratch mount is not added: only ``/tmp`` and
+    the executable ``TMPDIR`` (#3595) are writable in the runner image."""
     runtime = _runtime(monkeypatch, tmp_path, {RUNNER_IMAGE: RUNNER_ID})
     worktree, since = _resolved_worktree(tmp_path)
 
@@ -346,7 +350,10 @@ def test_a_runner_image_run_mounts_nothing_writable_over_its_root(
 
     [argv] = runtime.argvs
     tmpfs = [argv[i + 1] for i, word in enumerate(argv) if word == "--tmpfs"]
-    assert tmpfs == ["/tmp:size=1g"]
+    assert tmpfs == [
+        "/tmp:size=1g",
+        f"/var/tmp:exec,size=1g,uid={os.getuid()},gid={os.getgid()},mode=0700",
+    ]
     assert "--read-only" in argv
 
 

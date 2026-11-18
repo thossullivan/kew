@@ -436,6 +436,13 @@ _SCRATCH_TMPFS_SIZE = "64m"
 #: ``vite.config.ts`` into the nearest ``node_modules/.vite-temp``: without a
 #: writable one there, every frontend check fails with ENOENT on any tree.
 CHECK_IMAGE_SCRATCH_PATHS = ("/opt/kew-check/frontend/node_modules/.vite-temp",)
+#: The temp directory a verification container's ``TMPDIR`` names (#3595): a
+#: tmpfs mounted ``exec``, because ``/tmp`` keeps Docker's default ``noexec``.
+#: pytest puts ``tmp_path`` under ``TMPDIR``, and a test that writes a stub tool
+#: there and runs it failed on every tree, so the pre-review gate saw a red base
+#: and checked no PR. Same size cap as ``/tmp``, uid-pinned, gone with the
+#: container — the agent's ``HOME`` is ``exec`` on the same terms (#762).
+EXEC_TMPDIR = "/var/tmp"  # nosec B108 - in-container tmpfs, not a host temp path
 
 # Per-process rlimits, enforced by the kernel rather than by a watchdog.
 # ``fsize`` is the single-file write cap: it is what stops one ``dd`` or one
@@ -3573,6 +3580,7 @@ def build_checkout_program_argv(
     checkout_writable: bool = False,
     artifact_dir: Path | None = None,
     scratch_paths: Sequence[str] = (),
+    exec_tmpdir: bool = False,
 ) -> list[str]:
     """Run a program over a checkout without network or runner credentials.
 
@@ -3580,6 +3588,8 @@ def build_checkout_program_argv(
     Only operator configuration may request a writable checkout.
     *scratch_paths* are in-image paths mounted as small writable tmpfs over
     the read-only root (:data:`CHECK_IMAGE_SCRATCH_PATHS`).
+    *exec_tmpdir* adds :data:`EXEC_TMPDIR` and points ``TMPDIR`` at it, for a
+    verification command whose tests run what they write to their temp dir.
     These launches take no proxy policy.
     Every proxy variable receives an empty assignment: they carry
     ``--network none``, so a forwarded proxy value can never be used and only
@@ -3594,6 +3604,18 @@ def build_checkout_program_argv(
         else []
     )
     mode = "rw" if checkout_writable else "ro"
+    exec_tmp_mount, exec_tmp_env = (
+        (
+            [
+                "--tmpfs",
+                f"{EXEC_TMPDIR}:exec,size={_TMP_TMPFS_SIZE},"
+                f"uid={uid},gid={gid},mode=0700",
+            ],
+            ["-e", f"TMPDIR={EXEC_TMPDIR}"],
+        )
+        if exec_tmpdir
+        else ([], [])
+    )
     return [
         runtime,
         "run",
@@ -3617,11 +3639,13 @@ def build_checkout_program_argv(
             for path in scratch_paths
             for arg in ("--tmpfs", f"{path}:size={_SCRATCH_TMPFS_SIZE},mode=1777")
         ),
+        *exec_tmp_mount,
         *resource_limit_args(runtime),
         "--user",
         f"{uid}:{gid}",
         "-e",
         "HOME=/tmp",  # nosec B108 - in-container tmpfs, not a host temp path
+        *exec_tmp_env,
         *_container_proxy_environment_args("none", _PROXY_BUILD_NAMES),
         "--entrypoint",
         program[0],

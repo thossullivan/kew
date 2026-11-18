@@ -76,7 +76,12 @@ def test_round23_contained_verification_uses_admitted_policy(
     for name in sandbox._PROXY_BUILD_NAMES:
         assert f"{name}=" in environment
         assert name not in environment
-    assert len(environment) == 11
+    # HOME, TMPDIR (the exec tmpfs, #3595) and the blanked proxy names, and
+    # the inherited proxy value in none of them.
+    assert "HOME=/tmp" in environment
+    assert "TMPDIR=/var/tmp" in environment
+    assert len(environment) == 12
+    assert not [value for value in environment if "proxy.invalid" in value]
     assert condition.admission.proxy_environment == policy
     assert (
         condition.admission.record_fields()["verification_proxy_environment"] == policy

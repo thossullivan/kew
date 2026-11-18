@@ -205,10 +205,22 @@ The **suite job**, in the same checkout, only behind a clean gate job:
 2. `KEW_VERIFY_STAGE=suite bash scripts/verify.sh`, which is the rest of the
    gate: the two pytest phases and the coverage floor, the agent-image scan,
    the docs gate, and the frontend and www gates. The Switchyard image layer
-   inside it, which compiles the pinned upstream source, stays opt-in through
-   `KEW_SWITCHYARD_IMAGE`, and kew forwards that opt-in **only** to the local
-   host. A remote host skips that one layer and gates every other image
-   exactly as CI does. With `[verify] suite = "tiered"`,
+   compiles upstream Rust and needs GitHub and crates.io access. It stays
+   opt-in because each build pays that compile and network cost. A local verify
+   enables it when the candidate changes a Switchyard input. These inputs are:
+
+   - either Switchyard Dockerfile;
+   - a top-level `kew/src/kew/switchyard*.py` module;
+   - either module containing `requires_switchyard_image` tests;
+   - `scripts/scan-agent-image.sh`.
+
+   A renamed file counts by its old path and its new path.
+   `KEW_SWITCHYARD_IMAGE=1` enables the layer for every local candidate.
+   When the layer is on, the local gate builds the proxy's current
+   `docker-<digest12>` tag before pytest starts, if docker is present and the
+   tag is missing. The selected sidecar tests resolve that exact tag. A
+   remote host always skips that layer and gates every other image. With
+   `[verify] suite = "tiered"`,
    its two pytest phases may run the change's selection instead of the whole
    suite: see [The tiered suite](#tiered).
 3. `npm run ui-check` — Playwright screenshots and console checks — when, and

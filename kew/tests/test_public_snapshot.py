@@ -297,6 +297,26 @@ def _run_snapshot(
     return result, calls, out
 
 
+def test_the_temp_directory_can_execute_the_stub_tools_written_to_it(
+    tmp_path: Path,
+) -> None:
+    """``_run_snapshot`` runs stubs it writes under ``tmp_path``. The pre-review
+    gate's container mounts ``/tmp`` ``noexec`` and points ``TMPDIR`` at an
+    ``exec`` tmpfs (#3595); if a mount change moves ``tmp_path`` back onto a
+    ``noexec`` filesystem, this fails by name instead of the gate reading the
+    snapshot tests' failure as a red base and checking no PR."""
+    probe = tmp_path / "probe"
+    probe.write_text("#!/bin/sh\necho ran\n")
+    probe.chmod(0o755)
+    try:
+        result = subprocess.run(  # noqa: S603 - a fixed script this test wrote
+            [str(probe)], capture_output=True, text=True, check=False, timeout=30
+        )
+    except PermissionError as exc:
+        pytest.fail(f"pytest's temp directory {tmp_path} is mounted noexec: {exc}")
+    assert result.stdout == "ran\n"
+
+
 def test_the_script_runs_the_private_scans_against_the_snapshot(
     tmp_path: Path,
 ) -> None:

@@ -886,6 +886,7 @@ The free-space probe runs independently of that backoff.
 A breach removes the container using its recorded ID and fails verification with a `checkout-quota refusal` reason.
 These periodic checks can overshoot between probes; they are not filesystem quotas.
 The root remains read-only; `/tmp` remains a bounded writable tmpfs.
+`/tmp` stays `noexec`; `TMPDIR` names a second bounded tmpfs at `/var/tmp`, mounted `exec` and owned by the command's user, so a test that writes a stub tool to its temp directory can run it.
 Contained verification has a 600-second maximum timeout, including any CPU-cap retry.
 Exit 0 passes; any non-zero exit fails.
 The gate captures redacted stdout and stderr tails.
@@ -1791,8 +1792,8 @@ A health response or filter readback cannot replace this matrix.
 Default CI does not exercise this packet certification.
 The Switchyard image tooling is opt-in: the tests that prove the matrix need the `kew-switchyard` image, which compiles upstream's public Switchyard source at a pinned commit, slowly and over the network.
 They are marked `requires_switchyard_image` and are deselected unless a run sets `KEW_SWITCHYARD_IMAGE=1`.
-Only opted-in runs — the private runner, and a local run that sets the switch — exercise the certification.
-An opted-in job asserts the marked tests are still selected before running them, so the certification cannot silently stop running.
+Only opted-in runs exercise the certification: the private runner, a local run that sets the switch, and a local `kew verify` of a change to a Switchyard input.
+An opted-in CI job asserts the marked tests are still selected before running them, so the certification cannot silently stop running there.
 The runner rule and the switch are in [Public repository runner rule](operations.md#public-repository-runner-rule).
 
 Run this bounded operator gate from `kew/` after building the local images:

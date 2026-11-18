@@ -897,7 +897,7 @@ def test_contained_verification_argv_and_agent_script_never_run_on_host(
     mounts = [argv[i + 1] for i, value in enumerate(argv) if value == "-v"]
     assert len(mounts) == 1 and mounts[0].endswith("/checkout:/work:ro")
     env = [argv[i + 1] for i, value in enumerate(argv) if value == "-e"]
-    assert set(env) == {"HOME=/tmp"} | {
+    assert set(env) == {"HOME=/tmp", "TMPDIR=/var/tmp"} | {
         f"{name}="
         for base in ("HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY", "ALL_PROXY", "NO_PROXY")
         for name in (base, base.lower())

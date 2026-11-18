@@ -298,18 +298,32 @@ def test_overlay_verifier_followed_by_semicolon_true_is_rejected(
 
 # The ci.yml steps that run a pull request's code on the self-hosted runner.
 _PR_CODE_STEPS = ("Test (pytest)", "Agent image CVE gate")
-# ci.yml holds no secret at all, so the guard is a line rule over its raw text
-# rather than a walk over the fields a secret usually sits in: a `run:` line,
-# a function argument, container credentials, a quoted key or a flow-mapping
-# `secrets: inherit` all reach a job some other way. Case-insensitively, a line
-# is refused when it holds the word `secrets` anywhere, or `github.token`, an
-# index into `github`, or the whole `github` context passed to a function
-# (`toJSON(github)` includes the token). Two lines of today's ci.yml use the
-# word legitimately and are allowed by their exact content: a comment naming
-# "the `secrets` job" and that job's id. Any other spelling is refused.
+# ci.yml holds no secret at all, so the guard applies a line rule to raw text
+# and decoded strings. Raw text preserves comments and exact allowed lines.
+# Decoded keys and values cover YAML escapes and continued double-quoted
+# scalars. Case-insensitively, a line is refused when it holds the word
+# `secrets` anywhere or uses `github.token`.
+# An index into `github` is also refused. Every expression must name a
+# non-token property after `github`; this rejects `github` and `github.*`.
+# Two lines of today's ci.yml use the word legitimately and are allowed by
+# their exact content: a comment naming "the `secrets` job" and that job's id.
+# Any other spelling is refused.
 _SECRETS_WORD = re.compile(r"(?<![a-z])secrets(?![a-z])", re.IGNORECASE)
+_UNSAFE_GITHUB_CONTEXT = (
+    r"(?<![a-z0-9_-])github"
+    r"(?![a-z0-9_-]|\s*\.\s*(?!token\b)[a-z_][a-z0-9_-]*\b)"
+)
 _GITHUB_CREDENTIAL = re.compile(
-    r"github\s*\.\s*token|github\s*\[|[(,]\s*github\s*[,)]", re.IGNORECASE
+    "|".join(
+        (
+            r"github\s*\.\s*token",
+            r"github\s*\[",
+            rf"[(,]\s*{_UNSAFE_GITHUB_CONTEXT}",
+            rf"\$\{{\{{.*?{_UNSAFE_GITHUB_CONTEXT}",
+            rf"\bif\s*:.*?{_UNSAFE_GITHUB_CONTEXT}",
+        )
+    ),
+    re.IGNORECASE,
 )
 _ALLOWED_SECRETS_LINES = frozenset(
     {
@@ -317,12 +331,13 @@ _ALLOWED_SECRETS_LINES = frozenset(
         "  secrets:",
     }
 )
+_ALLOWED_DECODED_KEY_PATHS = frozenset({("jobs", "secrets")})
 
 
-def _ci_workflow() -> dict:
+def _ci_workflow(text: str | None = None) -> dict:
     import yaml
 
-    return yaml.safe_load(_CI_WORKFLOW.read_text())
+    return yaml.safe_load(_CI_WORKFLOW.read_text() if text is None else text)
 
 
 def _named_ci_steps(workflow: dict, name: str) -> list[dict]:
@@ -334,13 +349,58 @@ def _named_ci_steps(workflow: dict, name: str) -> list[dict]:
     ]
 
 
+def _line_has_credential_reference(line: str) -> bool:
+    return bool(
+        (_SECRETS_WORD.search(line) and line not in _ALLOWED_SECRETS_LINES)
+        or _GITHUB_CREDENTIAL.search(line)
+    )
+
+
+def _decoded_workflow_lines(value: object, path: tuple[object, ...] = ()) -> list[str]:
+    lines: list[str] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            nested_path = (*path, key)
+            if isinstance(nested, str):
+                decoded_lines = nested.splitlines() or [nested]
+                if key == "if":
+                    decoded_lines = [f"if: {line}" for line in decoded_lines]
+                elif (
+                    isinstance(key, str)
+                    and nested_path not in _ALLOWED_DECODED_KEY_PATHS
+                ):
+                    decoded_lines[0] = f"{key}: {decoded_lines[0]}"
+                lines.extend(decoded_lines)
+            else:
+                if (
+                    isinstance(key, str)
+                    and nested_path not in _ALLOWED_DECODED_KEY_PATHS
+                ):
+                    lines.extend(key.splitlines() or [key])
+                lines.extend(_decoded_workflow_lines(nested, nested_path))
+    elif isinstance(value, list):
+        for nested in value:
+            if isinstance(nested, str):
+                lines.extend(nested.splitlines() or [nested])
+            else:
+                lines.extend(_decoded_workflow_lines(nested, path))
+    return lines
+
+
 def _secret_references(text: str) -> list[str]:
-    """Every line of a workflow's raw *text* that could carry a credential."""
+    """Credential references found after YAML decoding or in raw text."""
+    decoded = [
+        line.strip()
+        for line in _decoded_workflow_lines(_ci_workflow(text))
+        if _line_has_credential_reference(line)
+    ]
+    # A plain scalar can match both views. One non-empty view refuses the workflow.
+    if decoded:
+        return decoded
     return [
         line.strip()
         for line in text.splitlines()
-        if (_SECRETS_WORD.search(line) and line not in _ALLOWED_SECRETS_LINES)
-        or _GITHUB_CREDENTIAL.search(line)
+        if _line_has_credential_reference(line)
     ]
 
 
@@ -422,8 +482,37 @@ class TestScanScriptIsWiredIn:
                 "        env:\n          CONTEXT: ${{ toJSON(github) }}\n",
             ),
             (
+                "      - name: Agent image CVE gate\n",
+                "        env:\n          CONTEXT: ${{ toJSON(github.*) }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        env:\n          CONTEXT: ${{ github }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                "        if: github.token != ''\n",
+            ),
+            (
                 "      - name: Test (pytest)\n",
                 "        env:\n          VALUE: ${{ SECRETS.SOME_SECRET }}\n",
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                '        env:\n          VALUE: "${{ \\x73ecrets.SOME_SECRET }}"\n',
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                '        env:\n          VALUE: "${{ \\u0073ecrets.SOME_SECRET }}"\n',
+            ),
+            (
+                "      - name: Agent image CVE gate\n",
+                '        with:\n          token: "${{ \\x67ithub.token }}"\n',
+            ),
+            (
+                "      - name: Test (pytest)\n",
+                '        env:\n          VALUE: "${{ secr\\\n'
+                '            ets.SOME_SECRET }}"\n',
             ),
             (
                 "      - name: Agent image CVE gate\n",
@@ -431,6 +520,10 @@ class TestScanScriptIsWiredIn:
             ),
             ("  agent-image-scan:\n", '    "secrets": inherit\n'),
             ("jobs:\n", "  extra: {uses: ./x.yml, secrets: inherit}\n"),
+            (
+                "jobs:\n",
+                '  escaped: {uses: ./x.yml, "secret\\x73": inherit}\n',
+            ),
         ],
         ids=[
             "run-line",
@@ -442,10 +535,18 @@ class TestScanScriptIsWiredIn:
             "github-index",
             "format-call",
             "whole-github-context",
+            "github-object-filter",
+            "bare-github-context",
+            "if-github-token",
             "upper-case-secrets",
+            "hex-escaped-secrets",
+            "unicode-escaped-secrets",
+            "hex-escaped-github-token",
+            "continued-secrets",
             "upper-case-github-token",
             "quoted-key",
             "flow-mapping-job",
+            "escaped-flow-mapping-key",
         ],
     )
     def test_a_secret_put_back_into_ci_yml_is_caught(

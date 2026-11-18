@@ -115,6 +115,22 @@ _HELD_OUT_PASSED = opened("kew-held-out: exit 0 seconds 1\n" * 2)
 
 _GIT = ["git", "-c", "user.email=t@example.com", "-c", "user.name=t"]
 
+_SWITCHYARD_INPUTS = (
+    "docker/switchyard.Dockerfile",
+    "kew/src/kew/_docker/docker/switchyard.Dockerfile",
+    "kew/src/kew/switchyard.py",
+    "kew/src/kew/switchyard_client.py",
+    "kew/tests/test_agent_image_scan_gate.py",
+    "kew/tests/test_switchyard_sidecar.py",
+    "scripts/scan-agent-image.sh",
+)
+
+#: The line that builds the digest-tagged proxy the marked tests resolve.
+_SWITCHYARD_BUILD = (
+    'KEW_SWITCHYARD_IMAGE=1 KEW_SCAN_TAG="${kew_switchyard_tag}" '
+    "bash ../scripts/scan-agent-image.sh --build-switchyard-only"
+)
+
 
 def _run(args: list[str], cwd: Path) -> str:
     completed = subprocess.run(
@@ -474,6 +490,129 @@ class TestJob:
         # A host without docker builds nothing rather than failing the gate.
         assert "if command -v docker >/dev/null 2>&1; then" in script
 
+    def test_a_switchyard_input_builds_the_proxy_before_verification(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from kew.merge_verify import build_job
+
+        monkeypatch.delenv(SWITCHYARD_IMAGE_ENV, raising=False)
+        job = build_job(
+            _candidate(changed_paths=("docker/switchyard.Dockerfile",)),
+            config=_config(tmp_path),
+            provider=LocalProvider(lock_dir=tmp_path / "locks"),
+        )
+        script = job.command
+        image = 'docker image inspect "kew-switchyard:${kew_switchyard_tag}"'
+        # A host without docker builds nothing rather than failing the gate.
+        guard = (
+            "if command -v docker >/dev/null 2>&1 && "
+            "[ -f src/kew/image_inputs.py ]; then"
+        )
+        assert guard in script
+        assert "src/kew/image_inputs.py .." in script
+        assert image in script
+        assert _SWITCHYARD_BUILD in script
+        assert script.index(_SWITCHYARD_BUILD) < script.index(
+            f'echo "{PHASE_MARK} {PHASE_GATES}"'
+        )
+        assert job.environment[SWITCHYARD_IMAGE_ENV] == "1"
+
+    def test_the_operator_opt_in_builds_the_proxy_it_selects_tests_for(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The opt-in selects the marked tests whatever the diff, so it must
+        also build the image they resolve."""
+        from kew.merge_verify import build_job
+
+        monkeypatch.setenv(SWITCHYARD_IMAGE_ENV, "1")
+        job = build_job(
+            _candidate(changed_paths=("kew/src/kew/cli.py",)),
+            config=_config(tmp_path),
+            provider=LocalProvider(lock_dir=tmp_path / "locks"),
+        )
+        assert job.environment[SWITCHYARD_IMAGE_ENV] == "1"
+        assert _SWITCHYARD_BUILD in job.command
+
+    def test_no_opt_in_and_no_switchyard_input_builds_no_proxy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from kew.merge_verify import build_job
+
+        monkeypatch.delenv(SWITCHYARD_IMAGE_ENV, raising=False)
+        job = build_job(
+            _candidate(changed_paths=("kew/src/kew/cli.py",)),
+            config=_config(tmp_path),
+            provider=LocalProvider(lock_dir=tmp_path / "locks"),
+        )
+        assert SWITCHYARD_IMAGE_ENV not in job.environment
+        assert "--build-switchyard-only" not in job.command
+
+    def test_every_sharded_job_that_runs_pytest_builds_the_proxy_first(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A shard runs before the single-run job on its host, so each one
+        builds the proxy its marked tests resolve."""
+        from kew.merge_verify import shard_jobs
+
+        monkeypatch.delenv(SWITCHYARD_IMAGE_ENV, raising=False)
+        labelled = shard_jobs(
+            _candidate(changed_paths=("docker/switchyard.Dockerfile",)),
+            config=_config(tmp_path),
+            provider=LocalProvider(lock_dir=tmp_path / "locks"),
+            shards=2,
+        )
+        assert len(labelled) == 3
+        for _label, job in labelled:
+            assert job.environment[SWITCHYARD_IMAGE_ENV] == "1"
+            lines = job.command.splitlines()
+            build = next(i for i, line in enumerate(lines) if _SWITCHYARD_BUILD in line)
+            # The collect-only count selects tests but runs none of them.
+            first_test_run = next(
+                i
+                for i, line in enumerate(lines)
+                if line.startswith(("uv run pytest", "KEW_VERIFY_STAGE="))
+                and "--collect-only" not in line
+            )
+            assert build < first_test_run
+
+    def test_a_renamed_switchyard_input_still_opts_in(self, tmp_path: Path) -> None:
+        """A rename leaves only the new path in a rename-detecting diff."""
+        repo = tmp_path / "repo"
+        module = repo / "kew" / "src" / "kew" / "switchyard_routes.py"
+        module.parent.mkdir(parents=True)
+        _run([*_GIT, "init", "--quiet", "-b", "main", "."], repo)
+        module.write_text("ROUTES = ('a', 'b', 'c')\n" * 20, encoding="utf-8")
+        _commit(repo, "base")
+        _run([*_GIT, "checkout", "--quiet", "-b", "candidate"], repo)
+        _run([*_GIT, "mv", str(module), str(module.with_name("routes.py"))], repo)
+        _commit(repo, "rename")
+        candidate = resolve_candidate(repo)
+        assert "kew/src/kew/switchyard_routes.py" in candidate.changed_paths
+        environment = job_environment(
+            candidate,
+            config=_config(tmp_path),
+            builds_private_images=True,
+            ambient={},
+        )
+        assert environment[SWITCHYARD_IMAGE_ENV] == "1"
+
+    def test_a_remote_host_does_not_build_the_switchyard_proxy(
+        self, tmp_path: Path
+    ) -> None:
+        from kew.hosts import GcpProvider
+        from kew.merge_verify import build_job
+
+        provider = GcpProvider(
+            GcpHostConfig(project="p", zone="z", instance="i"),
+            lock_dir=tmp_path / "locks",
+        )
+        job = build_job(
+            _candidate(changed_paths=("docker/switchyard.Dockerfile",)),
+            config=_config(tmp_path),
+            provider=provider,
+        )
+        assert "--build-switchyard-only" not in job.command
+
     def test_only_buildable_pinned_runners_are_named(self) -> None:
         config = DispatchConfig()
         config.sandbox.images = {
@@ -512,6 +651,55 @@ class TestJob:
         )
         assert local[SWITCHYARD_IMAGE_ENV] == "1"
         assert SWITCHYARD_IMAGE_ENV not in remote
+
+    @pytest.mark.parametrize("path", _SWITCHYARD_INPUTS)
+    def test_a_switchyard_input_opts_in_an_image_building_host(
+        self, tmp_path: Path, path: str
+    ) -> None:
+        environment = job_environment(
+            _candidate(changed_paths=(path,)),
+            config=_config(tmp_path),
+            builds_private_images=True,
+            ambient={},
+        )
+        assert environment[SWITCHYARD_IMAGE_ENV] == "1"
+
+    @pytest.mark.parametrize("ambient", ({}, {SWITCHYARD_IMAGE_ENV: "1"}))
+    @pytest.mark.parametrize("path", (None, *_SWITCHYARD_INPUTS))
+    def test_a_remote_host_never_gets_the_switchyard_opt_in(
+        self, tmp_path: Path, path: str | None, ambient: dict[str, str]
+    ) -> None:
+        changed_paths = () if path is None else (path,)
+        environment = job_environment(
+            _candidate(changed_paths=changed_paths),
+            config=_config(tmp_path),
+            builds_private_images=False,
+            ambient=ambient,
+        )
+        assert SWITCHYARD_IMAGE_ENV not in environment
+
+    @pytest.mark.parametrize(
+        "path",
+        (
+            "docker/switchyard.Dockerfile.backup",
+            "kew/src/kew/_docker/docker/switchyard.Dockerfile.backup",
+            "kew/src/kew/nested/switchyard.py",
+            "kew/src/kew/switchyard.txt",
+            "kew/tests/fixtures/switchyard/config.toml",
+            "kew/tests/fixtures/switchyard-adjacent/config.toml",
+            "scripts/scan-agent-image.sh.backup",
+        ),
+    )
+    def test_a_nearby_path_does_not_opt_in_the_switchyard_image(
+        self, tmp_path: Path, path: str
+    ) -> None:
+        environment = job_environment(
+            _candidate(changed_paths=(path,)),
+            config=_config(tmp_path),
+            builds_private_images=True,
+            ambient={},
+        )
+        assert SWITCHYARD_IMAGE_ENV not in environment
 
     def test_the_opt_in_is_the_only_switchyard_variable_forwarded(
         self, tmp_path: Path

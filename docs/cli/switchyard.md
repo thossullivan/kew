@@ -184,10 +184,10 @@ decision remains **HOLD** pending human approval.
 
 Every governed adaptive terminal event carries an `accounting_status`.
 `reconciled` means the managed delta supplied a served identity and classifier
-overhead, and the sanitized classifier-record count matches the proxy request
-count when that count is available. Missing proxy metrics, served identity,
-overhead, or classifier records produces `unreconciled` plus bounded reason
-codes in the audit event.
+overhead. When `switchyard_decisions_total` is available, each routing decision
+must have one sanitized classifier record. Missing proxy metrics, served
+identity, overhead, or classifier records produces `unreconciled` plus bounded
+reason codes in the audit event.
 The spend report renders **UNRECONCILED** prominently; any accompanying `$0`
 is missing accounting evidence, not an attestation that provider usage was
 free.

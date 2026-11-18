@@ -676,6 +676,48 @@ def test_bounded_container_preflight_accepts_host_provisioner(monkeypatch):
     assert not _runner_credential_available(("UNRELATED_API_KEY",), None, None)
 
 
+def test_a_verification_container_runs_tests_from_an_exec_tmpdir_and_keeps_tmp_noexec(
+    tmp_path,
+):
+    """Tests that write a stub tool to pytest's temp dir and run it need an
+    executable ``TMPDIR``; ``/tmp`` itself keeps Docker's default noexec."""
+    from kew import sandbox
+
+    common = dict(
+        runtime="docker",
+        image="approved:tag",
+        checkout_dir=tmp_path / "checkout",
+        uid=501,
+        gid=20,
+        slug="verify-same",
+        program=["/bin/sh", "-c", "./verify.sh"],
+    )
+
+    def tmpfs_options(argv: list[str]) -> dict[str, list[str]]:
+        mounts = [argv[i + 1] for i, word in enumerate(argv) if word == "--tmpfs"]
+        return {
+            target: options.split(",")
+            for target, _, options in (mount.partition(":") for mount in mounts)
+        }
+
+    def environment(argv: list[str]) -> list[str]:
+        return [argv[i + 1] for i, word in enumerate(argv) if word == "-e"]
+
+    verification = sandbox.build_checkout_program_argv(**common, exec_tmpdir=True)
+    mounts = tmpfs_options(verification)
+    assert "exec" not in mounts["/tmp"]
+    assert f"TMPDIR={sandbox.EXEC_TMPDIR}" in environment(verification)
+    assert sandbox.EXEC_TMPDIR != "/tmp"
+    assert "exec" in mounts[sandbox.EXEC_TMPDIR]
+    assert {"uid=501", "gid=20", "mode=0700"} <= set(mounts[sandbox.EXEC_TMPDIR])
+    assert any(option.startswith("size=") for option in mounts[sandbox.EXEC_TMPDIR])
+
+    # A launch that does not ask for it gets no executable mount at all.
+    plain = sandbox.build_checkout_program_argv(**common)
+    assert all("exec" not in options for options in tmpfs_options(plain).values())
+    assert not any(name.startswith("TMPDIR=") for name in environment(plain))
+
+
 def test_verification_and_extraction_share_checkout_program_boundary(
     tmp_path, monkeypatch
 ):

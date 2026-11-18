@@ -1911,13 +1911,15 @@ def test_the_verify_child_runs_contained_and_sees_no_host_environment(
     assert argv[argv.index("--network") + 1] == "none"
     # Every environment assignment the child gets, and nothing from the host.
     passed = [argv[i + 1] for i, flag in enumerate(argv) if flag == "-e"]
-    # HOME is reassigned to the in-container tmpfs; every other assignment the
-    # launch carries is an explicit blanking (the proxy names).
+    # HOME is reassigned to the in-container tmpfs and TMPDIR names the exec
+    # tmpfs (#3595); every other assignment the launch carries is an explicit
+    # blanking (the proxy names).
     assert "HOME=/tmp" in passed  # noqa: S108 — in-container tmpfs, not a host path
+    assert "TMPDIR=/var/tmp" in passed
     assert not [
         value
         for value in passed
-        if value.split("=", 1)[1] and not value.startswith("HOME=")
+        if value.split("=", 1)[1] and value not in ("HOME=/tmp", "TMPDIR=/var/tmp")
     ]
     joined = " ".join(argv)
     assert "/host/home/operator" not in joined
