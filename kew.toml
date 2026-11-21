@@ -163,6 +163,10 @@ anomaly_floor_multiple = 6.0
 # delivery lanes above never consult the image map; the contained claude-code
 # reviewer does, and its image is mapped in [sandbox.images].
 #
+# kew-allowlist is a plain bridge, so the direct route has open egress, and an
+# internal network would block the reviewer's model calls. Accepted on purpose
+# until the Switchyard sidecar route replaces the direct route.
+acknowledge_open_egress = true
 
 # Pins are named docker-<digest12>, the first 12 hex of
 # kew.sandbox.agent_image_inputs_digest over every file under docker/. That
@@ -187,7 +191,7 @@ anomaly_floor_multiple = 6.0
 # `bash scripts/build-check-image.sh --print-tag` prints; it moves whenever the
 # Dockerfile, frontend/package.json, a lock or the base pin does, so rebuild
 # and re-pin together.
-check_image = "kew-check:5caee2bde91c"
+check_image = "kew-check:17ee595e9bc5"
 
 [sandbox.images]
 claude-code = "kew-agent:docker-236e8d2ed49d"

@@ -484,6 +484,7 @@ def build_template_context(
         if include_coderabbit
         else "",
         "include_dispatch_report": config.prompt.include_dispatch_report,
+        "pr_title_style": config.publication.pr_title_style,
         "include_repo_map": config.prompt.include_repo_map and bool(repo_map),
         "repo_map": repo_map,
         "recently_merged_context": recently_merged_context,

@@ -36,6 +36,7 @@ from kew.runner_quota import (
 from kew.sandbox import (
     REFUSAL_CREDENTIAL_MISSING,
     REFUSAL_IMAGE_UNMAPPED,
+    REFUSAL_OPEN_EGRESS_UNACKNOWLEDGED,
     SandboxCredentialUndeclared,
     SandboxProxyUnparseable,
     SandboxRuntimeUnavailable,
@@ -99,6 +100,25 @@ def test_an_unparseable_proxy_hold_names_the_proxy_setting_not_a_credential(
     [event] = _events(store)
 
     assert "proxy_environment" in event.action
+    assert "credential" not in event.action
+    assert not _misdirected(event)
+
+
+def test_an_open_egress_hold_names_the_acknowledgement_not_a_credential(
+    store: Any,
+) -> None:
+    """Its message names the credential at risk, but the fix is the network."""
+    refusal = SandboxRuntimeUnavailable(
+        "Sandbox: network 'allowlist', attached as 'kew-allowlist', is a "
+        "non-internal bridge network with open egress while claude-code's "
+        "ANTHROPIC_API_KEY is injected: one outbound request can exfiltrate it.",
+        reason=REFUSAL_OPEN_EGRESS_UNACKNOWLEDGED,
+    )
+    store.hold_epic_node(EPIC, 1, _containment_hold_reason("1", refusal))
+
+    [event] = _events(store)
+
+    assert "acknowledge_open_egress" in event.action
     assert "credential" not in event.action
     assert not _misdirected(event)
 

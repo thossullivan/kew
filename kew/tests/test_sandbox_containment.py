@@ -9,6 +9,7 @@ Two tests:
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -27,8 +28,10 @@ from kew.sandbox import (
     AGENT_MARKER_ENV,
     TEST_WORKER_ENV_NAMES,
     ContainedExecution,
+    SandboxRuntimeUnavailable,
     build_run_argv,
     open_egress_warning,
+    require_open_egress_acknowledgement,
     run_container_with_cpu_cap_retry,
 )
 from kew.subprocess_utils import find_timeout_cmd
@@ -340,8 +343,15 @@ def test_open_egress_with_credential_warns(monkeypatch: pytest.MonkeyPatch) -> N
     warning = open_egress_warning("open", runner="claude-code")
     assert warning is not None
     assert "exfiltrate" in warning
-    # Restricted egress (the default) never warns, even with a credential set.
-    assert open_egress_warning("allowlist", runner="claude-code") is None
+    # A network shown internal never warns, even with a credential set.
+    internal = json.dumps([{"Driver": "bridge", "Internal": True}])
+    closed = (
+        open_egress_warning(
+            "allowlist", runner="claude-code", inspect=lambda _name: internal
+        )
+        is None
+    )
+    assert closed
 
 
 def test_open_egress_without_credential_does_not_warn(
@@ -351,6 +361,281 @@ def test_open_egress_without_credential_does_not_warn(
     for name in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
         monkeypatch.delenv(name, raising=False)
     assert open_egress_warning("open", runner="claude-code") is None
+
+
+@pytest.mark.parametrize(
+    ("network", "network_document", "network_name"),
+    [
+        pytest.param("open", None, "open", id="open"),
+        pytest.param(
+            "allowlist",
+            [{"Driver": "bridge", "Internal": False}],
+            "kew-allowlist",
+            id="plain-bridge",
+        ),
+    ],
+)
+def test_container_dispatch_refuses_open_egress_with_a_credential(
+    monkeypatch: pytest.MonkeyPatch,
+    network: str,
+    network_document: list[dict[str, object]] | None,
+    network_name: str,
+) -> None:
+    """A credentialed container cannot start on open egress without consent."""
+    from kew import subprocess_utils
+
+    config = SandboxConfig(
+        enabled=True,
+        network=network,
+        acknowledge_open_egress=False,
+    )
+    monkeypatch.setitem(subprocess_utils.TOOL_PATHS, "docker", "/usr/bin/docker")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    with (
+        patch.object(
+            subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(
+                ["docker", "network", "inspect", network_name],
+                0,
+                json.dumps(network_document),
+                "",
+            ),
+        ),
+        pytest.raises(SandboxRuntimeUnavailable) as refused,
+    ):
+        require_open_egress_acknowledgement(
+            config,
+            runner="claude-code",
+            runtime="docker",
+        )
+
+    message = str(refused.value)
+    assert network_name in message
+    assert "ANTHROPIC_API_KEY" in message
+    assert "credential-value-never-reported" not in message
+    assert "Switchyard sidecar" in message
+    assert "acknowledge_open_egress = true" in message
+    assert refused.value.reason == "open_egress_unacknowledged"
+
+
+def test_acknowledgement_admits_plain_bridge_and_keeps_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The explicit acknowledgement admits the run without hiding the risk."""
+    from kew import subprocess_utils
+
+    config = SandboxConfig(
+        enabled=True,
+        acknowledge_open_egress=True,
+    )
+    monkeypatch.setitem(subprocess_utils.TOOL_PATHS, "docker", "/usr/bin/docker")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    with patch.object(
+        subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess(
+            ["docker", "network", "inspect", "kew-allowlist"],
+            0,
+            json.dumps([{"Driver": "bridge", "Internal": False}]),
+            "",
+        ),
+    ):
+        warning = require_open_egress_acknowledgement(
+            config,
+            runner="claude-code",
+            runtime="docker",
+        )
+
+    assert warning is not None
+    assert "kew-allowlist" in warning
+    assert "ANTHROPIC_API_KEY" in warning
+    assert "credential-value-never-reported" not in warning
+
+
+def test_sidecar_dispatch_ignores_direct_open_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sidecar worker uses its per-run internal network instead."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    warning = require_open_egress_acknowledgement(
+        SandboxConfig(enabled=True, network="open"),
+        runner="claude-code",
+        runtime="docker",
+        sidecar=True,
+    )
+
+    assert warning is None
+
+
+def test_openshell_dispatch_ignores_the_docker_network_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gateway attaches no Docker network; its own policy governs egress."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    with patch.object(subprocess, "run") as ran:
+        warning = require_open_egress_acknowledgement(
+            SandboxConfig(enabled=True, network="open"),
+            runner="claude-code",
+            runtime="openshell",
+        )
+
+    assert warning is None
+    assert ran.call_count == 0
+
+
+def _network_inspect(
+    returncode: int = 0, document: object = None, *, raises: BaseException | None = None
+) -> MagicMock:
+    """A ``subprocess.run`` stand-in answering one ``network inspect``."""
+    if raises is not None:
+        return MagicMock(side_effect=raises)
+    stdout = document if isinstance(document, str) else json.dumps(document)
+    return MagicMock(
+        return_value=subprocess.CompletedProcess(["docker"], returncode, stdout, "")
+    )
+
+
+def _admit(
+    monkeypatch: pytest.MonkeyPatch,
+    network: str,
+    inspect: MagicMock,
+    *,
+    runtime: str = "docker",
+) -> str | None:
+    from kew import subprocess_utils
+
+    monkeypatch.setitem(subprocess_utils.TOOL_PATHS, runtime, f"/usr/bin/{runtime}")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    with patch.object(subprocess, "run", inspect):
+        return require_open_egress_acknowledgement(
+            SandboxConfig(enabled=True, network=network, runtime=runtime),
+            runner="claude-code",
+            runtime=runtime,
+        )
+
+
+@pytest.mark.parametrize(
+    ("network", "inspect", "runtime"),
+    [
+        pytest.param(
+            "allowlist",
+            _network_inspect(document=[{"Driver": "bridge", "Internal": True}]),
+            "docker",
+            id="internal-bridge",
+        ),
+        pytest.param(
+            "isolated",
+            _network_inspect(document=[{"Driver": "null", "Internal": False}]),
+            "docker",
+            id="null-driver",
+        ),
+        pytest.param(
+            "allowlist",
+            _network_inspect(document=[{"driver": "bridge", "internal": True}]),
+            "podman",
+            id="podman-internal",
+        ),
+        pytest.param("none", _network_inspect(returncode=1), "docker", id="none"),
+    ],
+)
+def test_a_network_shown_closed_admits_a_credentialed_container(
+    monkeypatch: pytest.MonkeyPatch, network: str, inspect: MagicMock, runtime: str
+) -> None:
+    """Only ``Internal`` true, or no network driver at all, proves egress closed."""
+    assert _admit(monkeypatch, network, inspect, runtime=runtime) is None
+
+
+@pytest.mark.parametrize(
+    ("network", "inspect", "unreadable"),
+    [
+        pytest.param(
+            "host",
+            _network_inspect(document=[{"Driver": "host", "Internal": False}]),
+            False,
+            id="host",
+        ),
+        pytest.param(
+            "bridge",
+            _network_inspect(document=[{"Driver": "bridge", "Internal": False}]),
+            False,
+            id="default-bridge",
+        ),
+        pytest.param(
+            "operator-lan",
+            _network_inspect(document=[{"Driver": "macvlan", "Internal": False}]),
+            False,
+            id="macvlan",
+        ),
+        pytest.param(
+            "operator-lan",
+            _network_inspect(document=[{"Driver": "ipvlan", "Internal": False}]),
+            False,
+            id="ipvlan",
+        ),
+        pytest.param(
+            "swarm",
+            _network_inspect(document=[{"Driver": "overlay", "Internal": False}]),
+            False,
+            id="overlay",
+        ),
+        pytest.param(
+            "container:abc123", _network_inspect(returncode=1), False, id="container"
+        ),
+        pytest.param("allowlist", _network_inspect(returncode=1), True, id="rc-1"),
+        pytest.param(
+            "allowlist",
+            _network_inspect(raises=subprocess.TimeoutExpired("docker", 5)),
+            True,
+            id="timeout",
+        ),
+        pytest.param("allowlist", _network_inspect(document={}), True, id="object"),
+        pytest.param(
+            "allowlist", _network_inspect(document="not json"), True, id="not-json"
+        ),
+        pytest.param(
+            "allowlist",
+            _network_inspect(document=[{"Driver": "bridge"}]),
+            True,
+            id="internal-missing",
+        ),
+        pytest.param(
+            "allowlist",
+            _network_inspect(document=[{"Driver": "bridge", "Internal": "false"}]),
+            True,
+            id="internal-string",
+        ),
+    ],
+)
+def test_a_network_not_shown_closed_refuses_a_credentialed_container(
+    monkeypatch: pytest.MonkeyPatch,
+    network: str,
+    inspect: MagicMock,
+    unreadable: bool,
+) -> None:
+    """Every shape kew cannot prove closed needs the acknowledgement."""
+    with pytest.raises(SandboxRuntimeUnavailable) as refused:
+        _admit(monkeypatch, network, inspect)
+
+    message = str(refused.value)
+    assert refused.value.reason == "open_egress_unacknowledged"
+    assert ("could not read" in message) is unreadable
+    assert "credential-value-never-reported" not in message
+
+
+def test_open_egress_refusal_names_the_fixes_that_clear_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The refusal names verified sidecar egress, an internal network, and consent."""
+    inspect = _network_inspect(document=[{"Driver": "bridge", "Internal": False}])
+    with pytest.raises(SandboxRuntimeUnavailable) as refused:
+        _admit(monkeypatch, "allowlist", inspect)
+
+    message = str(refused.value)
+    assert "Switchyard sidecar" in message
+    assert "internal network" in message
+    assert "acknowledge_open_egress = true" in message
+    assert "host firewall is invisible to kew" in message
 
 
 @pytest.mark.parametrize("network", ["allowlist", "operator-network", "open"])

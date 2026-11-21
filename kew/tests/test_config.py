@@ -4044,3 +4044,27 @@ class TestTriageConfig:
         from kew.config import TriageConfig
 
         assert TriageConfig(human_types=[]).human_types == []
+
+
+def test_pr_title_style_defaults_to_a_sentence_and_reads_conventional(
+    tmp_path: Path,
+) -> None:
+    assert DispatchConfig().publication.pr_title_style == "sentence"
+    toml = tmp_path / "kew.toml"
+    toml.write_text('[publication]\npr_title_style = "conventional"\n')
+
+    assert load_config(config_path=toml).publication.pr_title_style == "conventional"
+
+
+def test_an_unknown_pr_title_style_fails_naming_the_allowed_values(
+    tmp_path: Path,
+) -> None:
+    toml = tmp_path / "kew.toml"
+    toml.write_text('[publication]\npr_title_style = "angular"\n')
+
+    with pytest.raises(ConfigError) as exc_info:
+        load_config(config_path=toml)
+
+    message = str(exc_info.value)
+    assert "pr_title_style" in message
+    assert "'sentence'" in message and "'conventional'" in message

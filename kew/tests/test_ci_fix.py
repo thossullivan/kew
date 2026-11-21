@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from support.attachment_network import PLAIN_BRIDGE, attachment_network
 
 from kew.ci_fix import (
     CI_FIX_CANNOT_RUN,
@@ -1344,12 +1345,25 @@ class TestDispatchCiFix:
         cleanup.assert_not_called()
         assert marker.read_text() == "preserve me"
 
-    @pytest.mark.parametrize("enabled", [True, "auto", False])
-    def test_fix_refuses_host_execution_without_escape_hatch(self, enabled):
+    @pytest.mark.parametrize(
+        ("enabled", "runtime", "reason"),
+        [
+            (True, None, "runtime_unavailable"),
+            ("auto", None, "runtime_unavailable"),
+            (False, None, "runtime_unavailable"),
+            # A runtime and a plain bridge: the open-egress rule refuses.
+            (True, "/usr/bin/docker", "open_egress_unacknowledged"),
+        ],
+        ids=["required", "auto", "disabled", "open-egress"],
+    )
+    def test_fix_refuses_host_execution_without_escape_hatch(
+        self, monkeypatch, enabled, runtime, reason
+    ):
         from kew.config import SandboxConfig
         from kew.sandbox import _resolve_effective_sandbox
 
         config = self._config(sandbox=SandboxConfig(enabled=enabled))
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-never-printed")
         events = []
         store = MagicMock()
         store.count_launched_ci_fix_attempts.return_value = 0
@@ -1365,8 +1379,9 @@ class TestDispatchCiFix:
                 "kew.ci_fix.checkout_existing_worktree",
                 return_value=(Path("/tmp/worktree"), None),
             ),
-            patch("kew.sandbox.detect_runtime_cached", return_value=None),
+            patch("kew.sandbox.detect_runtime_cached", return_value=runtime),
             patch("kew.sandbox.resolve_effective_sandbox", _resolve_effective_sandbox),
+            attachment_network(PLAIN_BRIDGE),
             patch("kew.ci_fix.resolve_runner") as resolve,
             patch("kew.runner_preflight.runner_preflight_failure", return_value=None),
             patch(
@@ -1387,7 +1402,7 @@ class TestDispatchCiFix:
         launch.assert_not_called()
         assert events[0]["event"] == "sandbox_resolved"
         assert events[0]["payload"]["posture"] == "refused"
-        assert events[0]["payload"]["reason"] == "runtime_unavailable"
+        assert events[0]["payload"]["reason"] == reason
         assert events[0]["payload"]["admission"] == "policy"
 
     @pytest.mark.parametrize("enabled", [True, "auto", False])

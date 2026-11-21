@@ -117,10 +117,14 @@ see [Configuration](configuration.md) for every key.
     `kew-allowlist` as a plain bridge on your configured runtime and leaves an
     existing one untouched. kew installs no firewall rules on it: a plain
     bridge has **unrestricted egress** while the container holds your provider
-    key, and `kew doctor` says so. See
+    key. `kew doctor` fails, and every credentialed container launch refuses,
+    until you route inference through the Switchyard sidecar, attach an
+    internal network (only where inference does not need the direct route),
+    or set `acknowledge_open_egress = true`. A host firewall on the bridge is
+    invisible to kew and still needs the acknowledgement. See
     [Security](security.md#sandboxed-dispatch-credential-posture) for the
-    egress posture. Ordinary contained dispatches warn about open egress.
-    Review, resolve, ci-fix, and epic plan do not warn.
+    egress posture. Review, resolve, ci-fix and epic plan refuse the same way
+    as dispatch, and every acknowledged launch still warns.
 
     First-class loops (`kew dispatch <issue> --loop`) are not contained: kew
     has no contained loop launch, so a loop's agent runs on the host. On the

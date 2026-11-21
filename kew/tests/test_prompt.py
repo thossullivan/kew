@@ -8,6 +8,7 @@ from jinja2 import Environment
 from kew import _TEMPLATES_DIR
 from kew.ci_fix import build_ci_fix_prompt
 from kew.config import CommandsConfig, DispatchConfig, PromptConfig
+from kew.pr_text import CONVENTIONAL_TYPES
 from kew.prompt import (
     UNTRUSTED_PREAMBLE,
     build_prompt,
@@ -1260,3 +1261,35 @@ def test_sandboxed_dispatch_does_not_direct_agents_to_full_ui_check() -> None:
     assert (
         "the merge verify runs every browser check whenever `frontend/` changed"
     ) in text
+
+
+def _title_prompt(config: DispatchConfig) -> str:
+    return build_prompt(
+        issue_num=3608,
+        issue_title="Titles",
+        issue_body="Body",
+        complexity="simple",
+        config=config,
+        has_coderabbit=False,
+    )
+
+
+def test_a_conventional_repo_prompt_asks_for_a_conventional_title() -> None:
+    config = DispatchConfig()
+    config.publication.pr_title_style = "conventional"
+
+    prompt = _title_prompt(config)
+
+    (line,) = [ln for ln in prompt.splitlines() if ln.startswith("PR title:")]
+    assert line.startswith("PR title: [required: <type>(<scope>): <summary>")
+    assert f"<type> is one of {', '.join(CONVENTIONAL_TYPES)}," in line
+    assert "one plain sentence" not in line
+
+
+def test_the_default_prompt_asks_for_a_plain_sentence_title() -> None:
+    (line,) = [
+        ln
+        for ln in _title_prompt(DispatchConfig()).splitlines()
+        if ln.startswith("PR title:")
+    ]
+    assert line.startswith("PR title: [required: one plain sentence")

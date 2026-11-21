@@ -1,6 +1,6 @@
 {
   "name": "create-kew",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Installs kew, the open-source control plane for autonomous coding agents, and runs kew init",
   "bin": "index.js",
   "files": [

@@ -92,6 +92,7 @@ from kew.sandbox import (
     emit_resolved_posture,
     remove_prompt_handoff,
     require_certified_boundary,
+    require_open_egress_acknowledgement,
     resolve_runner_image,
     write_prompt_handoff,
 )
@@ -193,6 +194,50 @@ def _attest_review_refusal(
         issue_num=int(ctx.item_id) if ctx.item_id.isdigit() else None,
         item_id=ctx.item_id,
     )
+
+
+def _review_egress_refusal(
+    store: RunStore,
+    ctx: ReviewerLaunchContext,
+    config: DispatchConfig,
+    *,
+    runner: str,
+    model: str,
+    image: str,
+) -> CollectedSidecar | None:
+    """Refuse the reviewer on unacknowledged open egress, as dispatch is refused.
+
+    The reviewer runs the reviewed PR's code with its credential in the
+    container, so it answers to the same rule. ``None`` admits the launch.
+    """
+    try:
+        warning = require_open_egress_acknowledgement(
+            config.sandbox,
+            runner=runner,
+            runtime=config.sandbox.runtime,
+            image=image,
+        )
+    except SandboxRuntimeUnavailable as exc:
+        _logger.error("review: %s (for %s)", exc, ctx.item_id)
+        _attest_review_refusal(store, ctx, config, runner=runner, reason=exc.reason)
+        _record_review_failure(
+            store,
+            ctx,
+            config,
+            model=model,
+            runner=runner,
+            error_category="sandbox_refused",
+        )
+        return infrastructure_failure_sidecar(
+            ctx.log_dir,
+            ctx.run_id,
+            failure_layer="network",
+            error_category="sandbox_refused",
+            reason=str(exc),
+        )
+    if warning:
+        _logger.warning("review: %s (for %s)", warning, ctx.item_id)
+    return None
 
 
 def _openshell_review_refusal(
@@ -587,6 +632,12 @@ def _reviewer_launch(config: DispatchConfig, store: RunStore) -> ReviewerLaunche
                 error_category="sandbox_refused",
                 reason=str(exc),
             )
+
+        egress_refusal = _review_egress_refusal(
+            store, ctx, config, runner=runner, model=model, image=image
+        )
+        if egress_refusal is not None:
+            return egress_refusal
 
         # The boundary this review resolved, on the ledger, before anything is
         # written into the reviewed checkout (epic node N12). Emitted on BOTH

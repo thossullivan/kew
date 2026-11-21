@@ -92,6 +92,7 @@ from kew.hosts.gcp import (
     EXIT_MARKER,
     SHALLOW_REF_PREFIX,
     GcpProvider,
+    job_stdout,
     marker_command,
     remote_session_environment,
 )
@@ -228,6 +229,22 @@ class AuditLedger(Protocol):
 
 class RemoteDispatchError(HostError):
     """A remote placement could not be carried out."""
+
+
+class InstanceEgressRefused(RemoteDispatchError):
+    """The instance's network is not shown closed and egress is unacknowledged.
+
+    A containment refusal, not a host failure: the row and the hold carry the
+    resolver's cause token, so the remedy shown is the egress one.
+    """
+
+    #: The category every other containment refusal records.
+    error_category = "containment_refused"
+
+    def __init__(self, message: str, *, containment_refusal: str) -> None:
+        super().__init__(f"[{containment_refusal}] {message}")
+        #: The ledger-stable cause token (``kew.sandbox.REFUSAL_*``).
+        self.containment_refusal = containment_refusal
 
 
 class RemoteRunInterrupted(RemoteDispatchError):
@@ -1065,9 +1082,74 @@ def refuse_instance_identity(provider: HostProvider) -> None:
     )
 
 
+def admit_instance_egress(
+    provider: HostProvider,
+    *,
+    config: DispatchConfig,
+    runner: str,
+    handed_over: Sequence[str],
+    probed: tuple[str, JobResult] | None,
+) -> None:
+    """Apply the open-egress rule to the network on the instance, not this one.
+
+    *probed* is :func:`ensure_agent_network`'s answer for the network the argv
+    names; any other network is asked for here.
+    """
+    from kew.progress import _warn
+    from kew.sandbox import (
+        NetworkShapeUnreadable,
+        SandboxRuntimeUnavailable,
+        require_open_egress_acknowledgement,
+    )
+
+    runtime = config.sandbox.runtime
+
+    def inspect(name: str) -> str:
+        if probed is not None and probed[0] == name:
+            found = probed[1]
+        else:
+            found = _probe_instance_network(provider, name=name, runtime=runtime)
+        if not found.ok:
+            raise NetworkShapeUnreadable(
+                f"{runtime} network inspect on {provider.address} exited "
+                f"{found.exit_code}"
+            )
+        # ssh and the daemon may add stderr to the log; only stdout is JSON.
+        return job_stdout(found.log)
+
+    try:
+        warning = require_open_egress_acknowledgement(
+            config.sandbox,
+            runner=runner,
+            runtime=runtime,
+            inspect=inspect,
+            credentials=handed_over,
+        )
+    except SandboxRuntimeUnavailable as exc:
+        raise InstanceEgressRefused(
+            f"refusing to place a run on instance {provider.address}: {exc}",
+            containment_refusal=exc.reason,
+        ) from exc
+    if warning:
+        _warn(f"Instance {provider.address}: {warning}")
+
+
+def _probe_instance_network(
+    provider: HostProvider, *, name: str, runtime: str
+) -> JobResult:
+    """Ask the instance's daemon about one network."""
+    return provider.run(
+        Job(
+            name="network-probe",
+            command=f"{shlex.quote(runtime)} network inspect {shlex.quote(name)}",
+            timeout_seconds=IMAGE_PROBE_TIMEOUT,
+        )
+    )
+
+
 def ensure_agent_network(
     provider: HostProvider, *, argv: Sequence[str], runtime: str
-) -> None:
+) -> tuple[str, JobResult] | None:
     """Refuse the placement when the launch's network is absent on the instance.
 
     The second instance prerequisite beside the image, and one a placement
@@ -1089,16 +1171,10 @@ def ensure_agent_network(
     """
     name = container_network(argv)
     if name is None:
-        return
-    probe = provider.run(
-        Job(
-            name="network-probe",
-            command=f"{shlex.quote(runtime)} network inspect {shlex.quote(name)}",
-            timeout_seconds=IMAGE_PROBE_TIMEOUT,
-        )
-    )
+        return None
+    probe = _probe_instance_network(provider, name=name, runtime=runtime)
     if probe.ok:
-        return
+        return name, probe
     raise RemoteDispatchError(
         _network_refusal(provider, name=name, runtime=runtime, probe=probe)
     )
@@ -2537,7 +2613,14 @@ def _run_placed_agent(
     # Both prerequisites first, and the network before the image: the network
     # is the instance's own and kew cannot make it, so a gap there is refused
     # before a build that may take an hour is paid for.
-    ensure_agent_network(provider, argv=argv, runtime=config.sandbox.runtime)
+    probed = ensure_agent_network(provider, argv=argv, runtime=config.sandbox.runtime)
+    admit_instance_egress(
+        provider,
+        config=config,
+        runner=runner,
+        handed_over=handed_over,
+        probed=probed,
+    )
     remote_image = ensure_agent_image(
         provider, image=image, runner=runner, runtime=config.sandbox.runtime
     )

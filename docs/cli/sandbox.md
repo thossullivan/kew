@@ -103,7 +103,8 @@ Options:
 
 The command creates a bridge network: `<runtime> network create --driver
 bridge kew-allowlist`. That is the network the doctor's `allowlist-network`
-check looks for, so the check passes once the command has run.
+check looks for. A plain bridge still fails that check, and every credentialed
+container launch refuses it, until the operator closes or acknowledges egress.
 
 It is idempotent. When `kew-allowlist` already exists, the command reports it
 and changes nothing, whatever the network's shape. A create that races another
@@ -111,8 +112,10 @@ creator reads the network back and reports it present.
 
 kew installs no firewall rules on the network. A plain bridge gives the
 container full egress while it holds your provider key, and the command warns
-when the network it created or found is one. Restrict it to your inference
-endpoint and GitHub yourself.
+when the network it created or found is one. kew cannot see a host firewall
+you add, so a filtered bridge still needs `acknowledge_open_egress = true`.
+The other fixes are the Switchyard sidecar route, whose egress kew verifies,
+or an internal network where inference does not need the direct route.
 
 On `[sandbox] runtime = "openshell"` the command creates nothing and says why:
 OpenShell enforces its own egress policy and attaches no network. Prove that

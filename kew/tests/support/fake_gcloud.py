@@ -447,6 +447,16 @@ def fake_gcloud_on_path(
             shutil.rmtree(fallback, ignore_errors=True)
 
 
+def internal_network_probe() -> dict[str, object]:
+    """Answer an instance's ``network inspect`` with an internal network.
+
+    The open-egress rule admits a credentialed placement on that shape without
+    the operator's acknowledgement.
+    """
+    shape = [{"Driver": "bridge", "Internal": True}]
+    return {"match": "network inspect", "output": json.dumps(shape), "exit": 0}
+
+
 def write_state(state: Path, **values: object) -> None:
     """Merge *values* into the shim's state file."""
     record = json.loads(state.read_text(encoding="utf-8"))

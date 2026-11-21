@@ -93,6 +93,8 @@ class _Boundary:
             return 0, "container oom current-id\n" if self._oom else "", ""
         if argv[0] == "gh":  # reachable, and every label write lands
             return 0, "{}" if argv[1] == "api" else "", ""
+        if argv[1:3] == ["network", "inspect"]:  # an internal network: closed
+            return 0, '[{"Driver": "bridge", "Internal": true}]', ""
         return 0, "[]", ""
 
 

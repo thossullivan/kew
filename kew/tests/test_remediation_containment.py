@@ -10,6 +10,8 @@ from __future__ import annotations
 from unittest.mock import PropertyMock, patch
 
 import pytest
+from support.attachment_network import PLAIN_BRIDGE, attachment_network
+from support.container_runtime import runtime_present
 
 from kew.config import DispatchConfig, SandboxConfig
 from kew.remediation_containment import (
@@ -46,7 +48,7 @@ class TestResolution:
     """Contain when possible; enforce policy and direct credential gates."""
 
     def test_contains_when_the_host_can(self):
-        with _with_runtime(), _with_credential():
+        with _with_runtime(), _with_credential(), attachment_network():
             decision = resolve_remediation_containment(
                 _config(enabled="auto", runtime="docker"),
                 runner="claude-code",
@@ -165,6 +167,47 @@ def test_required_containment_uses_dispatch_refusal(
     assert refused.value.reason == reason
     assert refused.value.runtime == ("docker" if runtime else None)
     assert refused.value.image == image
+
+
+@pytest.mark.parametrize("enabled", [True, "auto"])
+def test_unacknowledged_open_egress_refuses_remediation_on_the_chain(
+    tmp_path, monkeypatch, enabled
+):
+    """Review remediation and ``kew resolve`` answer to the dispatch rule.
+
+    Both resolve through here and record the refusal the same way, so the
+    strict arm and the auto arm each refuse rather than launch or fall back.
+    """
+    from kew.remediation_containment import record_remediation_refusal
+    from kew.run_store import SqliteRunStore
+    from kew.sandbox import SandboxRuntimeUnavailable
+
+    config = _config(enabled=enabled, runtime="docker")
+    runtime_present(monkeypatch)
+    with (
+        _with_runtime(),
+        _with_credential("credential-never-printed"),
+        attachment_network(PLAIN_BRIDGE),
+        pytest.raises(SandboxRuntimeUnavailable) as refused,
+    ):
+        resolve_remediation_containment(config, runner="claude-code", store=None)
+
+    assert refused.value.reason == "open_egress_unacknowledged"
+    assert "credential-never-printed" not in str(refused.value)
+    with SqliteRunStore(str(tmp_path / "runs.db")) as store:
+        record_remediation_refusal(
+            store,
+            config,
+            refused.value,
+            runner="claude-code",
+            run_id="r-egress",
+            run_kind="resolve",
+            issue_num=7,
+            branch="agent/issue-7",
+        )
+        [event] = store.list_audit_events(event="sandbox_resolved")
+    assert event.payload["posture"] == "refused"
+    assert event.payload["reason"] == "open_egress_unacknowledged"
 
 
 def test_required_containment_refuses_undeclared_credential():

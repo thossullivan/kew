@@ -930,6 +930,7 @@ class SandboxConfig(BaseModel):
     #: set it to what the image's build actually copies.
     check_image_inputs: list[str] = []
     network: str = "allowlist"
+    acknowledge_open_egress: bool = Field(default=False, strict=True)
     proxy_environment: str = "none"
 
     #: Which host an agent container runs on: ``"local"`` (the default, and
@@ -1740,11 +1741,16 @@ class PublicationConfig(BaseModel):
     something to look at; matching ones are removed. Keeping them forever would
     make an observability feature a disk-space incident, so only the most recent
     N are retained.
+
+    ``pr_title_style`` is how the PRs kew opens are titled, and so their squash
+    commits on main: ``sentence`` (one plain sentence) or ``conventional``
+    (``<type>(<scope>): <summary>``, for a repo whose CI checks titles).
     """
 
     model_config = {"extra": "forbid"}
 
     publish: Literal["canonical", "checkout"] = "canonical"
+    pr_title_style: Literal["sentence", "conventional"] = "sentence"
     shadow: bool = False
     shadow_evidence: int = 10
 

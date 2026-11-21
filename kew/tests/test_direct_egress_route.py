@@ -287,6 +287,8 @@ def test_flow_attestation_follows_execution_route(
 ):
     from contextlib import nullcontext
 
+    from support.attachment_network import close_attachment_network
+
     from kew import dispatch_core, sandbox
     from kew.inference_transport import resolve_inference_transport
     from kew.orchestrator import ContainedExecution
@@ -299,6 +301,7 @@ def test_flow_attestation_follows_execution_route(
     monkeypatch.setattr(
         "kew.remediation_containment.detect_runtime_cached", lambda *a: "/fake/docker"
     )
+    close_attachment_network(monkeypatch)
     monkeypatch.setattr(
         dispatch_core,
         "_require_contained_image_id",

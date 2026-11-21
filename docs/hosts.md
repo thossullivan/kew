@@ -261,6 +261,13 @@ GitHub before placing work, exactly as on this machine (see
 `[sandbox] network` name is never created for you. `[sandbox] network =
 "open"` is the explicit opt-out and consults no network at all.
 
+The open-egress rule reads the instance's network, not this machine's. A
+placement whose instance network kew cannot show closed (`Internal` true, or
+a `null`/`none` driver) refuses before the image or the agent is launched,
+unless `[sandbox] acknowledge_open_egress = true`. A firewall you add on the
+instance is invisible to kew, so a filtered bridge still needs the
+acknowledgement.
+
 kew probes the network **on the instance before it launches an agent there**
 and refuses the placement naming that command when it is absent, rather than
 leaving the instance's own daemon to refuse the container after the bundle, the

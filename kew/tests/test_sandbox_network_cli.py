@@ -95,7 +95,11 @@ def _doctor_network_check(runtime: FakeRuntime) -> tuple[str | None, CheckStatus
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(doctor_module, "_record", record)
         issue = doctor_module._check_allowlist_network(
-            SandboxConfig(runtime=runtime.name), runtime.name
+            SandboxConfig(
+                runtime=runtime.name,
+                acknowledge_open_egress=True,
+            ),
+            runtime.name,
         )
     return issue, recorded["allowlist-network"]
 

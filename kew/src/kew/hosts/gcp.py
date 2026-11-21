@@ -1262,6 +1262,16 @@ def with_stderr(stdout: str, stderr: str) -> str:
     return f"{stdout}{joint}{STDERR_FOLLOWS}\n{stderr}"
 
 
+def job_stdout(log: str) -> str:
+    """The stdout part of a job's log, as :func:`with_stderr` composed it.
+
+    Split at the first marker: a stdout that carried the marker text itself is
+    cut short there, which can only make it less readable, never more.
+    """
+    stdout, found, _stderr = log.partition(STDERR_FOLLOWS)
+    return stdout if found else log
+
+
 def parse_exit_marker(output: str) -> tuple[int, str]:
     """Split the remote exit marker off *output*, the host's **stdout**.
 

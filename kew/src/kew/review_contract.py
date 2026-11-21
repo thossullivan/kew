@@ -1,37 +1,29 @@
-"""Governed-review contract: pinned prompt resolution + verdict parsing.
+"""Governed-review contract: pinned prompt resolution and verdict parsing.
 
-Pure, host-side pieces of the adversarial-review stage that carry no
-sandbox or driver dependencies, so they test in isolation:
+Host-side, with no sandbox or driver dependencies:
 
-- ``resolve_reviewer_prompt`` resolves the sha256-pinned reviewer prompt
-  artifact (Task 5). The dispatch template interpolates the artifact from the
-  BASE ref of the reviewed repo — "tuning" means editing a pinned artifact
-  through a PR — so the loader prefers the base-ref deployed copy, read out of
-  the Git ref's tree and never off the operator's working tree (#3087), and
-  falls back to the packaged default. The returned sha is bound
-  into the verdict attestation (E). A deployed copy older than the pinned one
-  still loads, but it does not carry the recorded-criteria contract
-  (``criteria_contract_in_force``, #2291): its reviewer was never told those
-  rules, so they are not enforced against it.
-- ``parse_verdict_sidecar`` enforces evidence symmetry (Task 8, F10/F11) over a
-  broker-collected sidecar: evidence-free findings are dropped, and degenerate
-  shapes (all-findings-dropped NEEDS_CHANGES, or READY without acceptance
-  evidence and without an explicit unavailable reason) collapse to
-  ``unparseable`` — the crash path — never a silent READY. Evidence is the
-  reviewer's self-reported command string and output digest. kew checks that
-  both are present. It does not run the command or recompute the digest.
-  An explicit
-  ``acceptance_executed: false`` is retained as degraded-confidence evidence.
-  kew never trusts a self-reported ``spend_usd`` from the sidecar.
-  Every reviewer-authored string leaves the parser credential-redacted (#1920):
-  the reviewer holds a provider credential, and parsed text reaches the PR
-  comment, the remediation prompt and the audit payload. Redaction is by
-  credential value and key shape only: the text is prose about code, and
-  field parsing would blank phrases such as ``token: is echoed``.
-- ``collect_stream_verdict`` takes the verdict from the reviewer's own typed
-  terminal result event as the host read it from the runner's stream
-  (:mod:`kew.review_stream`, #2021), never from a file in the reviewed
-  checkout, and binds it to the head SHA the host recorded.
+- ``resolve_reviewer_prompt`` loads the reviewer prompt and its sha256. A
+  repo tunes the prompt through a PR to its base branch, so a copy deployed on
+  the base ref wins, unvalidated, read from the ref's tree and never from the
+  working tree; otherwise the packaged default loads. The sha of the bytes
+  that loaded is bound into the verdict attestation.
+- ``parse_verdict_sidecar`` admits a verdict only with the evidence its shape
+  requires. Evidence-free findings are dropped. NEEDS_CHANGES with every
+  finding dropped, or READY with no acceptance evidence and no stated reason,
+  is ``unparseable`` (the crash path), never a silent READY. Evidence is
+  self-reported: kew checks that the command and the output digest are
+  present, but does not run or recompute them. ``acceptance_executed: false``
+  with a reason is kept as degraded-confidence evidence. A self-reported
+  ``spend_usd`` is ignored.
+- Every reviewer-written string leaves the parser credential-redacted: the
+  reviewer holds a provider credential, and the text reaches the PR comment,
+  the remediation prompt and the audit payload. Redaction is by credential
+  value and key shape only, because field parsing would blank prose such as
+  ``token: is echoed``.
+- ``collect_stream_verdict`` takes the verdict from the reviewer's typed
+  result event as the host read it from the runner's stream
+  (:mod:`kew.review_stream`), never from a file in the reviewed checkout, and
+  binds it to the head SHA the host recorded.
 """
 
 from __future__ import annotations
@@ -209,16 +201,13 @@ def resolve_reviewer_prompt(
     """Resolve the reviewer prompt text, its sha256, and which copy won.
 
     *base_ref_root* is the top of the operator's repository and *base_ref* the
-    Git ref the review is pinned to. When that ref's tree carries a deployed
-    copy at the artifact's target path, that base-ref copy wins
-    (tuning-through-PR: the version in force is whatever the reviewed repo
-    shipped on its base branch). It is read out of the ref's tree — the blob
-    ``ls-tree`` lists there, by ``cat-file`` — never from the working tree,
-    where an uncommitted edit or a checked-out feature branch would otherwise
-    govern every review (#3087). Otherwise the packaged default ships; a
-    listing or a read Git fails raises :class:`ReviewerPromptReadError`. The sha
-    is computed over the exact bytes returned so the attestation binds the
-    prompt version that actually reviewed the code.
+    Git ref the review is pinned to. A copy deployed at the artifact's target
+    in that ref's tree wins. It is read with ``ls-tree`` and ``cat-file``, never
+    from the working tree, where an uncommitted edit or another checked-out
+    branch would govern every review. Otherwise the packaged default loads. A
+    failed listing or read raises :class:`ReviewerPromptReadError`. The sha
+    covers the exact bytes returned, so the attestation binds the prompt that
+    reviewed the code.
 
     *base_commit* is the commit the launch already pinned *base_ref* to — the
     one its reviewer checkout is cloned at — so the prompt and the reviewed
@@ -248,7 +237,7 @@ def read_checkout_reviewer_prompt(root: Path | None = None) -> ReviewerPromptTex
     bytes included, or the packaged default when it deploys none.
 
     Not the review launch's read — that is :func:`resolve_reviewer_prompt`, off
-    the base ref (#3087). This is the dispatch self-check's: it quotes the
+    the base ref. This is the dispatch self-check's: it quotes the
     operator's own checkout, so it starts no process to render.
     """
     artifact = reviewer_prompt_artifact()
@@ -271,27 +260,20 @@ def load_reviewer_prompt(base_ref_root: Path | None = None) -> tuple[str, str]:
 
 
 def criteria_contract_in_force(prompt_sha256: str) -> bool:
-    """Whether the reviewer prompt that loaded states the criteria contract (#2291).
+    """Whether the reviewer prompt that loaded states the criteria contract.
 
-    The criterion rules below — cover every recorded id, link each ``fail`` to
-    an evidenced finding, never carry one on a READY — are rules the PROMPT
-    states. ``load_reviewer_prompt`` loads whatever the reviewed repo's base ref
-    deployed, unvalidated, and ``previous_sha256`` deliberately accepts an older
-    copy as unmodified: a consumer repo still shipping the pre-#2291 artifact
-    would report no ``criteria_results`` at all, and every round on an item with
-    a recorded plan would be lost to the crash path over a rule its reviewer was
-    never told.
-
-    So the criteria section is rendered, and the rules are enforced, only
-    against the artifact the manifest currently pins. A stale deployed copy
-    reviews exactly as it did before #2291 — judged against no recorded
-    criteria, which is a weaker round, not a broken one, and it is fixed by the
-    ordinary ``kew doctor``/sync that updates the artifact.
+    The criterion rules (cover every recorded id, link each ``fail`` to an
+    evidenced finding, never carry one on a READY) are rules the prompt states.
+    A base ref can deploy an older prompt, unvalidated, and ``previous_sha256``
+    accepts it as unmodified; its reviewer was never told those rules. So the
+    criteria section is rendered and enforced only against the prompt the
+    manifest pins now. An older copy reviews against no recorded criteria until
+    ``kew skills update`` deploys the pinned copy and it reaches the base branch.
     """
     return prompt_sha256 == reviewer_prompt_artifact().sha256
 
 
-# --- Task 8: verdict sidecar + evidence-symmetry validation (F10, F11) ---
+# --- Verdict sidecar and evidence validation ---
 
 Verdict = Literal["READY", "NEEDS_CHANGES"]
 _ACCEPTED_VERDICTS: frozenset[str] = frozenset({"READY", "NEEDS_CHANGES"})
@@ -307,13 +289,13 @@ class Finding:
     evidence_command: str
     evidence_output_digest: str
     criterion: str | None = None
-    """The recorded acceptance criterion this finding fails (#2291), when the
+    """The recorded acceptance criterion this finding fails, when the
     reviewer named one. A ``fail`` criterion result is admissible only when some
     kept finding names it, so this is what ties the two halves of the verdict
     together — and what the remediation brief lists first."""
     kind: str | None = None
     """:data:`DECLARATION_FINDING_KIND` when the reviewer files this finding as
-    asking only for **Behavior changes** lines (#2872); None for every other
+    asking only for **Behavior changes** lines; None for every other
     finding, which is remediated as a defect."""
     node_ids: tuple[str, ...] = ()
     """The exact test node ids a declaration finding asks to declare — the
@@ -321,13 +303,13 @@ class Finding:
 
 
 DECLARATION_FINDING_KIND = "declaration"
-"""``kind`` of a finding that a **Behavior changes** line settles (#2872)."""
+"""``kind`` of a finding that a **Behavior changes** line settles."""
 
 
 @dataclass(frozen=True)
 class DeclarationRuling:
     """The reviewer's ruling on one of the implementer's proposed **Behavior
-    changes** lines (#3475): the PR body's **Proposed behavior changes**."""
+    changes** lines: the PR body's **Proposed behavior changes**."""
 
     node_id: str
     """The test the proposed line names, as the line names it."""
@@ -336,8 +318,8 @@ class DeclarationRuling:
     """Why, in the reviewer's words. Never blank: a ruling without one is
     dropped, and a dropped acceptance declares nothing."""
     not_needed: bool = False
-    """A rejection whose ``ground`` is exactly :data:`NOT_NEEDED_GROUND`
-    (#3500): the test needs no declaration — its base copy passes against the
+    """A rejection whose ``ground`` is exactly :data:`NOT_NEEDED_GROUND`:
+    the test needs no declaration — its base copy passes against the
     head, or the file only adds cases. kew drops that proposal instead of
     filing a finding. Every other rejection is "wrong" and blocks."""
 
@@ -345,7 +327,7 @@ class DeclarationRuling:
 _RULING_ANSWERS = {"accepted": True, "rejected": False}
 
 NOT_NEEDED_GROUND = "not_needed"
-"""``ground`` of a rejection that no declaration is needed for (#3500)."""
+"""``ground`` of a rejection that no declaration is needed for."""
 
 
 def _ruling_rank(ruling: DeclarationRuling) -> int:
@@ -380,7 +362,7 @@ anything not a key resolves to :data:`_UNVERIFIABLE`.
 
 @dataclass(frozen=True)
 class CriterionResult:
-    """One recorded criterion as the reviewer judged it (#2291)."""
+    """One recorded criterion as the reviewer judged it."""
 
     id: str
     result: CriterionOutcome
@@ -389,7 +371,7 @@ class CriterionResult:
     reason: str = ""
     contract_test_outcome: str = ""
     """The executed outcome of the criterion's acceptance-contract test the
-    reviewer cited (#2732): ``passed``, ``failed``, or empty when it cited none
+    reviewer cited: ``passed``, ``failed``, or empty when it cited none
     or the criterion has no contract test."""
 
 
@@ -397,7 +379,7 @@ def contract_test_name(criterion_id: str) -> str:
     """The acceptance-contract test that proves a ``kind = test`` criterion.
 
     The contract holds one test per such criterion, named ``test_ac<k>`` after
-    its ``AC<k>`` id (#2726), so the name is derived, never read off the branch.
+    its ``AC<k>`` id, so the name is derived, never read off the branch.
     """
     return f"test_{criterion_id.strip().lower()}"
 
@@ -429,7 +411,7 @@ def _cited_contract_outcome(raw: Any, criterion_id: str) -> str:
 def _contract_bound(outcome: CriterionOutcome, cited: str) -> CriterionOutcome:
     """*outcome* for a ``kind = test`` criterion, bound to its contract test.
 
-    The contract test is the criterion's proof (#2732): a cited failing run
+    The contract test is the criterion's proof: a cited failing run
     makes it ``fail`` whatever the reviewer called it, and a ``pass`` with no
     cited passing run is ``unverifiable`` — never a pass kew has no executed
     contract test behind.
@@ -443,7 +425,7 @@ def _contract_bound(outcome: CriterionOutcome, cited: str) -> CriterionOutcome:
 
 @dataclass(frozen=True)
 class CoverageEntry:
-    """One thing a READY reviewer checked and cleared (#3419).
+    """One thing a READY reviewer checked and cleared.
 
     ``how`` is ``executed`` (it ran something, and ``evidence_command`` and
     ``evidence_output_digest`` say what) or ``read`` (it read the code, and the
@@ -459,7 +441,7 @@ class CoverageEntry:
 
 @dataclass(frozen=True)
 class NotCheckedEntry:
-    """One check the change needs that the review sandbox could not run (#3419)."""
+    """One check the change needs that the review sandbox could not run."""
 
     check: str
     kind: str
@@ -486,31 +468,31 @@ class ParsedVerdict:
     dropped_findings: int = 0
     unparseable_reason: str | None = None
     criteria_results: list[CriterionResult] = field(default_factory=list)
-    """The per-criterion judgements, in the recorded plan's own id order (#2291).
+    """The per-criterion judgements, in the recorded plan's own id order.
     Empty when the round was handed no criteria — which is not the same as a
     reviewer who was handed some and reported nothing, because that is
     unparseable."""
     coverage: list[CoverageEntry] = field(default_factory=list)
-    """What a READY reviewer checked and cleared (#3419). Filled only when the
+    """What a READY reviewer checked and cleared. Filled only when the
     round was held to the coverage contract (``require_coverage``)."""
     not_checked: list[NotCheckedEntry] = field(default_factory=list)
-    """What the reviewer could not check in its sandbox (#3419). Filled only
+    """What the reviewer could not check in its sandbox. Filled only
     when the round was held to the coverage contract; may be empty."""
     dropped_not_checked: int = 0
     """How many malformed ``not_checked`` entries were dropped rather than
-    voiding the verdict (#3419), so the comment can say so instead of reading
+    voiding the verdict, so the comment can say so instead of reading
     as "none reported"."""
     coverage_required: bool = False
     """Whether the round was held to the coverage contract, so an empty
-    ``not_checked`` means "nothing unchecked", not "never asked" (#3419)."""
+    ``not_checked`` means "nothing unchecked", not "never asked"."""
     declarations: list[DeclarationRuling] = field(default_factory=list)
     """The reviewer's ruling on each proposed **Behavior changes** line it
-    judged (#3475). kew writes the accepted ones into the PR body; each
+    judged. kew writes the accepted ones into the PR body; each
     "wrong" rejected one is also a finding, so it never rides on a READY, and
-    each "not needed" one is dropped from the proposed block (#3500)."""
+    each "not needed" one is dropped from the proposed block."""
     excused_tests: tuple[str, ...] = ()
     """The tests kew took off this round's declaration findings because the PR
-    body's **Behavior changes** section already declares them (#3516). The
+    body's **Behavior changes** section already declares them. The
     verdict comment names them, and :func:`collect_stream_verdict` records the
     declared set beside the stored sidecar so a re-parse sees what this one
     did (:func:`stored_declared_tests`)."""
@@ -529,7 +511,7 @@ def _has_evidence(raw: Any) -> tuple[str, str] | None:
     """Return ``(command, output_digest)`` iff *raw* carries evidence.
 
     Evidence is self-reported: a non-empty command string and a non-empty
-    output digest, both required (F11). kew does not run the command or
+    output digest, both required. kew does not run the command or
     recompute the digest. Anything else (missing key, wrong type, blank
     string) → dropped.
     """
@@ -549,7 +531,7 @@ def _valid_finding(raw: Any, plan_ids: frozenset[str] = frozenset()) -> Finding 
     self-reported evidence (command string and output digest). Missing any →
     dropped (returns ``None``).
 
-    A ``criterion`` survives only when *plan_ids* states it (#2291). The id
+    A ``criterion`` survives only when *plan_ids* states it. The id
     reaches the verdict comment and the remediation brief as host-trusted text,
     and it is read back to decide which criteria a remediation must satisfy, so
     it has to be one of the ids kew itself recorded — never a label a reviewer
@@ -590,7 +572,7 @@ def _named_criterion(raw: Mapping[str, Any], plan_ids: frozenset[str]) -> str | 
 
 
 def _declared_node_ids(raw: Mapping[str, Any]) -> tuple[str, ...]:
-    """The node ids a ``kind: "declaration"`` finding asks to declare (#2872).
+    """The node ids a ``kind: "declaration"`` finding asks to declare.
 
     Empty — and the finding an ordinary defect — unless ``kind`` is exactly
     :data:`DECLARATION_FINDING_KIND` and ``node_ids`` is a non-empty list of
@@ -638,10 +620,10 @@ def _parse_rulings(raw: Any) -> list[DeclarationRuling]:
 
 
 def _rejection_finding(ruling: DeclarationRuling) -> Finding:
-    """The finding a "wrong" rejected proposal is (#3475): it names the test
+    """The finding a "wrong" rejected proposal is: it names the test
     and carries the reviewer's reason, and it is an ordinary finding — the line
     was refused, so another line for the same test settles nothing by itself.
-    A "not needed" rejection is no finding (#3500): no code change clears it,
+    A "not needed" rejection is no finding: no code change clears it,
     and the proposal it drops declared nothing."""
     return Finding(
         severity="medium",
@@ -659,7 +641,7 @@ def _without_declared(
     findings: list[Finding], declared: frozenset[str]
 ) -> tuple[list[Finding], tuple[str, ...]]:
     """*findings* less what the PR body already declares, and the tests that
-    came off (#3516).
+    came off.
 
     A ``kind: "declaration"`` finding asks only for **Behavior changes** lines,
     so the tests the body declares — by the held-out gate's own rule,
@@ -792,7 +774,7 @@ def _failing_refusal(
     Two refusals: a verdict other than NEEDS_CHANGES carrying a failing
     criterion — the forged-READY shape, "ready except for what it was asked to
     do" — and a ``fail`` with no evidenced finding naming it, which is a defect
-    asserted without evidence, exactly what F11 drops elsewhere.
+    asserted without evidence.
     """
     if not failed:
         return None
@@ -835,8 +817,8 @@ def _parse_criteria(
     """The admissible criterion results and the refusal they earn, if any.
 
     A no-op when the round was handed no criteria: the rules apply ONLY when a
-    plan section was rendered, so a node with no recorded plan behaves exactly
-    as it did before #2291. Results come back in the plan's own id order, and a
+    plan section was rendered, so a node with no recorded plan is held to no
+    criterion rule. Results come back in the plan's own id order, and a
     duplicated id keeps its first entry.
     """
     known = frozenset(plan_ids)
@@ -908,7 +890,7 @@ TEST_CHANGE_REJECTED = "REJECTED"
 
 
 def unanswered_test_flags(data: Mapping[str, Any], flags: Sequence[str]) -> list[str]:
-    """The test-integrity flags a verdict does not mark ACCEPTED with a reason (#2486).
+    """The test-integrity flags a verdict does not mark ACCEPTED with a reason.
 
     *flags* are the flag names of the round's test-integrity report
     (:mod:`kew.test_integrity`). The verdict's ``test_changes`` section — its
@@ -958,10 +940,9 @@ def _test_changes_refusal(
     )
 
 
-#: The ``not_checked`` kinds the reviewer prompt names (#3419). A kind the
-#: reviewer NAMES outside this set makes the verdict unparseable: the comment
-#: groups by it, and an invented kind is a reviewer writing outside the
-#: contract it was given. Case and surrounding space are not invention.
+#: The ``not_checked`` kinds the reviewer prompt names. A named kind outside
+#: this set makes the verdict unparseable: the comment groups by kind. Case
+#: and surrounding space are normalized, not refused.
 NOT_CHECKED_KINDS: frozenset[str] = frozenset(
     {"browser", "full_suite", "docker", "network", "host", "other"}
 )
@@ -1059,8 +1040,8 @@ def _parse_not_checked(
 ) -> tuple[list[NotCheckedEntry], int, str | None]:
     """The admitted entries, how many malformed ones were dropped, and a refusal.
 
-    Only a NAMED kind outside :data:`NOT_CHECKED_KINDS` refuses the verdict
-    (#3419). Any other malformed entry — no check, no reason, no kind, not an
+    Only a NAMED kind outside :data:`NOT_CHECKED_KINDS` refuses the verdict.
+    Any other malformed entry — no check, no reason, no kind, not an
     object — is dropped and counted, so one slip cannot void a NEEDS_CHANGES
     whose findings are evidenced and hold the node for a human.
     """
@@ -1123,11 +1104,11 @@ class _CoverageLists:
 def _coverage_refusal(
     data: dict[str, Any], verdict: str, require_coverage: bool
 ) -> _CoverageLists:
-    """The coverage and not-checked lists, and why they are inadmissible (#3419).
+    """The coverage and not-checked lists, and why they are inadmissible.
 
     A no-op unless *require_coverage*: only a reviewer that was shown the
     coverage contract is held to it, so stored sidecars and older prompts
-    parse as they always did. ``coverage`` is READY-only; ``not_checked`` is
+    parse without it. ``coverage`` is READY-only; ``not_checked`` is
     required on every verdict and may be empty.
     """
     if not require_coverage:
@@ -1148,7 +1129,7 @@ def parse_verdict_sidecar(
     require_coverage: bool = False,
     declared_tests: Sequence[str] = (),
 ) -> ParsedVerdict:
-    """Parse a reviewer verdict sidecar with evidence symmetry (F10/F11).
+    """Parse a reviewer verdict sidecar; a verdict without its evidence fails.
 
     Rules, each collapsing to the crash path (``unparseable``) rather than a
     silent READY:
@@ -1159,10 +1140,10 @@ def parse_verdict_sidecar(
     - READY without executed acceptance evidence or an explicit unavailable
       acceptance reason → unparseable.
     - A self-reported ``spend_usd`` (or any cost field) is ignored — kew's spend
-      figures come from RunRecords, never the sidecar (F10).
+      figures come from RunRecords, never the sidecar.
 
     *plan_criterion_ids* are the ids of the recorded plan the dispatch rendered
-    into the reviewer's prompt (#2291), in plan order. Given them, four more
+    into the reviewer's prompt, in plan order. Given them, four more
     rules apply — a verdict that leaves one unjudged is unparseable, an id
     outside the plan is dropped, a ``pass`` with no evidence becomes
     ``unverifiable``, a READY carrying a ``fail`` is unparseable, and each
@@ -1171,30 +1152,31 @@ def parse_verdict_sidecar(
     against nothing stated must not be failed for saying nothing about it.
 
     *integrity_flags* are the test-integrity flags the dispatch rendered into
-    the prompt (#2486). Given them, a READY whose ``test_changes`` leaves one
+    the prompt. Given them, a READY whose ``test_changes`` leaves one
     unanswered or REJECTED is unparseable — never a READY. Empty (a clean
     report, or no report shown) adds no requirement.
 
-    *contract_test_ids* are the ``kind = test`` ids among *plan_criterion_ids*
-    (#2732). Each one's result is bound to the acceptance-contract test outcome
-    its entry cites: a ``pass`` citing no passing run is ``unverifiable``, and a
-    cited ``failed`` is ``fail`` — which then needs an evidenced finding and
-    keeps the round out of READY and residual acceptance like any other fail.
+    *contract_test_ids* are the ``kind = test`` ids among
+    *plan_criterion_ids*. Each one's result is bound to the acceptance-contract
+    test outcome its entry cites: a ``pass`` citing no passing run is
+    ``unverifiable``, and a cited ``failed`` is ``fail``, which then needs an
+    evidenced finding and keeps the round out of READY and residual acceptance
+    like any other fail.
 
     The ``declarations`` section is the reviewer's ruling on each proposed
-    **Behavior changes** line (#3475), kept in ``declarations``. A rejected
+    **Behavior changes** line, kept in ``declarations``. A rejected
     proposal is also a finding naming its test and the reason, so a verdict
     that rejects one is NEEDS_CHANGES whatever it said — unless its ``ground``
-    is ``not_needed`` (#3500): that proposal is dropped, never a finding.
+    is ``not_needed``: that proposal is dropped, never a finding.
 
-    *require_coverage* holds the verdict to the coverage contract (#3419): every
+    *require_coverage* holds the verdict to the coverage contract: every
     verdict carries a ``not_checked`` list, and a READY a non-empty ``coverage``
     list — with an evidenced ``executed`` entry when acceptance ran. Only the
     launch of the pinned prompt sets it; a re-parse of a stored sidecar keeps
-    the default and parses as it always did.
+    the default and parses without the contract.
 
     *declared_tests* are the tests the PR body's **Behavior changes** section
-    declares, as the prompt showed them (#3516). A declaration finding asking
+    declares, as the prompt showed them. A declaration finding asking
     only for them is dropped (:func:`_without_declared`), and a NEEDS_CHANGES
     left with no finding, and none dropped as malformed, is judged as the READY
     it then is, under every READY rule above. One that lacks what a READY needs
@@ -1237,7 +1219,7 @@ def _ruled_verdict(
         # A rejected proposal is a finding, so the verdict cannot be READY.
         return "NEEDS_CHANGES", [*kept, *rejected]
     if excused and not kept and not dropped:
-        # Every objection asked for lines the body already carries (#3516). A
+        # Every objection asked for lines the body already carries. A
         # finding dropped as malformed is an objection nobody can read, so the
         # round stays as the reviewer wrote it.
         return "READY", kept
@@ -1329,12 +1311,12 @@ def _accept_evidence(raw: Any) -> dict[str, str] | None:
 
 @dataclass(frozen=True)
 class CollectedSidecar:
-    """A reviewer verdict record stored on the host (report-broker #759 pattern).
+    """A reviewer verdict record stored on the host.
 
     The attested ``digest`` is computed over kew's *stored* copy of the verdict
     block the reviewer's own result event carried — never over a file in the
-    reviewed checkout (which the reviewed code can write, #2021) and never
-    over a GitHub comment (F10).
+    reviewed checkout, which the reviewed code can write, and never over a
+    GitHub comment.
     """
 
     stored_path: Path
@@ -1344,10 +1326,9 @@ class CollectedSidecar:
     error_category: str | None = None
 
 
-#: ``error_category`` of a reviewer run a provider usage limit ended (#2219).
-#: NOT a verdict and NOT a hold: the reviewer was cut off mid-run, so there is no
-#: verdict to judge and nothing a human can fix — the round is retried once the
-#: limit resets (see ``review_stage``).
+#: ``error_category`` of a reviewer run a provider usage limit ended. Not a
+#: verdict and not a hold: nothing was judged and no human can fix it, so the
+#: round is retried once the limit resets (see ``review_stage``).
 RATE_LIMITED_CATEGORY = "rate_limited"
 
 #: The lane that failed for a rate-limited round — the provider, not any layer
@@ -1359,43 +1340,31 @@ RATE_LIMITED_LAYER = "rate_limit"
 STREAM_LAYER = "stream"
 
 #: ``error_category`` of a reviewer run that exited 0 with more than one result
-#: event, none of them carrying a different verdict (#3174): the runner started
+#: event, none of them carrying a different verdict: the runner started
 #: a second turn. A runner fault, retried once per node and head before it holds.
 MULTIPLE_RESULTS_CATEGORY = "review_multiple_results"
 
-#: ``error_category`` of a reviewer run that failed and left no verdict
-#: (#3174). It holds under its own name with the exit and what the stream
-#: lacked, never as a bare ``review_unparseable``, and is not retried.
+#: ``error_category`` of a reviewer run that failed and left no verdict.
+#: It holds under its own name with the exit and what the stream lacked,
+#: never as a bare ``review_unparseable``, and is not retried.
 FAILED_NO_VERDICT_CATEGORY = "review_failed_no_verdict"
 
 
 def _rate_limited_round(capture: Mapping[str, Any] | None) -> bool:
-    """Did a provider usage limit end this reviewer run? (#2219)
+    """Whether a provider usage limit ended this reviewer run.
 
-    A REJECTED rate-limit notice in the stream is necessary and the reviewer
-    reaching the end of its own judging is disqualifying — nothing in between.
-    Rejected and nothing weaker: the runner emits a ``rate_limit_event``
-    whenever its rate-limit info changes, so a long run that never came near a
-    limit still carries ``allowed``/``allowed_warning`` notices, and counting
-    those reclassified every ordinary reviewer failure as a provider limit
-    (``review_stream._record_rate_limit``).
+    True only when the stream carries a REJECTED rate-limit notice and the
+    reviewer did not reach a clean end. Weaker notices (``allowed``,
+    ``allowed_warning``) do not count: the runner emits them whenever its
+    rate-limit info changes, also on runs far from any limit.
 
-    A ``result`` event reporting no error is the reviewer reaching that end: it
-    ran to completion however many rejections it survived, so a missing or
-    malformed verdict block there is a verdict defect and keeps the unparseable
-    path a human reads.
+    A result event with no error is a clean end, so a bad verdict block there
+    stays on the unparseable path a human reads. An error result, or no result
+    event at all (a limit that killed the run mid-stream), counts as the limit.
 
-    Everything else is the limit ending the run: an error result, and — the
-    shape a limit that kills the reviewer MID-STREAM leaves — no result event at
-    all, where ``is_error`` was never recorded. Requiring ``is_error is True``
-    read that absence as a clean finish and held the node on
-    ``review_unparseable``, which is the needs-human hold this exists to remove.
-
-    Fail-closed either way: this decides only whether a FAILED round is retried
-    or held, never whether one is admitted. The stream is untrusted output, so a
-    planted limit notice can at most turn a hold into a retry — and the retry is
-    bounded, holding the node under its own reason once the wait has outlasted
-    any real limit (``review_stage._MAX_RATE_LIMIT_WAIT``).
+    This only chooses retry or hold for a FAILED round; it never admits one. A
+    planted notice can at most turn a hold into a bounded retry
+    (``review_stage._MAX_RATE_LIMIT_WAIT``).
     """
     if capture is None:
         return False
@@ -1412,7 +1381,7 @@ def _stream_refusal(capture: Mapping[str, Any] | None, exit_code: int) -> str | 
     one terminal result event, an error result, an oversize message, and a
     final message without exactly one verdict block all fail the round. A
     failed run's refusal names both its exit and what its stream lacked, so the
-    hold says what went wrong rather than only that the run failed (#3174).
+    hold says what went wrong rather than only that the run failed.
     """
     stream: str | None
     if capture is None:
@@ -1513,14 +1482,13 @@ def collect_stream_verdict(
     zero-byte record and takes the crash path under its reason, so a failed
     round is never admitted as READY.
 
-    *plan_criterion_ids* are the recorded criteria this round's prompt carried
-    (#2291); the dispatch passes them through its launch context so the parser
+    *plan_criterion_ids* are the recorded criteria this round's prompt
+    carried; the dispatch passes them through its launch context so the parser
     holds the verdict to the same ids the reviewer was shown. *integrity_flags*
-    travel the same way (#2486): the flags this round's prompt asked it to answer,
-    and so do *contract_test_ids* (#2732): its ``kind = test`` criterion ids.
-    *require_coverage* (#3419) is whether this round's prompt was the pinned
-    one that states the coverage contract. *declared_tests* (#3516) are the
-    tests this round's prompt listed as already declared.
+    (the flags the prompt asked it to answer) and *contract_test_ids* (its
+    ``kind = test`` criterion ids) travel the same way. *require_coverage* is
+    whether this round's prompt was the pinned one that states the coverage
+    contract. *declared_tests* are the tests the prompt listed as declared.
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
     stored = dest_dir / f"review-sidecar-{run_id}.json"
@@ -1565,7 +1533,7 @@ def _declared_record(sidecar_path: str | Path) -> Path:
 
 
 def _record_declared(stored: Path, declared: Sequence[str]) -> bool:
-    """Store the declared set a parse of *stored* excused tests against (#3516).
+    """Store the declared set a parse of *stored* excused tests against.
 
     Written whole or not at all, and only when *declared* is not empty; a
     record left by an earlier write of the same path is removed otherwise.
@@ -1590,7 +1558,7 @@ def _record_declared(stored: Path, declared: Sequence[str]) -> bool:
 
 def stored_declared_tests(sidecar_path: str | Path | None) -> tuple[str, ...]:
     """The declared set :func:`collect_stream_verdict` parsed *sidecar_path*
-    against (#3516), for a re-parse to pass as ``declared_tests``; empty when
+    against, for a re-parse to pass as ``declared_tests``; empty when
     none was recorded or the record is unreadable — the sidecar then parses
     as the reviewer wrote it, as the round itself did."""
     if not sidecar_path:
@@ -1615,11 +1583,9 @@ def criterion_ids(criteria_json: str | None) -> tuple[str, ...]:
     ``criterion`` the reviewer named, so the brief that is supposed to list the
     failing criteria first would list none.
 
-    An unreadable column yields no ids and says so in the log: the brief then
-    degrades to its pre-#2291 shape, which is the right outcome — the round's
-    findings are still remediated — but it is a host-side defect, not the
-    "this round had no criteria" that an empty/absent column legitimately
-    means, so the two must not be indistinguishable in the operator's log.
+    An unreadable column yields no ids and logs a warning. The findings are
+    still remediated, but the log must tell a host-side defect apart from a
+    round that had no criteria.
     """
     if not criteria_json:
         return ()
@@ -1645,7 +1611,7 @@ def criterion_ids(criteria_json: str | None) -> tuple[str, ...]:
 
 
 def contract_test_ids(criteria_json: str | None) -> tuple[str, ...]:
-    """The ``kind = test`` ids a recorded round's ``criteria_json`` states (#2732).
+    """The ``kind = test`` ids a recorded round's ``criteria_json`` states.
 
     The companion of :func:`criterion_ids` for a tick that re-parses a stored
     sidecar: the stop rule must read a cited failing contract test as the
@@ -1682,8 +1648,8 @@ def _refused_round_category(
 
     A round a usage limit cut off names its category, so the stage can retry it
     instead of holding the node on a verdict that was never written. A failed
-    run and a successful run that spoke more than once each name themselves
-    (#3174); every other refusal keeps the bare crash path.
+    run and a successful run that spoke more than once each name themselves;
+    every other refusal keeps the bare crash path.
     """
     if _rate_limited_round(capture):
         return RATE_LIMITED_LAYER, RATE_LIMITED_CATEGORY
@@ -1784,7 +1750,7 @@ def merge_verify_failure_sidecar(
     command: str,
     evidence: str,
 ) -> CollectedSidecar:
-    """Author the NEEDS_CHANGES sidecar for a failed combined-tree verify (#2148).
+    """Author the NEEDS_CHANGES sidecar for a failed combined-tree verify.
 
     The serial merge queue merges *base* into a READY head and runs the project's
     verify command on the combined tree. A red result is not a reviewer verdict,
@@ -1800,7 +1766,7 @@ def merge_verify_failure_sidecar(
     ``<file>:<line>``-shaped location, and what failed here is the integration
     of the head with *base*, not one line of the diff; the failing gate is named
     in ``summary``. ``evidence.output_digest`` is the sha256 of the stored
-    evidence text — self-reported, like every other sidecar digest (F11).
+    evidence text — self-reported, like every other sidecar digest.
     """
     data = json.dumps(
         {
@@ -1859,7 +1825,7 @@ def is_host_location(location: str) -> bool:
 def operator_send_back_sidecar(
     dest_dir: Path, run_id: str, *, head_sha: str, actor: str, reason: str
 ) -> CollectedSidecar:
-    """Author the NEEDS_CHANGES sidecar for an operator send-back (#3070).
+    """Author the NEEDS_CHANGES sidecar for an operator send-back.
 
     ``kew epic send-back`` records an operator's blockers against a head kew's
     own reviewer passed. Like a red merge verification it is not a reviewer
@@ -1907,7 +1873,7 @@ PRE_REVIEW_GATE_LOCATION = "pre-review-gate"
 
 @dataclass(frozen=True)
 class GateFinding:
-    """One failure the pre-review gate saw, as a finding records it (#3201)."""
+    """One failure the pre-review gate saw, as a finding records it."""
 
     location: str
     """``<file>:<line>`` when the output cites a file in the head, else

@@ -1529,7 +1529,8 @@ Kew never falls back to open egress.
 A plain Docker bridge permits outbound traffic while the provider key is present.
 Endpoint restriction remains the iptables rules you add to that network yourself.
 An operator can set `network = "open"` for full egress.
-Kew then warns that one outbound request could exfiltrate the named credential.
+Kew refuses a credentialed container on open egress unless `acknowledge_open_egress = true`.
+An acknowledged launch still warns that one request could exfiltrate each named credential.
 
 The direct route's egress policy is operator-asserted and unverifiable by kew (#1945).
 kew installs and verifies no destination rules there.
@@ -1537,9 +1538,15 @@ Docker's network API exposes no destination rules.
 Docker Desktop keeps the host firewall inside its VM.
 Kew permanently records `operator-managed-unverified` for every direct contained route.
 What kew *can* read is the attachment network's shape, so each direct posture also records `network_driver` and `network_internal` as the configured runtime's `network inspect kew-allowlist` reports them — Docker and Podman name those two attributes differently and kew reads either, recording `unknown` when the daemon cannot answer.
-A plain bridge with `Internal=false` has open egress unless the host filters it, and `kew doctor` warns when it sees one.
-kew never refuses on that evidence: an `Internal=true` network has no egress at all, so the agent could not reach its inference API.
-Operators who need kew-verified egress use the sidecar route, subject to its admission gates.
+Kew treats a network as closed only when that shape proves it: `Internal=true`, or a `null`/`none` driver.
+Every other shape counts as open egress: a plain bridge with `Internal=false`, `host`, macvlan, ipvlan, overlay, `container:<id>`, and a network whose inspect fails or answers in a shape kew cannot read.
+Every launch that hands a container a runner credential refuses open egress without `acknowledge_open_egress = true`: dispatch, the adversarial reviewer, review remediation, `kew resolve`, `kew ci-fix` and epic planning.
+`kew doctor` fails `allowlist-network` on the same rule, for every configured route that launches a container.
+A host firewall that filters the bridge is invisible to kew, so a filtered bridge still needs the acknowledgement.
+An `Internal=true` network has no egress at all, so a direct-route agent on it cannot reach its inference API.
+Use one only where inference does not need the direct route.
+Operators who need kew-verified egress use the sidecar route, subject to its admission gates; its worker sits on a per-run internal network and needs no acknowledgement.
+A placed dispatch is checked against the instance's network, read on the instance.
 
 ### OpenShell egress certification
 

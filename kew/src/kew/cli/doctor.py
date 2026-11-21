@@ -65,7 +65,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, TypeGuard
 
 import typer
 
@@ -81,6 +81,11 @@ from kew.config import (
     resolved_config_path,
 )
 from kew.hosts.diagnostics import FAIL, SKIP, HostCheck, check_hosts
+from kew.inference_transport import (
+    ResolvedInferenceTransport,
+    TransportResolutionError,
+    resolve_inference_transport,
+)
 from kew.ledger_identity import (
     LedgerIdentityError,
     canonical_project_root,
@@ -146,6 +151,7 @@ from kew.sandbox import (
     _PACKAGED_IMAGE_TAGS,
     ALLOWLIST_NETWORK,
     DEFAULT_IMAGE_RUNNER,
+    OPEN_EGRESS_REMEDY,
     POSTURE_UNCONTAINED,
     STOCK_AGENT_IMAGE,
     SandboxDecision,
@@ -153,8 +159,10 @@ from kew.sandbox import (
     SandboxRuntimeUnavailable,
     _expected_packaged_image_pin,
     _injected_credentials,
+    attachment_egress_problem,
     credential_missing_message,
     detect_runtime,
+    effective_network_name,
     evaluate_agent_image_staleness,
     network_attributes,
     packaged_agent_image_context,
@@ -834,28 +842,78 @@ def _check_route_image(
     return None
 
 
-def _check_allowlist_network(config: SandboxConfig, runtime: str | None) -> str | None:
-    """Verify the allowlist posture and its local attachment network."""
-    network_hint = _network_hint()
-    if config.network != "allowlist":
+def _check_allowlist_network(
+    config: SandboxConfig,
+    runtime: str | None,
+    needed_by: str = "the default route",
+) -> str | None:
+    """Verify the attachment network is shown closed, or its egress acknowledged.
+
+    ``needed_by`` names the configured routes that launch a credentialed
+    container on this network, so a failure says which route it is about.
+    """
+    if config.runtime == OPENSHELL_RUNTIME:
         _record(
             "allowlist-network",
-            _FAIL,
-            f"[sandbox] network is {config.network!r}, not 'allowlist'",
-            hint=f'set [sandbox] network = "allowlist", then {network_hint}',
+            _OK,
+            "not needed: OpenShell attaches no container network, and its own "
+            "egress policy governs the sandbox",
         )
-        return "sandbox network is not allowlist"
+        return None
+    network_name = effective_network_name(config.network) or config.network
+    document = None
+    if _network_is_inspected(config.network):
+        document, issue = _inspect_doctor_network(network_name, runtime)
+        if issue is not None:
+            return issue
+    problem = attachment_egress_problem(config.network, lambda _name: document or "")
+    shown = (
+        f"{network_name!r} is present"
+        if document is not None
+        else (f"network {config.network!r} is set")
+    )
+    if problem is None:
+        _record("allowlist-network", _OK, shown)
+        return None
+    if config.acknowledge_open_egress:
+        _record(
+            "allowlist-network",
+            _OK,
+            shown,
+            warnings=_open_attachment_bridge_note(document, network_name)
+            or (f"{problem}; admitted by acknowledge_open_egress = true",),
+        )
+        return None
+    _record(
+        "allowlist-network",
+        _FAIL,
+        f"{problem}; needed by {needed_by}",
+        hint=OPEN_EGRESS_REMEDY,
+    )
+    return f"network {network_name!r} has unacknowledged open egress"
+
+
+def _network_is_inspected(network: str) -> bool:
+    """Whether the rule reads this setting's network shape from the runtime."""
+    return network not in ("open", "none") and not network.startswith("container:")
+
+
+def _inspect_doctor_network(
+    network_name: str, runtime: str | None
+) -> tuple[str | None, str | None]:
+    """The network's inspect document, or the issue already recorded instead."""
+    network_hint = _network_hint()
     if runtime is None:
         _record(
             "allowlist-network",
             _FAIL,
-            f"cannot inspect {ALLOWLIST_NETWORK!r}; runtime unavailable",
+            f"cannot inspect {network_name!r}; runtime unavailable",
             hint=f"restore the container runtime, then {network_hint}",
         )
-        return f"network {ALLOWLIST_NETWORK!r} was not inspected"
+        return None, f"network {network_name!r} was not inspected"
     try:
         result = subprocess_utils.run(
-            [runtime, "network", "inspect", ALLOWLIST_NETWORK],
+            [runtime, "network", "inspect", network_name],
             check=False,
             timeout=5,
         )
@@ -863,35 +921,33 @@ def _check_allowlist_network(config: SandboxConfig, runtime: str | None) -> str 
         _record(
             "allowlist-network",
             _FAIL,
-            f"could not inspect {ALLOWLIST_NETWORK!r}: {exc}",
+            f"could not inspect {network_name!r}: {exc}",
             hint=network_hint,
         )
-        return f"network {ALLOWLIST_NETWORK!r} was not inspected"
+        return None, f"network {network_name!r} was not inspected"
     if result.returncode != 0:
         _record(
             "allowlist-network",
             _FAIL,
-            f"{ALLOWLIST_NETWORK!r} is not present",
+            f"{network_name!r} is not present",
             hint=_NETWORK_CAVEAT,
-            fix=_NETWORK_FIX,
+            fix=_NETWORK_FIX if network_name == ALLOWLIST_NETWORK else None,
         )
-        return f"network {ALLOWLIST_NETWORK!r} is missing"
-    _record(
-        "allowlist-network",
-        _OK,
-        f"{ALLOWLIST_NETWORK!r} is present",
-        warnings=_open_attachment_bridge_note(result.stdout),
-    )
-    return None
+        return None, f"network {network_name!r} is missing"
+    return result.stdout or "", None
 
 
-def _open_attachment_bridge_note(inspected: str) -> tuple[str, ...]:
+def _open_attachment_bridge_note(
+    inspected: str | None, network_name: str
+) -> tuple[str, ...]:
     """Say plainly that a present network is not, by itself, a boundary."""
+    if inspected is None:
+        return ()
     driver, internal = network_attributes(inspected)
     if driver != "bridge" or internal is not False:
         return ()
     return (
-        f"{ALLOWLIST_NETWORK} is a plain bridge: egress is open unless "
+        f"{network_name} is a plain bridge: egress is open unless "
         "the host filters it, and kew cannot see host filters.",
     )
 
@@ -993,10 +1049,132 @@ def _present_issues(*issues: str | None) -> list[str]:
     return [issue for issue in issues if issue is not None]
 
 
+@dataclass(frozen=True)
+class _ContainerRoute:
+    """One configured route that launches a credentialed container."""
+
+    runner: str
+    label: str
+    decision: SandboxDecision | None = None
+    error: SandboxRuntimeUnavailable | None = None
+    #: Whether the route's resolved transport is the Switchyard sidecar.
+    sidecar: bool = False
+
+
+def _routing_tiers(config: DispatchConfig) -> dict[str, list[str | None]]:
+    """Each configured runner, default route first, with the tiers naming it."""
+    tiers: dict[str, list[str | None]] = {}
+    for tier in _ROUTE_COMPLEXITIES:
+        runner = resolve_runner(config, tier).runner.name
+        tiers.setdefault(runner, []).append(tier)
+    return tiers
+
+
+def _route_transport(
+    config: DispatchConfig, tier: str | None
+) -> ResolvedInferenceTransport | TransportResolutionError:
+    """*tier*'s transport as dispatch resolves it, or why dispatch refuses it."""
+    route = resolve_runner(config, tier)
+    try:
+        return resolve_inference_transport(config, route.runner, route.model)
+    except TransportResolutionError as exc:
+        return exc
+
+
+def _route_uses_sidecar(config: DispatchConfig, tier: str | None) -> bool:
+    """Whether *tier*'s transport resolves to the sidecar, as dispatch resolves it.
+
+    A route whose transport dispatch refuses never runs on the sidecar.
+    """
+    transport = _route_transport(config, tier)
+    return not isinstance(transport, TransportResolutionError) and transport.sidecar
+
+
+def _routing_container_routes(
+    config: DispatchConfig,
+    default: _ContainerRoute,
+) -> list[_ContainerRoute]:
+    """Routing tiers whose runner resolves to a container, as dispatch would."""
+    sandbox = config.sandbox
+    if sandbox.enabled is False:
+        return []
+    routes: list[_ContainerRoute] = []
+    with _open_certification_ledger(config, "containment") as ledger:
+        for runner, tiers in _routing_tiers(config).items():
+            if (
+                runner_native_containment(runner, runtime=sandbox.runtime) is not None
+                or runner_uncontainable(runner) is not None
+            ):
+                continue
+            decision, error = (
+                (default.decision, default.error)
+                if runner == default.runner
+                else _resolve_doctor_sandbox(
+                    sandbox,
+                    runner,
+                    direct=config.inference_transport.mode == "direct",
+                    store=ledger,
+                )
+            )
+            if decision is not None and not decision.sandboxed:
+                continue
+            label = f"route {runner!r} ({', '.join(t or 'default' for t in tiers)})"
+            sidecar = _route_uses_sidecar(config, tiers[0])
+            routes.append(_ContainerRoute(runner, label, decision, error, sidecar))
+    return routes
+
+
+def _container_routes(
+    config: DispatchConfig, default: _ContainerRoute
+) -> list[_ContainerRoute]:
+    """Every configured route that needs the shared container checks.
+
+    The adversarial reviewer always launches a container, whatever the
+    routing table resolves to and whatever the skip flag says.
+    """
+    from kew.graph.driver.review_launcher import review_runner
+
+    routes = _routing_container_routes(config, default)
+    if config.review.adversarial:
+        reviewer = review_runner(config)
+        routes.append(_ContainerRoute(reviewer, f"the reviewer {reviewer!r}"))
+    return routes
+
+
+def _uses_only_non_container_route(
+    decision: SandboxDecision | None, routes: list[_ContainerRoute]
+) -> TypeGuard[SandboxDecision]:
+    """Return whether shared container checks do not apply."""
+    return decision is not None and not decision.sandboxed and not routes
+
+
+def _container_readiness_route(
+    default: _ContainerRoute, routes: list[_ContainerRoute]
+) -> _ContainerRoute:
+    """Select the first configured route that needs shared container checks."""
+    if default.decision is None or default.decision.sandboxed or not routes:
+        return default
+    return routes[0]
+
+
+def _readiness_resolution_issue(
+    error: SandboxRuntimeUnavailable | None,
+    *,
+    runner: str,
+    default_runner: str,
+) -> str | None:
+    """Report the default refusal or describe another configured refusal."""
+    if error is None:
+        return None
+    if runner == default_runner:
+        return _report_sandbox_resolution_error(error)
+    return f"configured route {runner!r} containment refused: {error.reason}"
+
+
 def _check_containment_readiness(
     config: DispatchConfig,
 ) -> tuple[list[str], str | None, bool, str]:
-    """Run every check needed before the default route can be contained."""
+    """Run container checks for every configured route that needs them."""
     route = resolve_runner(config)
     with _open_certification_ledger(config, "containment") as ledger:
         decision, resolution_error = _resolve_doctor_sandbox(
@@ -1013,7 +1191,15 @@ def _check_containment_readiness(
             f"{decision.posture} containment, as dispatch would resolve it",
         )
 
-    if decision is not None and not decision.sandboxed:
+    default = _ContainerRoute(
+        route.runner.name,
+        f"route {route.runner.name!r} (default)",
+        decision,
+        resolution_error,
+        sidecar=_route_uses_sidecar(config, None),
+    )
+    routes = _container_routes(config, default)
+    if _uses_only_non_container_route(decision, routes):
         return (
             _report_non_container_route(decision, route.runner.name),
             None,
@@ -1021,24 +1207,47 @@ def _check_containment_readiness(
             route.runner.name,
         )
 
+    readiness = _container_readiness_route(default, routes)
+    readiness_runner = readiness.runner
+    readiness_decision, readiness_error = readiness.decision, readiness.error
     runtime, runtime_issue = _check_container_runtime(config.sandbox)
     image, image_resolution_issue = _resolve_readiness_image(
-        config.sandbox, route.runner.name, decision, resolution_error
+        config.sandbox, readiness_runner, readiness_decision, readiness_error
     )
-    resolution_issue = (
-        _report_sandbox_resolution_error(resolution_error)
-        if resolution_error is not None
-        else None
+    resolution_issue = _readiness_resolution_issue(
+        readiness_error,
+        runner=readiness_runner,
+        default_runner=route.runner.name,
     )
     issues = _present_issues(resolution_issue, runtime_issue, image_resolution_issue)
     if image is not None:
         image_issue = _check_route_image(
-            config.sandbox, route.runner.name, image, runtime
+            config.sandbox, readiness_runner, image, runtime
         )
         issues.extend(_present_issues(image_issue))
-    network_issue = _check_allowlist_network(config.sandbox, runtime)
+    network_issue = _check_route_networks(config.sandbox, runtime, routes or [default])
     issues.extend(_present_issues(network_issue))
-    return issues, image, True, route.runner.name
+    return issues, image, True, readiness_runner
+
+
+def _check_route_networks(
+    config: SandboxConfig, runtime: str | None, routes: list[_ContainerRoute]
+) -> str | None:
+    """Judge the attachment network for the routes that attach to it.
+
+    A sidecar route's worker sits on its own per-run internal network, so
+    dispatch admits it on any ``[sandbox] network``; doctor leaves it out too.
+    """
+    direct = [route.label for route in routes if not route.sidecar]
+    if direct:
+        return _check_allowlist_network(config, runtime, ", ".join(direct))
+    _record(
+        "allowlist-network",
+        _OK,
+        "not needed: every container route uses the Switchyard sidecar, whose "
+        "worker sits on a per-run internal network",
+    )
+    return None
 
 
 def _check_agent_image(

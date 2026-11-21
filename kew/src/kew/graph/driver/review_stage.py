@@ -1,14 +1,12 @@
-"""The governed-review drive pass — the connective tissue for the adversarial
-review stage (#977 epic, issue #991).
+"""The governed-review drive pass for the adversarial review stage.
 
-Every component of the stage was built and unit-tested in isolation
+This is the driver node that calls the stage's components in sequence
 (``dispatch_reviewer``, ``materialize_reviewer_worktree``,
-``parse_verdict_sidecar``, ``record_review_round``, ``emit_review_verdict``) but
-no driver node called them in sequence, so the merge-pass invariant (#988) had a
-live gate that nothing fed. This module is that node: for a review-enabled epic
-it dispatches a fresh-context reviewer against the recorded head SHA, collects +
+``parse_verdict_sidecar``, ``record_review_round``, ``emit_review_verdict``) and
+so feeds the merge-pass invariant's gate: for a review-enabled epic it
+dispatches a fresh-context reviewer against the recorded head SHA, collects +
 parses the host-stored sidecar, records the round, emits the attested verdict,
-releases the reservation, and drives the lifecycle transitions #988 defined.
+releases the reservation, and drives the review lifecycle transitions.
 
 The action per node is keyed on the PERSISTED review state + the live head SHA,
 not on the ``DriverStatus`` label alone, so the head-move signal distinguishes
@@ -17,7 +15,7 @@ commit → re-review round N+1" (dispatch), exactly mirroring the overlay's own
 ``_review_status`` derivation.
 
 The reviewer *launcher* and *remediator* are seams (a real container reviewer
-needs a read-only, non-pushing sandbox variant — a follow-up); the driver injects
+needs a read-only, non-pushing sandbox variant); the driver injects
 them. When none is wired the pass logs loudly and takes no action rather than
 silently accepting — fail-loud, never a silent green.
 """
@@ -225,9 +223,9 @@ _logger = logging.getLogger(__name__)
 _VERDICT_READY = "READY"
 _VERDICT_NEEDS_CHANGES = "NEEDS_CHANGES"
 
-# Hold reasons the overlay routes to HELD (``kew.epic_holds.REVIEW_HOLD_REASONS``,
-# Task 4). The round cap comes from kew.epic_holds: unhold has to recognise the same
-# string to restart the cycle the cap counts (#2154), so it has one owner.
+# Hold reasons the overlay routes to HELD (``kew.epic_holds.REVIEW_HOLD_REASONS``).
+# The round cap comes from kew.epic_holds: unhold has to recognise the same string
+# to restart the cycle the cap counts, so it has one owner.
 _HOLD_ROUNDS_EXHAUSTED = ROUNDS_EXHAUSTED_HOLD_REASON
 _HOLD_UNPARSEABLE = "review_unparseable"
 _HOLD_RESIDUALS_UNFILED = "review_residuals_unfiled"
@@ -240,19 +238,19 @@ _HOLD_FAILED_NO_VERDICT = REVIEW_FAILED_NO_VERDICT_HOLD_PREFIX
 # The review-outcome classifications a remediation dispatch reports when it
 # refused BEFORE launching an agent. Each one repeats identically every tick
 # until a person changes something, so each one HOLDs the node rather than
-# leaving it `remediating` — a state the tick signal reads as progressing
-# (#1144/#2153). ``budget_exhausted`` is the remediation pool (#993) running
+# leaving it `remediating` — a state the tick signal reads as progressing.
+# ``budget_exhausted`` is the remediation pool running
 # out mid-cycle: the node is intact, one config key short of resuming.
-# ``budget_window`` is the daily or weekly cap (#3205): the node waits under
+# ``budget_window`` is the daily or weekly cap: the node waits under
 # that cap's hold until the window moves on or the cap is raised.
 # ``prompt_configuration_refused`` is the operator's active remediation profile
-# refused at launch (#3023): only retiring or replacing it changes the answer.
+# refused at launch: only retiring or replacing it changes the answer.
 # ``deferred_checkout_unrecorded`` is the review checkout holding a deferred
 # publication's work whose move could not be recorded, or whose ledger could
-# not be read to tell (#3186): it stays put
+# not be read to tell: it stays put
 # until a person publishes or discards that work.
 # ``github_auth`` is a gh that was never logged in or whose token GitHub
-# refuses (#3334): it holds, as dispatch does, until a person fixes the login.
+# refuses: it holds, as dispatch does, until a person fixes the login.
 _BUDGET_EXHAUSTED = "budget_exhausted"
 _CONTAINMENT_REFUSED = "containment_refused"
 _GITHUB_AUTH = "github_auth"
@@ -271,9 +269,9 @@ _REMEDIATION_REFUSALS = frozenset(
 # Pre-launch remediation refusals that may be transient — an unreadable ledger
 # read refuses the same way as evidence that is really missing — so the first
 # ones are retried. A run of identical ones (same classification, detail and
-# head) is not clearing by itself: the drive retried one for five hours and
-# posted 253 error comments (#3067). After ``_MAX_REPEATED_REFUSALS`` the node
-# is held under ``admission_refused`` like the refusals above.
+# head) is not clearing by itself and would retry every tick for good, so
+# after ``_MAX_REPEATED_REFUSALS`` the node is held under ``admission_refused``
+# like the refusals above.
 _REPEATABLE_REFUSALS = frozenset({CREDENTIAL_PUBLICATION_REFUSAL})
 _MAX_REPEATED_REFUSALS = 3
 
@@ -281,15 +279,15 @@ _MAX_REPEATED_REFUSALS = 3
 # BEFORE any container ran — no verdict channel, no mapped image, or an image
 # the local runtime could not resolve (``review_launcher``, failure layers
 # ``runner`` / ``image``). No review happened, so it is infrastructure, not a
-# verdict (#2147): the refused round is retried on the next tick, bounded by
+# verdict: the refused round is retried on the next tick, bounded by
 # ``_MAX_REFUSED_ATTEMPTS`` consecutive refusals, and only then held under
-# ``_HOLD_SANDBOX_REFUSED``. Recording it as an unparseable verdict held #2085
-# needs-human over an image that was present again a minute later.
+# ``_HOLD_SANDBOX_REFUSED``: an unparseable-verdict hold would wait on a person
+# over an image that may be back a minute later.
 _REFUSED_BEFORE_LAUNCH = "sandbox_refused"
 _MAX_REFUSED_ATTEMPTS = 3
 
 # A reviewer whose stream went silent for ``[agent] no_output_minutes`` and was
-# stopped by the watchdog (#2240; ``tracking.STREAM_SILENT_CATEGORY``).
+# stopped by the watchdog (``tracking.STREAM_SILENT_CATEGORY``).
 # A stalled provider stream, not a verdict: retried like a pre-launch refusal,
 # bounded by ``_MAX_SILENT_ATTEMPTS`` rounds in a row, then held naming it.
 _MAX_SILENT_ATTEMPTS = 3
@@ -300,7 +298,7 @@ _STREAM_SILENT_REFUSAL = (
 
 # A runtime call that timed out at review launch — every create of the
 # reviewer's container, or the provisioning container's ``rm -f`` — is a loaded
-# host, not a fault (#3246). No reviewer ran, so the round is retried like a
+# host, not a fault. No reviewer ran, so the round is retried like a
 # sandbox refusal, but only once a back-off has passed since the last one: the
 # first wait is ``_LAUNCH_TIMEOUT_RETRY_WAIT`` and each further one doubles. On
 # the ``_MAX_LAUNCH_TIMEOUT_ATTEMPTS``-th consecutive timeout the node is held
@@ -308,82 +306,42 @@ _STREAM_SILENT_REFUSAL = (
 _LAUNCH_TIMEOUT_RETRY_WAIT = timedelta(minutes=2)
 _MAX_LAUNCH_TIMEOUT_ATTEMPTS = 3
 
-# The reviewer-run category a provider usage limit earns (#2219). A limit ends
-# the reviewer mid-run: the stream carries the provider's limit notice and the
-# run ends with no verdict block — on an error result, or on nothing at all.
-# That is infrastructure, not a verdict — recorded as one it held the incident's
-# node ``review_unparseable`` (needs-human) for 30 h over a limit that reset by
-# itself, and sent its operator looking for a verdict channel to repair.
+# The reviewer-run category a provider usage limit earns: the run ends with no
+# verdict block, on an error result or on nothing at all. Infrastructure, not a
+# verdict, so the round is neither held nor counted, and the node is re-reviewed
+# after ``_RATE_LIMIT_RETRY_WAIT``: the host cannot read the provider's reset.
 #
-# So the round is NOT held and NOT counted: nothing is written against the
-# review cycle, and the node is re-reviewed once the limit has had time to
-# reset. ``_RATE_LIMIT_RETRY_WAIT`` is that spacing — the host cannot read the
-# provider's exact reset instant, so it waits a window and tries again.
-#
-# ``_MAX_RATE_LIMIT_WAIT`` bounds how long that goes on, measured across the
-# node's streak of limited rounds — the ones a live retry cadence could have
-# produced, per ``_RATE_LIMIT_STREAK_GAP``. It has to exist: a node waiting in
-# ADVERSARIAL_REVIEW carries no hold row, and every stall clock runs off a hold
-# row (``tick._held_signal``) or an open IN_REVIEW PR
-# (``tick._stale_review_stuck``), so an unbounded wait is one no stall clock can
-# ever reach — a persistent (or planted) limit would relaunch a reviewer
-# container every ``_RATE_LIMIT_RETRY_WAIT`` forever while the epic read
-# PROGRESSING off the node's own review status and ``kew epic run`` never
-# exited. Six hours is longer than a provider rolling usage window resets in, so
-# the limit this issue is about is never held; a limit still rejecting every
-# round after six hours is not resetting on its own, and the hold
-# (``_HOLD_RATE_LIMIT_EXHAUSTED``) names the person who can raise it.
+# ``_MAX_RATE_LIMIT_WAIT`` bounds that over the node's streak of limited rounds,
+# then holds under ``_HOLD_RATE_LIMIT_EXHAUSTED``. A node in ADVERSARIAL_REVIEW
+# has no hold row for a stall clock to read, so without the bound a persistent
+# (or planted) limit relaunches a reviewer forever while the epic reads
+# PROGRESSING. Six hours outlasts a provider's rolling usage window, so a limit
+# that resets within one window is never held; a daily or weekly cap is.
 _RATE_LIMITED = RATE_LIMITED_CATEGORY
 _RATE_LIMIT_RETRY_WAIT = timedelta(minutes=15)
 _MAX_RATE_LIMIT_WAIT = timedelta(hours=6)
 
 # How far apart two limited rounds can be and still be ONE limit incident.
-#
-# The bound above is a wall-clock span over the node's limited rows, so what
-# counts as one incident cannot be "every limited row with no better row after
-# it": nothing writes a review row while the driver is not running, so downtime
-# between two unrelated limits sat INSIDE the span. A host stopped overnight
-# between two ordinary limits came back, hit a fresh transient one, and read a
-# span of hours off its own history — the FIRST round of the new incident was
-# held needs-human under ``_HOLD_RATE_LIMIT_EXHAUSTED``, telling its operator to
-# raise a limit that had never once been waited out.
-#
-# A live incident's rounds are spaced by the retry wait plus the poll interval
-# (60s by default) and the reviewer's own startup, so four times the wait
-# absorbs every late tick and still refuses to join rounds separated by a driver
-# that was not running. A gap longer than this ends the streak exactly as a
-# round that reached the provider does.
+# Nothing writes a review row while the driver is down, so without a gap the
+# downtime between two unrelated limits would count inside the span above and
+# hold a fresh limit at once. Four retry waits absorb late ticks (poll interval,
+# reviewer startup); a longer gap ends the streak like a round that reached the
+# provider.
 _RATE_LIMIT_STREAK_GAP = 4 * _RATE_LIMIT_RETRY_WAIT
 
-# The retry count that reaches the same bound when wall clock cannot (#2231
-# review).
-#
-# The gap above is a fixed hour because widening it to fit a slow driver would
-# re-admit the downtime it exists to refuse — the two facts are the same shape,
-# and a gap can only be read as one of them. But the driver's cadence is NOT
-# fixed: ``kew epic run --interval`` takes any spacing and ``kew epic advance``
-# runs from cron, so a host that ticks every two hours (or nightly) leaves every
-# pair of limited rounds further apart than any gap a live retry cadence could,
-# and the span bound above reads one round per incident — never a span it can
-# reach, however long the limit goes on rejecting rounds.
-# That made ``_MAX_RATE_LIMIT_WAIT``, the only bound that ever reaches a person
-# for a node waiting in ADVERSARIAL_REVIEW, unreachable at those cadences: the
-# relaunch loop this issue is about, with no hold at the end of it.
-#
-# So the limit is also spent by COUNT, over every consecutive limited round
-# regardless of gaps — a quantity no cadence can dilute, ended (like the span's
-# streak) by any round that got past the provider. One more than the span bound
-# allows at the fastest cadence, so the count never fires first on a default
-# 60s-poll host and the hold's "no reviewer round got past a usage limit for 6 h"
-# reason is true on both routes.
+# The same bound counted in consecutive limited rounds, whatever their gaps: a
+# driver ticking further apart than the streak gap (``--interval``, cron) never
+# reaches the span above, and widening the gap would count downtime again. One
+# more than the span allows at the fastest cadence, so the count never fires
+# first on a 60s-poll host and the hold's "for 6 h" stays true either way.
 _MAX_RATE_LIMIT_ROUNDS = int(_MAX_RATE_LIMIT_WAIT / _RATE_LIMIT_RETRY_WAIT) + 1
 
 # The reviewer-run error categories that mean the reviewer NEVER STARTED, and
-# the hold each one earns (#2043). ``launch_failed`` is the lane failing before
+# the hold each one earns. ``launch_failed`` is the lane failing before
 # the container ran — no runtime, or the pre-launch materialize step raising —
 # and ``credential_missing`` is admission refusing a runner kew cannot
 # authenticate inside a container. Neither is a verdict: held as
-# ``review_unparseable`` they sent the incident's operator looking for a
+# ``review_unparseable`` they would send the operator looking for a
 # reviewer verdict, and a verdict channel to repair, that never existed.
 #
 # Every hold here publishes "the reviewer never started" to the PR, so a
@@ -396,18 +354,18 @@ _MAX_RATE_LIMIT_ROUNDS = int(_MAX_RATE_LIMIT_WAIT / _RATE_LIMIT_RETRY_WAIT) + 1
 # ``review_unparseable`` below.
 _LAUNCH_FAILED = "launch_failed"
 _CREDENTIAL_MISSING = "credential_missing"
-# kew could not create or start the reviewer's container (#2973). Its producers
+# kew could not create or start the reviewer's container. Its producers
 # set it only on a refused create, or on a container the runtime still reports
 # never started, so it too proves the reviewer did not run.
 _CONTAINER_START_FAILED = "container_start_failed"
 # Every ``create`` of the reviewer's container timed out before the runtime
-# answered (#3103): the host was too slow and no reviewer ever started.
+# answered: the host was too slow and no reviewer ever started.
 _RUNTIME_TIMEOUT = "runtime_timeout"
 # The reviewer's container was made but refused its agent's startup: the
 # startup acknowledgement never came and no agent event followed, so the
-# runtime returned with no reviewer having run (#3186).
+# runtime returned with no reviewer having run.
 _SANDBOX_STARTUP_REFUSED = "sandbox_startup_refused"
-# The operator's active reviewer profile refused at launch (#3024): its digest
+# The operator's active reviewer profile refused at launch: its digest
 # no longer matches, or it opens a Markdown block. Raised while the prompt is
 # assembled, before any checkout exists, so the reviewer provably never started.
 #
@@ -424,7 +382,7 @@ _PRE_LAUNCH_HOLDS = {
 }
 
 # Every crash-path category that earns a hold of its own rather than the bare
-# ``review_unparseable``. A spent rate-limit wait (#2219) is one of them but is
+# ``review_unparseable``. A spent rate-limit wait is one of them but is
 # deliberately NOT in ``_PRE_LAUNCH_HOLDS``: that table also answers "did the
 # container run?" for ``_dispatch_failure_evidence``, and a usage limit ends a
 # reviewer that very much started.
@@ -440,13 +398,13 @@ _CRASH_HOLDS = {
 # a killed container's bare signal exit says nothing about why it was killed.
 _CATEGORY_REFUSALS = {STREAM_SILENT_CATEGORY: _STREAM_SILENT_REFUSAL}
 
-# The crash holds of a reviewer that RAN and whose stream says what was wrong
-# (#3174). Their reason is the stream's own refusal text — "reviewer exited 1",
+# The crash holds of a reviewer that RAN and whose stream says what was wrong.
+# Their reason is the stream's own refusal text — "reviewer exited 1",
 # "2 result events" — never a remedy for a launch that did happen.
 _STREAM_REFUSAL_HOLDS = frozenset({_HOLD_MULTIPLE_RESULTS, _HOLD_FAILED_NO_VERDICT})
 
 # A runner that answered more than once on a clean exit is retried this many
-# times per node and head before the node holds (#3174, owner decision).
+# times per node and head before the node holds.
 _MAX_MULTIPLE_RESULTS_RETRIES = 1
 
 # The category for a raise that escaped ``dispatch_reviewer`` AFTER the reviewer
@@ -469,6 +427,10 @@ _PRE_LAUNCH_REMEDY = {
     ),
     "runner": "pin [review] runner to a runner that has a verdict channel",
     "runtime": "start the container runtime [sandbox] runtime names",
+    "network": (
+        "set [sandbox] acknowledge_open_egress = true; an internal network "
+        "blocks the reviewer's direct inference"
+    ),
     "credential": (
         "pin [review] runner to a runner kew can authenticate in a container"
     ),
@@ -479,7 +441,7 @@ _PRE_LAUNCH_REMEDY = {
     ),
 }
 # A category whose own name is the lead, ahead of its layer's remedy: a create
-# the runtime never answered is a slow host, not a container to inspect (#3103).
+# the runtime never answered is a slow host, not a container to inspect.
 _CATEGORY_REMEDY = {
     _RUNTIME_TIMEOUT: (
         "a {runtime} call timed out on {attempts} launches in a row "
@@ -487,7 +449,7 @@ _CATEGORY_REMEDY = {
     ),
 }
 # An unknown or absent layer still names where to look: a hold with no next
-# step is the dead end this issue is about.
+# step is a dead end.
 _PRE_LAUNCH_REMEDY_FALLBACK = (
     "read this tick's reviewer log and the review run's error_category"
 )
@@ -507,7 +469,7 @@ _CRASH_STATUS_TEXT = {
 class RemediationContext:
     """Everything the remediation seam needs to act on a NEEDS_CHANGES verdict.
 
-    The adapted ``kew review`` path (#987) fixes the findings and lands a new
+    The adapted ``kew review`` path fixes the findings and lands a new
     commit; the driver detects the moved head next tick and re-reviews.
     """
 
@@ -518,30 +480,30 @@ class RemediationContext:
     review_round: int
     sidecar_path: str | None
     """Host path of the NEEDS_CHANGES sidecar whose evidenced findings the
-    remediator feeds as input (#1030); None only for pre-v32 rounds (grandfathered
+    remediator feeds as input; None only for pre-v32 rounds (grandfathered
     — the remediator logs and no-ops rather than remediate against no findings)."""
     criterion_ids: tuple[str, ...] = ()
-    """The recorded criterion ids that round was judged against (#2291), from
+    """The recorded criterion ids that round was judged against, from
     its own ``criteria_json``. The remediator needs them to re-parse the stored
     sidecar: without them every finding's ``criterion`` is dropped, and the
     brief that must list the failing criteria first would list none."""
     reservation_held: bool = False
     """The caller already holds this item's review reservation (a detached
-    review-stage child, #2459), so the remediation must run under it rather
+    review-stage child), so the remediation must run under it rather
     than take its own — the item has one reservation row, and a second
     reserve would refuse the very run the slot was taken for."""
     declaration: DeclarationRequest | None = None
     """Set when the stage read this round as asking only for **Behavior
-    changes** lines the PR body still lacks (#2872): the brief asks for those
+    changes** lines the PR body still lacks: the brief asks for those
     lines and no code change. None for every other round, which gets the
     ordinary brief. kew takes the tests the body declares off a declaration
-    finding before the round is recorded (#3516), so one still naming them
+    finding before the round is recorded, so one still naming them
     is a round that fell short of what a READY needs or tied the finding to a
     criterion. A declared test failing in a way its line's reason does not
     explain is an ordinary finding, never a declaration one."""
     proposal: DeclarationRequest | None = None
     """Set when every finding of an ordinary round is a ``kind: "declaration"``
-    finding the PR body does not declare yet (#3493), though the round is not
+    finding the PR body does not declare yet, though the round is not
     one :attr:`declaration` covers (the host flagged no such tests: a frontend
     test file, say). The brief makes one proposed **Behavior changes** line
     per test the whole job; the lines reach only the proposed block, where the
@@ -564,18 +526,18 @@ class ReviewStageOutcome:
     unwired: list[str] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
     """Nodes whose concurrent action raised, or never started because the worker
-    could not open its ledger handle (#2110); the first error re-raises."""
+    could not open its ledger handle; the first error re-raises."""
     findings: dict[str, int] = field(default_factory=dict)
     """Node -> evidenced finding count of the verdict recorded this tick."""
     residuals: dict[str, int] = field(default_factory=dict)
-    """Node -> residual issue number for rounds the stop rule accepted (#2112)."""
+    """Node -> residual issue number for rounds the stop rule accepted."""
     refused: dict[str, str] = field(default_factory=dict)
-    """Node -> waiting reason for a review the sandbox refused BEFORE launch
-    (#2147). The node is neither held nor credited a round, so the next tick
+    """Node -> waiting reason for a review the sandbox refused BEFORE launch.
+    The node is neither held nor credited a round, so the next tick
     finds it due and re-reviews it; the tick reports this reason meanwhile."""
     integrated: dict[str, str] = field(default_factory=dict)
     """Node -> waiting reason for a node whose one action this tick was the
-    merge-main step (#2149). The node ends the tick un-held and in the review
+    merge-main step. The node ends the tick un-held and in the review
     lifecycle, so — exactly like ``refused`` — nothing else in the tick would
     show the operator that the step ran: the line would read as an untouched
     in-review node. The next tick reviews the head the step produced.
@@ -597,11 +559,11 @@ class ReviewStageOutcome:
     ``base_integration.MAX_CONSECUTIVE_STEPS``."""
     gate_skipped: dict[str, str] = field(default_factory=dict)
     """Node -> why the pre-review gate did not check the head that went to
-    review (#3280): a refused launch, a timeout, a tool the image lacks, a red
+    review: a refused launch, a timeout, a tool the image lacks, a red
     base. A gate that ran and passed adds nothing."""
     detached: dict[str, str] = field(default_factory=dict)
     """Node -> waiting reason for a node whose action this tick handed to a
-    detached child (#2459). Its result lands in the ledger when the child
+    detached child. Its result lands in the ledger when the child
     finishes, and the next tick reads it; meanwhile the node's live review
     reservation keeps it out of this pass. Like ``integrated``, the facts the
     tick read are no longer the child's to act on, so the merge pass skips it."""
@@ -677,7 +639,7 @@ def _raised_failure_evidence(
     stored: RunRecord | None, exc: Exception
 ) -> tuple[str, str]:
     """:func:`_dispatch_failure_evidence`, except that a refused reviewer profile
-    names itself (#3024): only the operator's profile can fix it, and calling
+    names itself: only the operator's profile can fix it, and calling
     it a launch failure sends them to the container runtime instead."""
     if isinstance(exc.__cause__, PromptConfigurationError):
         return PROMPT_CONFIGURATION_REFUSAL, "profile"
@@ -741,7 +703,7 @@ def _defer_refused_review(
     store: RunStore,
     run_id: str,
 ) -> bool:
-    """Retry a pre-launch sandbox refusal on the next tick, bounded (#2147).
+    """Retry a pre-launch sandbox refusal on the next tick, bounded.
 
     The refusal landed before any container ran, so NO review happened: there is
     no verdict to record and nothing for a human to judge. Nothing is written
@@ -774,7 +736,7 @@ def _defer_refused_review(
         attempt,
         _MAX_REFUSED_ATTEMPTS,
     )
-    # A wait, not a hold (#3186): nobody is needed until the bound is spent.
+    # A wait, not a hold: nobody is needed until the bound is spent.
     # When the round runs again is the caller's to say — the drive's next tick,
     # or the operator's next `kew review --governed` — so the reason does not.
     outcome.refused[node_id] = (
@@ -795,7 +757,7 @@ def _defer_silent_review(
     store: RunStore,
     run_id: str,
 ) -> bool:
-    """Retry a round the silence watchdog stopped on the next tick (#2240).
+    """Retry a round the silence watchdog stopped on the next tick.
 
     The reviewer's stream said nothing for ``[agent] no_output_minutes`` and
     its container was stopped: a stalled provider, not a verdict. Nothing is
@@ -835,7 +797,7 @@ def _defer_silent_review(
     return True
 
 
-#: The waiting reason of a node whose reviewer launch timed out (#3246).
+#: The waiting reason of a node whose reviewer launch timed out.
 #: Constant, like the rate-limit wait's: a reason that moved per tick would be
 #: a new attention state on every poll of one wait.
 _LAUNCH_TIMEOUT_WAIT_REASON = (
@@ -890,7 +852,7 @@ def _defer_for_launch_timeout_wait(
     store: RunStore,
     now: datetime,
 ) -> bool:
-    """Is the node still backing off after a timed-out reviewer launch? (#3246)
+    """Is the node still backing off after a timed-out reviewer launch?
 
     True means this tick launches nothing: a container straight back into a
     daemon that just timed out would only time out again.
@@ -917,7 +879,7 @@ def _defer_timed_out_launch(
     store: RunStore,
     run_id: str,
 ) -> bool:
-    """Retry a reviewer launch a runtime timeout ended, after a back-off (#3246).
+    """Retry a reviewer launch a runtime timeout ended, after a back-off.
 
     No reviewer ran: nothing is written against the review cycle and the node
     is not held, so a tick after the back-off re-reviews it. Returns False on
@@ -964,8 +926,8 @@ def _record_infra_failure_run(
 ) -> None:
     """Guarantee the failure left a terminal review row under *error_category*.
 
-    That row is the only evidence the retry reads — the refusal bound (#2147)
-    counts it, and the rate-limit wait (#2219) times from its ``finished_at``.
+    That row is the only evidence the retry reads — the refusal bound
+    counts it, and the rate-limit wait times from its ``finished_at``.
     The production launcher already wrote one for this run; a launcher that did
     not must never make the failure invisible to them.
     """
@@ -982,7 +944,7 @@ def _record_infra_failure_run(
     )
 
 
-#: The waiting reason a node under a reviewer usage limit reports (#2219).
+#: The waiting reason a node under a reviewer usage limit reports.
 #:
 #: Named ``review_rate_limited`` and never ``review_unparseable``: no reviewer
 #: verdict exists, and the operator reading this line has nothing to repair.
@@ -994,7 +956,7 @@ def _record_infra_failure_run(
 #: --follow` emitted one event per minute of a single benign wait. How long is
 #: left is a log line's job, not an operator-facing state's.
 #:
-#: It ends with the token the limited round ran under (#3330), by env var and
+#: It ends with the token the limited round ran under, by env var and
 #: fingerprint, so the operator knows which token to raise; one token reads as
 #: one state. :func:`_rate_limit_wait_reason` fills ``{reviewer}`` and
 #: ``{token}`` in, and falls back to the SHORT wording when a token named by
@@ -1031,7 +993,7 @@ def _limited_round_credential(
 ) -> RunCredential | None:
     """The credential the reviewer round *run_id* ran under, as
     :func:`_defer_rate_limited_review` recorded it — never the environment's
-    at a later tick, which a restarted driver may have swapped (#3330). None
+    at a later tick, which a restarted driver may have swapped. None
     when the round left no record."""
     return read_run_credential(store, run_id) if run_id else None
 
@@ -1047,7 +1009,7 @@ def _held_by_merge_claim(
     store: RunStore,
     now: datetime,
 ) -> bool:
-    """Whether an operator's merge claim on *head* holds *action* back (#3198).
+    """Whether an operator's merge claim on *head* holds *action* back.
 
     True, with the node's wait recorded as ``merge_claimed``, while a live
     claim holds the PR at *head*: anything that pushes onto it — a
@@ -1101,9 +1063,9 @@ def _unclaimed(
     now: datetime | None,
 ) -> list[_DueNode]:
     """*due* without the nodes whose push an operator's merge claim holds back,
-    or whose merge-main step an operator-owned head leaves alone (#3200).
+    or whose merge-main step an operator-owned head leaves alone.
 
-    Asked in the tick, before a detached child is reserved or spawned (#3198):
+    Asked in the tick, before a detached child is reserved or spawned:
     a child would only find the claim, record its wait in an outcome nobody
     reads, and exit — so every tick of a long verify spent a review slot, a run
     row and a process, and the node read as "review stage running detached".
@@ -1142,12 +1104,12 @@ def _unclaimed(
 
 
 def _rate_limit_exhausted_hold_reason(credential: RunCredential | None = None) -> str:
-    """The hold a limit that stopped looking transient earns (#2219).
+    """The hold a limit that stopped looking transient earns.
 
     The wait above is nobody's job while a provider window resets. Past
     ``_MAX_RATE_LIMIT_WAIT`` it is, because nothing on this host will clear it:
     the reason says no reviewer round got past the limit in that long and ends
-    with the token the last round ran under (*credential*, #3330; None, no
+    with the token the last round ran under (*credential*; None, no
     record of it: ``unknown credential``). The token is what the operator acts
     on, so it is never what the echo cap cuts: a token named by every env var
     its runner reads keeps the line whole by dropping the runner's name instead.
@@ -1269,7 +1231,7 @@ def _defer_rate_limited_review(
     store: RunStore,
     run_id: str,
 ) -> bool:
-    """Record a reviewer a usage limit cut off as retryable infrastructure (#2219).
+    """Record a reviewer a usage limit cut off as retryable infrastructure.
 
     No hold, no round, no verdict: the reviewer never finished judging anything.
     The node keeps its review status, so the tick after the wait re-reviews it.
@@ -1292,7 +1254,7 @@ def _defer_rate_limited_review(
         error_category=_RATE_LIMITED,
     )
     # The round launched and was collected in this tick, from this process's
-    # environment: that is the token the limit refused (#3330), and the wait
+    # environment: that is the token the limit refused, and the wait
     # and the hold name it, whatever a later tick's environment holds.
     from kew.runners.registry import run_credential
 
@@ -1333,14 +1295,14 @@ def _defer_for_rate_limit_wait(
     store: RunStore,
     now: datetime,
 ) -> bool:
-    """Is the node still waiting out a reviewer usage limit? (#2219)
+    """Is the node still waiting out a reviewer usage limit?
 
     True means this tick takes NO review action: launching straight back into a
     live limit spends a container, a materialized checkout and a provisioned
     environment to be cut off again. The wait is reported, never held — the
     round that ends it decides whether the incident has earned a hold yet.
 
-    A different token is a different account window (#3330), as for a runner
+    A different token is a different account window, as for a runner
     quota hold: once the environment carries a known credential other than the
     one the limited round ran under, the wait ends and this tick re-reviews.
     """
@@ -1380,7 +1342,7 @@ def _defer_for_running_verify(
     config: DispatchConfig,
     kind: str = "review",
 ) -> bool:
-    """Does a running local merge verify defer this *kind* launch? (#3190)
+    """Does a running local merge verify defer this *kind* launch?
 
     The spawn guard every review-stage launch passes — a reviewer, a
     remediation, a merge-main step: read at the launch, not at the tick's
@@ -1413,7 +1375,7 @@ def _launchable_reviewer(
 ) -> ReviewerLauncher | None:
     """The launcher a due reviewer round runs on, or ``None`` when it cannot
     launch this tick: a usage-limit or launch-timeout wait, no launcher
-    wired, or a running local merge verify (#3190)."""
+    wired, or a running local merge verify."""
     if _defer_for_rate_limit_wait(
         node_id, item_id, outcome=outcome, store=store, now=now
     ) or _defer_for_launch_timeout_wait(
@@ -1437,7 +1399,7 @@ def _launchable_reviewer(
 
 def _crash_hold_reason(error_category: str | None) -> str:
     """The hold a crashed review round earns. A failure that landed before the
-    reviewer started is held under its own reason (#2043/#2147) — an operator
+    reviewer started is held under its own reason — an operator
     reading ``review_unparseable`` goes looking for a reviewer verdict that
     never existed, and the real fault is a layer below it."""
     return _CRASH_HOLDS.get(error_category or "", _HOLD_UNPARSEABLE)
@@ -1456,11 +1418,11 @@ def _crash_hold_reason_with_fix(
     """The durable reason written for a crashed round.
 
     A reviewer that never started says so, and names the fix for the layer that
-    refused: the incident's cause was an absent agent image, whose whole fix is
-    one ``kew sandbox build`` away, and the sandbox layer's own refusal line
+    refused: an absent agent image, say, is one ``kew sandbox build`` away,
+    and the sandbox layer's own refusal line
     scrolls past with the tick that printed it. A reviewer that DID run holds
     with no remedy — the stored sidecar is what a human reads — but with what
-    kew knows was wrong (*refusal*, #3186): ``review_unparseable`` is bare only
+    kew knows was wrong (*refusal*): ``review_unparseable`` is bare only
     when kew knows nothing more.
     """
     if hold_reason == _HOLD_UNPARSEABLE:
@@ -1491,7 +1453,7 @@ def _reviewer_container(store: RunStore, run_id: str | None, item_id: str) -> st
 
 def _review_runner_name(config: DispatchConfig) -> str:
     """The runner the reviewer would have run as, from the launcher's own single
-    resolution site (#1163) — a hold that names a build command must name the
+    resolution site — a hold that names a build command must name the
     runner that command has to build for."""
     from kew.graph.driver.review_launcher import review_runner
 
@@ -1506,7 +1468,7 @@ def _live_review_items(store: RunStore) -> set[str]:
 
 
 #: The event a tick records once per hand-run ``kew review`` it found holding a
-#: review node's item, and so launched nothing for (#3208).
+#: review node's item, and so launched nothing for.
 REVIEW_DEFERRED_TO_HAND_RUN = "review_deferred_to_hand_run"
 
 
@@ -1517,7 +1479,7 @@ def _report_hand_run_holders(
     store: RunStore,
     provider: str,
 ) -> None:
-    """Name the hand-run ``kew review`` that holds a review node's item (#3208).
+    """Name the hand-run ``kew review`` that holds a review node's item.
 
     Its reservation keeps the node out of the due pass, so without this the
     tick would launch nothing and say nothing about why. One event per holder
@@ -1573,7 +1535,7 @@ def drive_review_stage(
     remediating, round cap → HELD).
 
     Each due node gets at most one action per tick. With ``max_concurrent`` above
-    one, up to that many nodes run at once (#2110): see
+    one, up to that many nodes run at once: see
     :func:`_drive_concurrently`. At one, nodes run in order on this thread.
 
     Before any of that it finishes a half-written acceptance on a HELD node
@@ -1581,7 +1543,7 @@ def drive_review_stage(
     can no longer reach, because a hold outranks the lifecycle status the due
     pass keys on.
 
-    With a *detacher* wired (#2459) no node's action runs on this tick: each
+    With a *detacher* wired no node's action runs on this tick: each
     due node is reserved, recorded and handed to a detached child
     (:func:`kew.graph.driver.review_detach.launch_detached`), and the tick
     returns without waiting on any of them.
@@ -1641,7 +1603,7 @@ def drive_review_stage(
         )
         return outcome
     if max_concurrent <= 0:
-        # Admission closed by `kew drive` (#2616): nothing new starts.
+        # Admission closed by `kew drive`: nothing new starts.
         return outcome
     drive = partial(
         _drive_one_node,
@@ -1703,7 +1665,7 @@ def drive_review_node(
     The per-node action :func:`drive_review_stage` takes for each due node —
     a reviewer round, or a remediation of findings standing on this head, with
     the same round cap, stop rule and verdict surfaces — for a PR no epic
-    drives (#2556). The caller owns the checks the epic's overlay makes for a
+    drives. The caller owns the checks the epic's overlay makes for a
     tick: the item is not held and no reviewer holds it. No merge-main step is
     wired, so a head that no longer merges reads as ``unwired`` rather than
     being integrated.
@@ -1746,7 +1708,7 @@ def drive_detached_node(
     worker_cap: int = 0,
     now: datetime | None = None,
 ) -> bool:
-    """Take a detached child's one node action (#2459) — the synchronous one.
+    """Take a detached child's one node action — the synchronous one.
 
     The same :func:`_drive_one_node` a tick would have run for this node, with
     the same seams, against the facts the tick read — under the reservation
@@ -1777,7 +1739,7 @@ class _DueNode:
     item_id: str
     facts: NodeFacts
     integration_only: bool = False
-    """The node owes the merge-main step and NOTHING else (#2149): its review
+    """The node owes the merge-main step and NOTHING else: its review
     verdict stands on the current head (IN_REVIEW), or it is held and owes no
     review action at all, so there is no reviewer or remediator round due for
     it. See :func:`_due_nodes`."""
@@ -1786,7 +1748,7 @@ class _DueNode:
 #: The two statuses that owe a review ACTION — a reviewer round or a remediation.
 _REVIEW_LIFECYCLE = (DriverStatus.ADVERSARIAL_REVIEW, DriverStatus.REMEDIATING)
 
-#: Statuses that owe ONLY the merge-main step, never a review action (#2149).
+#: Statuses that owe ONLY the merge-main step, never a review action.
 #: IN_REVIEW is a verdict standing on the current head. HELD is admitted for one
 #: reason and one only — see :func:`_integration_only_due`.
 _INTEGRATION_ONLY = (DriverStatus.IN_REVIEW, DriverStatus.HELD)
@@ -1801,14 +1763,13 @@ def _integration_only_due(
     under ``ci_pending``. That hold is the merge pass's own, means exactly "the
     PR is not mergeable right now", and re-derives itself from
     ``mergeStateStatus`` on every pass; a node already carrying it when its
-    branch goes DIRTY would otherwise read HELD forever, because HELD is a
-    status this pass used to skip and the pass's answer to DIRTY is that same
-    hold again. That is the wedge #2149 exists to remove, one cause further
-    back. Every other honored hold is somebody else's and un-holds by hand:
+    branch goes DIRTY would otherwise read HELD forever: skipping HELD leaves
+    the step undone, and the merge pass's answer to DIRTY is that same hold
+    again. Every other honored hold is somebody else's and un-holds by hand:
     running a governed ``kew resolve`` against a node an operator (or the
     step's own bound) parked is exactly the retry those holds exist to stop.
 
-    Such a hold refuses the step whatever *status* says (#2869): the reasons
+    Such a hold refuses the step whatever *status* says: the reasons
     are read from the store as this pass runs, while the status was overlaid
     earlier in the tick, so a detached resolver's ``base_integration_*`` hold
     written in between leaves an IN_REVIEW status the store already outranks.
@@ -1830,13 +1791,12 @@ def _due_nodes(
 ) -> list[_DueNode]:
     """Review-stage nodes that owe an action this tick, in node order.
 
-    Two populations, and the second is the whole point of #2149. The review
-    lifecycle proper (ADVERSARIAL_REVIEW / REMEDIATING) owes a reviewer or a
-    remediator. But the branch the incident was about — a READY one that fell
-    behind ``main`` — is not in either: a READY verdict bound to the current
-    head overlays to IN_REVIEW (``overlay._persisted_verdict_status`` returns
-    None for it), so keying the pass on the lifecycle alone left exactly the
-    node the merge-main step exists for unreachable, stuck on the merge pass's
+    Two populations. The review lifecycle proper (ADVERSARIAL_REVIEW /
+    REMEDIATING) owes a reviewer or a remediator. A READY branch that fell
+    behind ``main`` is in neither: a READY verdict bound to the current head
+    overlays to IN_REVIEW (``overlay._persisted_verdict_status`` returns None
+    for it), so keying the pass on the lifecycle alone would leave the node the
+    merge-main step exists for unreachable, stuck on the merge pass's
     ``ci_pending`` hold with no action taken. An IN_REVIEW node — or one already
     held on that same ``ci_pending`` — is therefore due too, but ONLY when its
     head stopped merging, and only for that one step: it is carried as
@@ -1909,7 +1869,7 @@ def _mark_held_acceptances(
     repo: str,
     provider: str,
 ) -> None:
-    """Finish a half-written acceptance on a node the lifecycle cannot reach (#2151).
+    """Finish a half-written acceptance on a node the lifecycle cannot reach.
 
     ``acceptance_on_record`` needs BOTH the chain event and the round's ledger
     mark, and the stage re-marks a missing one on every tick that reads the
@@ -1917,8 +1877,8 @@ def _mark_held_acceptances(
     ADVERSARIAL_REVIEW and REMEDIATING alone. A hold outranks both at overlay
     precedence 1, so a node carrying one (``ci_pending`` is the everyday case)
     whose acceptance is attested but unmarked — a crash between the two writes,
-    or any pre-v59 acceptance — wedged permanently: nothing retried the mark, and
-    the merge gate refused the node before ``_classify_open`` reached the CI
+    or any pre-v59 acceptance — would wedge: nothing else retries the mark, and
+    the merge gate refuses the node before ``_classify_open`` reaches the CI
     check that releases the hold. HELD is the one status that persists by itself;
     the others are terminal, merge, or fall back into the lifecycle next tick.
 
@@ -1995,7 +1955,7 @@ def _mark_held_round(
 
 @runtime_checkable
 class StoreRebindable(Protocol):
-    """A seam that can be rebuilt over another ``RunStore`` handle (#2110)."""
+    """A seam that can be rebuilt over another ``RunStore`` handle."""
 
     def bind_store(self, store: RunStore) -> Callable[..., object]: ...
 
@@ -2048,7 +2008,7 @@ def _drive_concurrently(
     base_integrator: BaseIntegrator | None,
     max_concurrent: int,
 ) -> None:
-    """Run each due node's one action on a bounded pool, then merge (#2110).
+    """Run each due node's one action on a bounded pool, then merge.
 
     Admission stays where it was: every reviewer reserves atomically under the
     fleet cap and checks its own node's review pool inside ``dispatch_reviewer``,
@@ -2138,11 +2098,11 @@ def _remediation_rounds(store: RunStore, item_id: str) -> int:
     """This cycle's rounds that ``[review] max_rounds`` caps.
 
     NOT ``review_round_count``: that counts every recorded round, and a
-    merge-queue round (#2148) is not a remediation cycle — no reviewer ran, and
+    merge-queue round is not a remediation cycle — no reviewer ran, and
     the round IS the finding remediation must answer. Counting it let the
     reviewer's READY plus the queue's NEEDS_CHANGES exhaust the default budget of
     2, so the node converged to ``review_rounds_exhausted`` instead of ever
-    remediating the red combined tree. An operator send-back (#3070) restarts
+    remediating the red combined tree. An operator send-back restarts
     the count — see :func:`remediation_rounds_spent`.
     """
     return remediation_rounds_spent(store.review_rounds_in_cycle(item_id))
@@ -2173,10 +2133,10 @@ def _drive_standing_findings(
     Seven outcomes, in precedence order: the stop rule accepts the round, a
     previous remediation for this head is waiting on a person, a
     declaration-only round's remediation already ran and declared nothing
-    (#2872) — or the PR body could not be read to tell, and the node waits a
-    tick — any other round's remediation already ran and changed nothing
-    (#3233), a remediation at this head pushed nothing and earns no second
-    one there (#3475), the round cap is reached, or the node is remediated.
+    — or the PR body could not be read to tell, and the node waits a
+    tick — any other round's remediation already ran and changed nothing,
+    a remediation at this head pushed nothing and earns no second
+    one there, the round cap is reached, or the node is remediated.
     """
     verdict = _standing_verdict(latest)
     if _apply_stop_rule(
@@ -2187,7 +2147,7 @@ def _drive_standing_findings(
         verdict,
         # No reviewer is in flight on this path, so the filing takes the
         # node's review reservation itself — unless a detached stage child
-        # already holds it for this whole action (#2459).
+        # already holds it for this whole action.
         reserved=held_reservation() is not None,
         statuses=statuses,
         outcome=outcome,
@@ -2203,7 +2163,7 @@ def _drive_standing_findings(
     if deferred is not None:
         # A remediation for this very head already ran and its publication is
         # held for a person: the findings stand because its work never reached
-        # the branch, not because nothing was done about them (#2362).
+        # the branch, not because nothing was done about them.
         # Dispatching another one buys nothing, moves the preserved checkout
         # aside, and costs a full remediation run.
         _hold_deferred_publication(
@@ -2237,7 +2197,7 @@ def _drive_standing_findings(
             return
         # The round asked only for Behavior changes lines, and a remediation
         # ran against this head and left them out of the PR body: another one
-        # would end the same way (#2872). A person declares them.
+        # would end the same way. A person declares them.
         missing = declaration.missing
         reason = declarations_missing_hold_reason(missing)
         _logger.error(
@@ -2248,7 +2208,7 @@ def _drive_standing_findings(
             reason,
             ", ".join(missing),
         )
-        # The full list rides on the hold (#2884): the reason is capped, and
+        # The full list rides on the hold: the reason is capped, and
         # the console reads every id from the row.
         _hold(store, epic_ref, item_id, reason, provider=provider, node_ids=missing)
         statuses[node_id] = DriverStatus.HELD
@@ -2327,7 +2287,7 @@ def _proposal_of(
     body: str | None,
 ) -> DeclarationRequest | None:
     """The lines an ordinary round asks its remediation to propose, when its
-    findings ask for nothing else (#3493)."""
+    findings ask for nothing else."""
     if declaration is not None or verdict is None:
         return None
     return proposal_request(verdict.findings, body)
@@ -2354,7 +2314,7 @@ def _held_for_no_change(
     provider: str,
     store: RunStore,
 ) -> bool:
-    """Hold a node whose remediation of the standing round moved nothing (#3233).
+    """Hold a node whose remediation of the standing round moved nothing.
 
     The findings stand where they were filed, and another remediation reads
     the same brief and ends the same way, once per tick. Nothing else bounds
@@ -2388,22 +2348,22 @@ def _held_for_no_change(
 
 _PROPOSALS_META_PREFIX = "review_remediation_proposals:"
 """``meta`` key prefix (per item) of the PR body's proposed **Behavior
-changes** block as a remediation was launched (#3475): ``{"head", "round",
+changes** block as a remediation was launched: ``{"head", "round",
 "digest"}``, the digest None when the body could not be read."""
 _NO_PUSH_RELEASES = (
     REMEDIATION_NO_PROGRESS_HOLD_PREFIX,
     REMEDIATION_NO_CHANGE_HOLD_PREFIX,
 )
 """The holds whose release by a person buys one more remediation at a head a
-remediation did not move (#3475): either is their word on that head."""
+remediation did not move: either is their word on that head."""
 _NO_PUSH_RE_REVIEW_META_PREFIX = "review_no_push_re_review:"
 """``meta`` key prefix (per item) of the one re-review a remediation that
-pushed nothing earned (#3475): ``{"head", "round", "digest"}`` of the round it
+pushed nothing earned: ``{"head", "round", "digest"}`` of the round it
 re-read and the proposed block that earned it."""
 _HELD_PROPOSALS_META_PREFIX = "review_held_proposals:"
 """``meta`` key prefix (per item) of the PR body's proposed block as a
 ``remediation_no_change`` or ``remediation_no_progress`` hold was set at the
-round's own head, or at one a no-op remediation of it published (#3493):
+round's own head, or at one a no-op remediation of it published:
 ``{"head", "round", "digest", "held_at"}``. A person who changes that block
 and releases the hold earns the head one re-review."""
 
@@ -2419,7 +2379,7 @@ def _remember_proposals(
     store: RunStore, item_id: str, latest: ReviewRound, facts: NodeFacts, *, repo: str
 ) -> str | None:
     """Record the PR body's proposed block as a remediation of *latest* launches,
-    so the next pass can tell whether that run changed it (#3475); the body
+    so the next pass can tell whether that run changed it; the body
     read, None when it could not be."""
     body = read_pr_body(repo, facts.pr_number)
     value = {
@@ -2445,7 +2405,7 @@ def _no_push_remediation(
     store: RunStore, item_id: str, latest: ReviewRound, head: str
 ) -> RunRecord | None:
     """The newest review remediation of *latest* that ended at *head* without
-    moving it (#3475), or None.
+    moving it, or None.
 
     Only a run that finished cleanly after the round and after a person's
     last release of a ``remediation_no_progress`` or ``remediation_no_change``
@@ -2504,7 +2464,7 @@ def _re_review_after_no_push(
     head: str,
     repo: str,
 ) -> bool:
-    """Whether *head* is reviewed once more, instead of remediated again (#3475).
+    """Whether *head* is reviewed once more, instead of remediated again.
 
     True when a remediation of *latest* ended at *head* with no push but
     changed the PR body's proposed **Behavior changes** block: the reviewer
@@ -2537,7 +2497,7 @@ def _grant_re_review(
     store: RunStore, item_id: str, latest: ReviewRound, head: str, digest: str
 ) -> None:
     """Record the one re-review of *head* that the proposed block *digest*
-    earned *latest* (#3475), so the round it finds is never remediated there."""
+    earned *latest*, so the round it finds is never remediated there."""
     store.set_meta(
         f"{_NO_PUSH_RE_REVIEW_META_PREFIX}{item_id}",
         json.dumps({"head": head, "round": latest.round, "digest": digest}),
@@ -2548,7 +2508,7 @@ def _granted_on(
     store: RunStore, item_id: str, latest: ReviewRound, head: str, digest: str
 ) -> bool:
     """Whether a re-review of *head* granted on the proposed block *digest*
-    has run (#3493): the reviewer has read that block at that head. A grant
+    has run: the reviewer has read that block at that head. A grant
     for *latest*'s own round has not — its reviewer was deferred (a wait, an
     unwired launcher, a running verify) — so the release still earns it."""
     granted = _meta_json(store, f"{_NO_PUSH_RE_REVIEW_META_PREFIX}{item_id}")
@@ -2590,7 +2550,7 @@ def _remember_held_proposals(
     head: str,
     repo: str,
 ) -> None:
-    """Record the proposed block a no-push hold at *head* was set on (#3493),
+    """Record the proposed block a no-push hold at *head* was set on,
     for :func:`_re_review_after_release` to compare a release with.
 
     *head* is *latest*'s own, or one a remediation of it that changed nothing
@@ -2624,7 +2584,7 @@ def _re_review_after_release(
     approvers: Sequence[str],
 ) -> bool | None:
     """Whether a person's release of a no-push hold earns *head* one re-review
-    instead of a remediation (#3493); None when the PR body could not be read
+    instead of a remediation; None when the PR body could not be read
     to tell, and the node waits a tick rather than spend the release.
 
     The release must be an approver's (``[approval] approvers``; any
@@ -2683,7 +2643,7 @@ def _re_review_after_release(
 def _body_can_earn(held: dict[str, Any], verdict: ParsedVerdict | None) -> bool:
     """Whether the PR body could earn a released hold *held* a re-review: it
     recorded a proposed block a person may have changed since, or *verdict*
-    asks only for lines a proposed block can answer (#3493). Neither, and the
+    asks only for lines a proposed block can answer. Neither, and the
     release is spent on a remediation without reading the body."""
     if held.get("digest") is not None:
         return True
@@ -2700,7 +2660,7 @@ def _release_pending(
 ) -> bool:
     """Whether an approver released the no-push hold *held* records — set at
     *head* for *latest*'s round — after it was set, and no remediation has
-    run since that release (#3493).
+    run since that release.
 
     An empty *approvers* list is any operator's release, as it is for every
     other ``[approval] approvers`` gate (:func:`kew.approval._authorized`)."""
@@ -2757,14 +2717,14 @@ def _held_for_no_progress(
     provider: str,
     store: RunStore,
 ) -> bool:
-    """Hold a node rather than launch a second remediation at *head* (#3475).
+    """Hold a node rather than launch a second remediation at *head*.
 
     Either a remediation of the standing round ended at *head* with no push
     and changed nothing a re-review could rule on, or the round is the one
     re-review such a run earned. Another remediation would read the same
     brief at the same head and end the same way, once a tick, to the branch's
     run cap. A person's release of the hold buys one more remediation, or one
-    re-review when they changed the proposed block (#3493).
+    re-review when they changed the proposed block.
     """
     run = _no_push_remediation(store, item_id, latest, head)
     if run is None and not _spent_re_review(store, item_id, latest, head):
@@ -2787,7 +2747,7 @@ def _held_for_no_progress(
 
 @dataclass(frozen=True)
 class _StandingDeclaration:
-    """A standing round that asks only for Behavior changes lines (#2872)."""
+    """A standing round that asks only for Behavior changes lines."""
 
     request: DeclarationRequest
     missing: tuple[str, ...] | None
@@ -2813,14 +2773,14 @@ def _standing_declaration(
 
     None too when the PR body already declares every requested test and an
     earlier round at this head asked for them all: that round's re-review was
-    the one those lines earned. Since #3516 that re-review drops a declaration
+    the one those lines earned. That re-review drops a declaration
     finding asking for them, so it can still ask only when it fell short of
     what a READY needs (no acceptance evidence, say) and kew kept it as
     written. A declaration cannot settle that, so it is remediated as an
     ordinary round — never held as "undeclared", which a person could only
     answer by declaring the same lines again.
 
-    A pre-review round's held-out failures (#3212) are read the same way: once
+    A pre-review round's held-out failures are read the same way: once
     the PR body declares them all the round is answered and the head goes back
     through the gate, and a remediation that ran at this head and neither
     fixed nor declared them is held for a person.
@@ -2848,7 +2808,7 @@ def _repeats_declaration(
     names — the re-review a landed declaration earns has already been spent.
 
     An earlier round counts with every test it asked for, those kew excused
-    off it as declared included (#3516): its request names only the rest, and
+    off it as declared included: its request names only the rest, and
     a later round asking for both must not earn a second re-review."""
     asked = set(request.node_ids)
     for round_ in store.review_rounds_in_cycle(item_id):
@@ -2865,7 +2825,7 @@ def _repeats_declaration(
 @dataclass(frozen=True)
 class _BodyUnread:
     """A released no-push hold whose PR body could not be read to tell whether
-    the release earns a re-review (#3493): the node waits a tick, as a
+    the release earns a re-review: the node waits a tick, as a
     declaration round's unread body does, rather than spend the release on a
     remediation."""
 
@@ -2886,22 +2846,22 @@ def _standing_round(
 
     None when a reviewer round is due instead — including a round that asked
     only for Behavior changes lines the PR body now carries: the finding is
-    answered there, so the head is re-reviewed (#2872).
+    answered there, so the head is re-reviewed.
 
     An operator's send-back stands on a moved head too, until a remediation
-    answers it (#3200): its finding is the operator's, not a reviewer's verdict
+    answers it: its finding is the operator's, not a reviewer's verdict
     on the old head, and a merge-main step or base integration that moves the
     head fixes none of it. Re-reviewing the moved head instead would let a
     reviewer pass the very code the operator sent back.
 
     Any other round stands, too, on a head that a remediation of it published
-    without an agent change (#3276): kew's own merge of the base moved the
+    without an agent change: kew's own merge of the base moved the
     commit, the findings did not move, and the no-change hold catches it. A
     send-back already stands on such a head unless a person released it there,
     and that release has the head reviewed.
 
     A round a remediation or an approver's release earned one re-review of
-    (#3475, #3493) is None too; :class:`_BodyUnread` when the release's PR
+    is None too; :class:`_BodyUnread` when the release's PR
     body could not be read to tell.
     """
     if latest is None or latest.verdict != _VERDICT_NEEDS_CHANGES:
@@ -2919,7 +2879,7 @@ def _standing_round(
     declaration = _standing_declaration(store, item_id, latest, facts, repo=repo)
     if declaration is not None:
         # Its remediation pushes nothing by design: the lines landing earn
-        # its re-review (#2872), never the one no-push re-review (#3475).
+        # its re-review, never the one no-push re-review.
         return None if declaration.landed else (latest, declaration)
     due = _re_review_earned(
         store, item_id, latest, facts, head=head, repo=repo, approvers=approvers
@@ -2943,7 +2903,7 @@ def _re_review_earned(
     PR body that decides it could not be read."""
     if _no_push_remediation(store, item_id, latest, head) is not None:
         # A remediation ran since the last release: its own block change is
-        # what may earn the re-review. With none, the release's may (#3493).
+        # what may earn the re-review. With none, the release's may.
         return _re_review_after_no_push(
             store, item_id, latest, facts, head=head, repo=repo
         )
@@ -2953,7 +2913,7 @@ def _re_review_earned(
 
 
 #: Passes in a row a declaration round's PR body may go unread after its
-#: remediation before the node is held for a person (#2872).
+#: remediation before the node is held for a person.
 _MAX_BODY_UNREAD_PASSES = 5
 _BODY_UNREAD_META_PREFIX = "review_body_unread:"
 
@@ -3020,7 +2980,7 @@ def _release_readable_body_holds(
     repo: str,
     provider: str,
 ) -> None:
-    """Clear a ``pr_body_unreadable`` hold once the PR body reads again (#2872).
+    """Clear a ``pr_body_unreadable`` hold once the PR body reads again.
 
     That hold records a failed read, not a decision anyone owes, so the first
     read that succeeds releases it. The node re-enters the lifecycle this same
@@ -3055,7 +3015,7 @@ def _send_back_stands(
     """Whether *latest* is an operator send-back nothing has answered on *head*.
 
     Only an agent's change answers it: a remediation whose completed outcome
-    shows it published a tree other than the one kew handed it (#3276). A
+    shows it published a tree other than the one kew handed it. A
     head moved by kew's own merge of the base — in a merge-main step, or in the
     remediation's checkout before an agent that then changed nothing — fixes
     none of the operator's finding, and a run with no completed outcome proves
@@ -3077,8 +3037,8 @@ def _agent_change(payload: dict[str, object], round_head: str) -> bool | None:
     ``True`` when it changed something, ``False`` when it changed nothing,
     ``None`` when the payload proves neither: a run that did not complete, or
     one that recorded too little. The trees decide when both were recorded:
-    the published tree against the one kew's base integration handed the agent
-    (#3276), so a commit moved by that merge alone is no change. An outcome
+    the published tree against the one kew's base integration handed the agent,
+    so a commit moved by that merge alone is no change. An outcome
     recorded before the trees falls back to commit ids: the published head
     against the head the checkout was cut at, or, with no cut head either,
     against the round's head — and then only a moved head proves anything.
@@ -3156,7 +3116,7 @@ def _no_op_published(
 
     kew merges the base into a remediation's checkout before the agent runs,
     so an agent that changed nothing still publishes a new commit when the
-    base had moved (#3276). That head is kew's merge, not an answer to the
+    base had moved. That head is kew's merge, not an answer to the
     round, so the round stands on it and the no-change hold catches it.
     """
     if _agent_changed_since(store, item_id, latest):
@@ -3221,7 +3181,7 @@ def _no_change_released_at(
 def _released_heads(
     store: RunStore, item_id: str, latest: ReviewRound
 ) -> frozenset[str]:
-    """The PR heads a person vouched for by releasing the no-change hold (#3276).
+    """The PR heads a person vouched for by releasing the no-change hold.
 
     ``kew epic unhold`` records the head the PR stood at when the person let it
     go. The release answers a send-back on that head only: a head a base
@@ -3281,7 +3241,7 @@ def _drive_one_node(
     """Take the one action the node's persisted review state calls for."""
     # A head that no longer merges into the base outranks every review action:
     # reviewing or remediating a delta that cannot land spends a round on work
-    # the merge-main step invalidates anyway (#2149).
+    # the merge-main step invalidates anyway.
     if _integrate_base(
         node_id,
         item_id,
@@ -3357,8 +3317,8 @@ def _drive_one_node(
 
     # Otherwise a reviewer round is due: a fresh PR (round 0), a READY/NEEDS
     # voided by a moved head, a re-review after remediation landed a new commit,
-    # or the full round a NEEDS_FULL delta READY calls for (#2111). The
-    # pre-review gate (#3201) runs inside it, once the reviewer could launch.
+    # or the full round a NEEDS_FULL delta READY calls for. The
+    # pre-review gate runs inside it, once the reviewer could launch.
     gate = partial(
         _gate_before_review,
         node_id,
@@ -3417,7 +3377,7 @@ def _gate_before_review(
     worker_cap: int,
     now: datetime,
 ) -> bool:
-    """Run the pre-review gate on *head*; True when it stopped the review (#3201).
+    """Run the pre-review gate on *head*; True when it stopped the review.
 
     Called only once the launch guards said a reviewer can launch (a usage-limit
     wait, an unwired launcher and a running local merge verify all stop it
@@ -3429,7 +3389,7 @@ def _gate_before_review(
     change, is not run again (a review deferred after it would otherwise re-run
     it every tick). A gate that did not run proves nothing about the head, so
     the head goes to review as it did before the step existed — and the skip
-    and its reason are recorded for the head (#3280), on this tick's outcome,
+    and its reason are recorded for the head, on this tick's outcome,
     for ``kew epic status`` and for the verdict comment. A failure is recorded
     as a NEEDS_CHANGES round carrying the output and remediated on this same
     tick.
@@ -3593,7 +3553,7 @@ def recorded_gate_skips(
     store: RunStore,
 ) -> dict[str, str]:
     """Node -> the gate's recorded skip on its current head, for every
-    review-stage node (#3344).
+    review-stage node.
 
     The drive's review stage is detached: the gate runs in a ``kew epic
     _review-node`` child, whose outcome never reaches the tick. What the
@@ -3620,7 +3580,7 @@ def _held_out_body(
     *,
     repo: str,
 ) -> tuple[frozenset[str], str | None]:
-    """The PR body the held-out half judges against, when it runs (#3212).
+    """The PR body the held-out half judges against, when it runs.
 
     Read only when that half is due. A body that does not read cannot say
     what is declared, so the half sits this head out — counted as settled for
@@ -3682,7 +3642,7 @@ def _exhaust_gate(
     would send an operator looking for reviewer findings.
 
     Advisory review (``[review] blocking = false``) holds it too, rather than
-    attest DEGRADED and proceed as at the round cap (#3279): that let a head no
+    attest DEGRADED and proceed as at the round cap: that would let a head no
     reviewer read move on. Holding loses nothing in advisory mode — a head
     that fails the merge gate's own static checks cannot pass the merge verify
     either.
@@ -3776,9 +3736,9 @@ def _left_to_operator(
 
     An operator owns the head when its newest commit is theirs, not one kew
     published (:func:`operator_commit_at_head`), or while their merge verify
-    claims it (#3198). On 2026-10-25 the step pushed resolutions onto two such
-    branches, and one reintroduced a symbol the operator's fix had removed
-    (#3200). The step records ``operator-owned: integration skipped`` instead.
+    claims it. Resolutions pushed onto such a branch can reintroduce what the
+    operator's fix removed, so the step records
+    ``operator-owned: integration skipped`` instead.
     """
     head = facts.head_oid or ""
     branch = f"{config.branches.prefix}{branch_slug(item_id)}"
@@ -3828,7 +3788,7 @@ def _skip_operator_owned(
     store: RunStore,
     reason: str | None = None,
 ) -> None:
-    """Record that the merge-main step left an operator's head alone (#3200).
+    """Record that the merge-main step left an operator's head alone.
 
     Not a hold: the branch is the operator's to integrate, and the first head
     kew publishes itself (or the claim ending) gives the step back. *reason*
@@ -3872,7 +3832,7 @@ def _skip_moved_head(
     epic_ref: str,
     store: RunStore,
 ) -> None:
-    """Record a merge-main step that found the PR head moved past *head* (#3200).
+    """Record a merge-main step that found the PR head moved past *head*.
 
     The stage checked *head* for an operator; the resolve, pinned to it, found
     another head on the PR and pushed nothing. Not a hold and not a step: the
@@ -3913,13 +3873,13 @@ def _integrate_base(
     base_integrator: BaseIntegrator | None,
     now: datetime,
 ) -> bool:
-    """Merge *base* into a head that stopped merging cleanly (#2149).
+    """Merge *base* into a head that stopped merging cleanly.
 
     Returns True when this was the node's one action for the tick — the base
     was integrated (the moved head is re-reviewed next tick), the node was HELD
     because the integration could not finish or because the step's bound is
     spent, no seam is wired to do it, or an operator's merge verify claims the
-    head (#3198): the step pushes a merge commit onto it, so it waits with the
+    head: the step pushes a merge commit onto it, so it waits with the
     remediation's ``merge_claimed`` reason. A node whose head still merges
     falls through to its review action.
     """
@@ -4036,8 +3996,8 @@ def _integrated(
     )
     # The node may have reached the step from under the merge pass's own
     # ``ci_pending`` hold. That hold was derived from the facts this step has
-    # just spent, and leaving it would put the node straight back where #2149
-    # found it: HELD, never re-reviewed, never merged. The merge pass re-derives
+    # just spent, and leaving it would put the node straight back to HELD,
+    # never re-reviewed, never merged. The merge pass re-derives
     # it on the next tick if the moved head is still not mergeable.
     if _release_ci_hold(store, epic_ref, item_id, provider=provider):
         statuses[node_id] = DriverStatus.IN_REVIEW
@@ -4062,7 +4022,7 @@ def _exhaust_integration(
     config: DispatchConfig,
     store: RunStore,
 ) -> None:
-    """Stop a merge-main step that keeps succeeding without landing (#2149).
+    """Stop a merge-main step that keeps succeeding without landing.
 
     The node is HELD before the seam is called, not after: the whole point is
     that the next governed ``kew resolve`` run is the one that must not happen.
@@ -4183,7 +4143,7 @@ def _new_admission_refusal(
 
 
 def _run_cap_refusal(outcome: ReviewOutcome) -> bool:
-    """A refusal because the branch reached the producer guard's run cap (#3193).
+    """A refusal because the branch reached the producer guard's run cap.
 
     The cap is hard (it bounds a security check), and every later launch on the
     branch is refused the same way, so it holds at once instead of after three.
@@ -4213,7 +4173,7 @@ def _refusal_repeated(store: RunStore, pr_number: int, outcome: ReviewOutcome) -
 def _remediation_budget_hold(
     store: RunStore, config: DispatchConfig, item_id: str
 ) -> str:
-    """The hold a remediation-pool refusal earns (#2153).
+    """The hold a remediation-pool refusal earns.
 
     The refusal landed before the remediator launched, nothing is in flight, and
     every later tick refuses identically — so the node is held, not left
@@ -4231,7 +4191,7 @@ def _remediation_budget_hold(
     )
 
 
-#: The hold a send-back at the branch run cap earns (#3193): what happened and
+#: The hold a send-back at the branch run cap earns: what happened and
 #: the operator's options, short enough to survive the 160-character echo. A
 #: pushed fix moves the head, which releases the hold for one review.
 _RUN_CAP_DETAIL = (
@@ -4277,8 +4237,8 @@ def _refusal_hold_reason(
     if refusal.classification != CREDENTIAL_PUBLICATION_REFUSAL:
         return admission_refused_hold_reason(detail, item_id)
     # A credential refusal is about the head's own lineage, so the hold names
-    # that head and the tick releases it the first time the PR head moves
-    # (#3193). A configuration refusal is not: a new head refuses alike, so it
+    # that head and the tick releases it the first time the PR head moves.
+    # A configuration refusal is not: a new head refuses alike, so it
     # stays the operator's to release.
     refused_head = refusal.head_sha or head
     if _run_cap_refusal(refusal):
@@ -4357,12 +4317,12 @@ def _preserved_checkout(evidence: dict[str, object]) -> str | None:
     other half — publishing it — moves the PR head, and the moved head is what
     stops the deferral matching. A discard moves nothing, and the run row stays
     ``awaiting_publication`` for good, so without this probe the next tick
-    re-derived the identical hold and `kew epic unhold` could never stick.
+    would re-derive the identical hold and `kew epic unhold` could never stick.
 
     Only an ABSOLUTE path is probed: a relative one resolves against whatever
     directory this tick happens to run in, so its absence proves nothing, and
     reading it as a discard would re-dispatch a remediation on top of work that
-    is still there — the whole loop #2362 was. :func:`_checkout_is_gone` holds
+    is still there, every tick. :func:`_checkout_is_gone` holds
     the same line for a path it cannot read.
     """
     recorded = str(evidence.get("checkout") or "")
@@ -4387,7 +4347,7 @@ def _deferred_remediation(store: RunStore, item_id: str, head: str) -> str | Non
 
     A row with no recorded evidence is read as deferred anyway (it is still a
     remediation that published nothing), named as such: the alternative is
-    re-dispatching one, which is what #2352 did three times. A row whose
+    re-dispatching one. A row whose
     preserved checkout is GONE is the other way out — see
     :func:`_preserved_checkout` — and stops answering, so the operator's
     `kew epic unhold` after a discard is not undone on the next tick.
@@ -4433,7 +4393,7 @@ def _hold_deferred_publication(
     provider: str,
     store: RunStore,
 ) -> None:
-    """HOLD a node whose previous remediation is waiting on a person (#2362)."""
+    """HOLD a node whose previous remediation is waiting on a person."""
     reason = publication_held_hold_reason(detail)
     _logger.error(
         "review: %s has a remediation awaiting publication — no new remediation "
@@ -4466,9 +4426,9 @@ def _remediate(
     proposal: DeclarationRequest | None = None,
     now: datetime,
 ) -> None:
-    """Hand the node to the remediation seam (adapted ``kew review``, #987).
+    """Hand the node to the remediation seam (adapted ``kew review``).
 
-    Not while an operator's merge verify claims this head (#3198): a
+    Not while an operator's merge verify claims this head: a
     remediation pushed under it moves the head, and the merge that verify was
     for then fails on a head mismatch. The findings stay recorded on the
     round, the node is neither held nor credited a round, and the first tick
@@ -4504,7 +4464,7 @@ def _remediate(
     ):
         return
     if declaration is None:
-        # A pre-review round's held-out failures (#3212): fixed or declared.
+        # A pre-review round's held-out failures: fixed or declared.
         declaration = load_held_out_request(sidecar_path)
     prior_event_id = _latest_review_outcome_event_id(store, facts.pr_number)
     result = remediator(
@@ -4564,13 +4524,13 @@ def _dispatch_and_collect(
 ) -> None:
     """Dispatch a fresh-context reviewer round and process its verdict.
 
-    *gate* is the pre-review gate (#3201), run once the launch guards admit a
+    *gate* is the pre-review gate, run once the launch guards admit a
     reviewer and before anything is reserved for it; True means it took the
     node's action (a remediation round, a hold, a full fleet) and no reviewer
     launches.
 
     The reservation is released and the materialized worktree cleaned on EVERY
-    terminal path (F6/F7 reservation hygiene); a budget refusal already holds +
+    terminal path; a budget refusal already holds +
     attests inside ``dispatch_reviewer``.
     """
     launcher = _launchable_reviewer(
@@ -4586,7 +4546,7 @@ def _dispatch_and_collect(
     if launcher is None:
         return
     # The head may fail the merge gate's static checks or its ui-checks on the
-    # merge candidate (#3201): that is a remediation round with the output, and
+    # merge candidate: that is a remediation round with the output, and
     # no reviewer is paid to find it.
     if gate():
         return
@@ -4595,15 +4555,15 @@ def _dispatch_and_collect(
     issue_num = facts.issue_num
     # A reviewer round is due on this head: surface the GitHub-native gate as
     # `pending` NOW, before the (minutes-long) reviewer runs, so a human can't
-    # race the merge button while the verdict is still outstanding (#1056). A
+    # race the merge button while the verdict is still outstanding. A
     # force-push that moved the head lands here on the new SHA → back to pending.
     if config.review.publish_status:
         review_status.publish_pending(repo, head)
-    # Round 2+ can run as a delta round against the previous reviewed head
-    # (#2111); the dispatcher settles ancestry in the reviewer checkout.
+    # Round 2+ can run as a delta round against the previous reviewed head;
+    # the dispatcher settles ancestry in the reviewer checkout.
     mode_plan = plan_review_mode(store.latest_review_round(item_id), current_head=head)
     # The body the merge's held-out gate will read, so an edited test it does
-    # not name is a finding now rather than a failure at merge (#2830).
+    # not name is a finding now rather than a failure at merge.
     pr_body = read_pr_body(repo, facts.pr_number)
     try:
         result = dispatch_reviewer(
@@ -4627,19 +4587,19 @@ def _dispatch_and_collect(
         )
     except Exception as exc:
         # A reviewer INFRA failure (e.g. the worktree clone / materialize, or a
-        # launcher that escapes its own guard) must NEVER crash the driver tick
-        # (#1002). Fail closed: release the reservation the dispatch may have
+        # launcher that escapes its own guard) must NEVER crash the driver tick.
+        # Fail closed: release the reservation the dispatch may have
         # taken (run_id-keyed, no-op if none) and route to the crash path — the
         # same handling an unparseable sidecar gets: HELD (blocking) / DEGRADED
         # attested (advisory). The spec's fail-closed contract, extended from the
         # launcher to the pre-launch materialize step.
         #
         # WHICH failure this was is read off the run row the raise left behind,
-        # never assumed from the fact that something raised here (#2043): the
+        # never assumed from the fact that something raised here: the
         # launcher's post-run bookkeeping sits outside its own except guard, so
         # a reviewer that started, streamed and exited 0 can still land in this
         # handler — and must not be published to the PR as one that never
-        # started. A raise once the prompt was known still names it (#3024).
+        # started. A raise once the prompt was known still names it.
         _logger.exception(
             "review: reviewer dispatch failed for %s (infra error) — fail-closed",
             item_id,
@@ -4701,7 +4661,7 @@ def _dispatch_and_collect(
 
 def _raised_refusal(category: str, exc: Exception) -> str | None:
     """What a dispatch that raised AFTER its reviewer run was recorded says
-    went wrong (#3186), for the hold and the verdict audit: the row's category
+    went wrong, for the hold and the verdict audit: the row's category
     and the raise, redacted. ``None`` for a pre-launch category, whose hold
     names the layer's remedy instead."""
     if category in _PRE_LAUNCH_HOLDS:
@@ -4718,7 +4678,7 @@ def _raised_refusal(category: str, exc: Exception) -> str | None:
 
 
 def _raised_provenance(exc: Exception) -> PromptProvenance:
-    """The prompt a dispatch that raised had already assembled (#3024)."""
+    """The prompt a dispatch that raised had already assembled."""
     if isinstance(exc, ReviewerLaunchError):
         return exc.provenance
     return NO_PROVENANCE
@@ -4741,8 +4701,7 @@ def _process_and_release(
     """Process a dispatched round's result, then release what it took.
 
     The reservation and the materialized checkout are given back on EVERY path
-    out of the processing — a verdict, a crash route, or a raise (F6/F7
-    reservation hygiene).
+    out of the processing — a verdict, a crash route, or a raise.
     """
     try:
         _process_result(
@@ -4792,8 +4751,8 @@ def _route_crash_path(
     repo: str,
 ) -> None:
     """No usable verdict was collected. A refusal the sandbox made before launch
-    is retried on the next tick (#2147), and so are a round a provider usage
-    limit ended (#2219) and a launch a runtime timeout ended (#3246), each
+    is retried on the next tick, and so are a round a provider usage
+    limit ended and a launch a runtime timeout ended, each
     until its own bound is spent; anything else is the crash
     path — HELD (blocking) / DEGRADED attested (advisory), never guessed into a
     READY."""
@@ -4805,7 +4764,7 @@ def _route_crash_path(
         error_category = sidecar.error_category
         # A reviewer that never started left no stream to refuse: its category
         # says why, and an exit of -1 "with no result capture" would only
-        # dress the launch up as a run (#3186).
+        # dress the launch up as a run.
         if error_category not in _PRE_LAUNCH_HOLDS:
             refusal = sidecar.parsed.unparseable_reason
         refusal = _CATEGORY_REFUSALS.get(error_category or "", refusal)
@@ -4859,7 +4818,7 @@ def _retry_multiple_results(
     store: RunStore,
     repo: str,
 ) -> bool:
-    """Run a round whose runner answered more than once again, once (#3174).
+    """Run a round whose runner answered more than once again, once.
 
     The reviewer exited 0 but its runner started a second turn after its first
     ``result``: a runner fault, not a verdict. Nothing is recorded against the
@@ -4867,7 +4826,7 @@ def _retry_multiple_results(
     bound is per node and per head, read from the attested retries; once spent,
     the crash path holds the node naming the refusal. Returns False then.
 
-    The bound fails closed (#3186): a retry whose count cannot be read, or
+    The bound fails closed: a retry whose count cannot be read, or
     whose row cannot be appended, holds instead — an unrecorded retry would
     leave the count at zero and launch another paid run every tick.
     """
@@ -4924,7 +4883,7 @@ def _held_for_unrecorded_declarations(
     store: RunStore,
 ) -> bool:
     """Hold, and record nothing, when a NEEDS_CHANGES round's flagged-test
-    record did not land beside its sidecar (#2872).
+    record did not land beside its sidecar.
 
     The round and its record stand together or not at all: a round recorded
     without one reads as ordinary findings, and the same head is remediated
@@ -4961,8 +4920,8 @@ def _accepted_lines_written(
     *,
     repo: str,
 ) -> bool:
-    """Write the lines the reviewer accepted into the PR's **Behavior changes**
-    (#3475); False when a READY's lines are not confirmed there.
+    """Write the lines the reviewer accepted into the PR's **Behavior changes**;
+    False when a READY's lines are not confirmed there.
 
     The lines are rebuilt from the proposals in the body the reviewer was
     shown (:func:`accepted_lines`), and written with a re-read and confirm
@@ -5000,7 +4959,7 @@ def _accepted_lines_written(
 def _drop_unneeded_proposals(
     item_id: str, facts: NodeFacts, result: ReviewerDispatch, *, repo: str
 ) -> None:
-    """Drop the proposals the reviewer ruled need no declaration (#3500).
+    """Drop the proposals the reviewer ruled need no declaration.
 
     Those rulings are no finding, so the round stands whether or not the
     drop lands: a proposal declares nothing, and one left behind is only
@@ -5025,7 +4984,7 @@ def _drop_unneeded_proposals(
 def _reviewer_model_used(
     store: RunStore, run_id: str | None, config: DispatchConfig
 ) -> str | None:
-    """The model the reviewer ran on, as its own run row recorded it (#2741).
+    """The model the reviewer ran on, as its own run row recorded it.
 
     ``review.model`` is overridable from the console, so the config this tick
     holds can name a model set AFTER the reviewer launched. The launcher writes
@@ -5083,9 +5042,9 @@ def _process_result(
         return
     reviewer_verdict = sidecar.parsed.verdict
     assert reviewer_verdict is not None  # not unparseable
-    # A delta READY stands only with a full round in the last two (#2111),
+    # A delta READY stands only with a full round in the last two,
     # and a READY on a head that touches merge gate paths only once a second
-    # full round on that head confirms it (#3422) — and so do residuals the
+    # full round on that head confirms it — and so do residuals the
     # stop rule would accept there; otherwise the round is recorded as
     # NEEDS_FULL and the next round runs full.
     prior = store.review_rounds_in_cycle(item_id)
@@ -5125,16 +5084,16 @@ def _process_result(
         head_sha=result.head_sha,
         verdict=verdict,
         sidecar_digest=sidecar.digest,
-        # Persist WHERE the findings are stored so the remediation leg (#1030),
+        # Persist WHERE the findings are stored so the remediation leg,
         # which runs on a later tick from persisted state, can load them.
         sidecar_path=str(sidecar.stored_path),
         review_mode=result.review_mode,
         # WHICH recorded plan this round was judged against, and the criteria
-        # text it received (#2291). Both None when the item has no recorded
+        # text it received. Both None when the item has no recorded
         # criteria, which reads as "judged against nothing stated".
         plan_sha=result.plan_sha,
         criteria_json=result.criteria_json,
-        # The operator addendum the reviewer prompt carried (#3024).
+        # The operator addendum the reviewer prompt carried.
         prompt_profile_version_id=result.prompt_profile_version_id,
     )
     emit_review_verdict(
@@ -5154,7 +5113,7 @@ def _process_result(
         base_commit=result.base_commit,
         acceptance_executed=sidecar.parsed.acceptance_executed,
         acceptance_reason=sidecar.parsed.acceptance_reason,
-        # Attest WHICH scope produced this verdict (#2111), so a delta READY is
+        # Attest WHICH scope produced this verdict, so a delta READY is
         # distinguishable from a full one on the chain and the "a READY always
         # has a recent full pass behind it" rule is checkable from the chain.
         review_mode=result.review_mode,
@@ -5199,7 +5158,7 @@ def _process_result(
 
 _GATE_PATHS_META_PREFIX = "review_gate_paths:"
 """``meta`` key prefix (per item) of the merge gate paths last read for one of
-its heads (#3422): ``{"head", "patterns", "paths"}`` as JSON. Written where a
+its heads: ``{"head", "patterns", "paths"}`` as JSON. Written where a
 reviewer dispatch read them, so later ticks on that head decide without a
 checkout of their own; a new head or changed ``merge_gate_paths`` misses."""
 
@@ -5259,7 +5218,7 @@ def _gate_paths_reader(
     head: str,
     config: DispatchConfig,
 ) -> Callable[[], bool]:
-    """Whether *head* touches merge gate paths, read only when asked (#3422).
+    """Whether *head* touches merge gate paths, read only when asked.
 
     For the stop rule on a tick where no reviewer ran. The paths the reviewer
     dispatch for this head recorded answer first; otherwise they are read as a
@@ -5288,7 +5247,7 @@ def _gate_paths_reader(
 
 _GATE_PATHS_UNREAD_META_PREFIX = "review_gate_paths_unread:"
 """``meta`` key prefix (per item) of ``<head>|<count>``: the ticks in a row the
-stop rule could not read that head's merge gate paths (#3422)."""
+stop rule could not read that head's merge gate paths."""
 
 
 def _wait_for_unread_gate_paths(
@@ -5347,7 +5306,7 @@ def _residuals_await_confirmation(
     prior: Sequence[ReviewRound],
     config: DispatchConfig,
 ) -> str:
-    """NEEDS_FULL for residuals that cannot stand on one review (#3422).
+    """NEEDS_FULL for residuals that cannot stand on one review.
 
     On a head that touches merge gate paths, a full round whose findings the
     stop rule would accept as residuals is recorded like a first full READY
@@ -5377,11 +5336,11 @@ def _standing_verdict(latest: ReviewRound) -> ParsedVerdict | None:
     attested digest, or no longer parses as NEEDS_CHANGES: the stop rule then
     has nothing it can trust and the round stays in remediation.
 
-    Parsed against the criterion ids the round itself recorded (#2291), the
+    Parsed against the criterion ids the round itself recorded, the
     same way the remediation leg re-reads it: without them every
     ``criteria_results`` entry is dropped, and the stop rule would accept a
     round whose recorded criterion the reviewer judged ``fail``. A round with no
-    recorded criteria has no ids and parses exactly as it did before #2291.
+    recorded criteria has no ids and parses with none.
     """
     from kew.review_contract import parse_verdict_sidecar, stored_declared_tests
 
@@ -5403,13 +5362,13 @@ def _standing_verdict(latest: ReviewRound) -> ParsedVerdict | None:
             latest.round,
         )
         return None
-    # The round's contract-test ids too (#2732): a cited failing contract test
+    # The round's contract-test ids too: a cited failing contract test
     # is a ``fail`` the stop rule must see, or the round reads as residual-only.
     parsed = parse_verdict_sidecar(
         data,
         plan_criterion_ids=recorded_criterion_ids(latest.criteria_json),
         contract_test_ids=recorded_contract_test_ids(latest.criteria_json),
-        # The declared set the round itself was parsed against (#3516).
+        # The declared set the round itself was parsed against.
         declared_tests=stored_declared_tests(latest.sidecar_path),
     )
     if parsed.verdict != _VERDICT_NEEDS_CHANGES:
@@ -5434,13 +5393,13 @@ def _apply_stop_rule(
     repo: str,
     gate_paths_touched: Callable[[], bool],
 ) -> bool:
-    """Accept a late residual-only NEEDS_CHANGES round as READY-with-residuals (#2112).
+    """Accept a late residual-only NEEDS_CHANGES round as READY-with-residuals.
 
     ``reserved`` says the caller already holds this item's review reservation —
     true on the dispatch path, where the reviewer's own reservation is still
     held; false on the standing-round path, where the filing takes one itself.
     ``gate_paths_touched`` says whether the round's head changes merge gate
-    paths (#3422); see :func:`_gate_paths_allow`.
+    paths; see :func:`_gate_paths_allow`.
 
     Returns False when the stop rule does not apply, so the caller remediates or
     converges as before. When it applies, the residual issue is filed (once per
@@ -5571,7 +5530,7 @@ def _stop_rule_verdict(
         after_rounds=config.review.stop_rule_after_rounds,
         max_severity=config.review.stop_rule_max_severity,
         dropped_findings=parsed.dropped_findings,
-        # A failed recorded criterion is never residual (#2291): the rule
+        # A failed recorded criterion is never residual: the rule
         # accepts defects in how the work was done, not the work not doing
         # what the item asked for.
         failing_criteria=parsed.failing_criteria,
@@ -5581,7 +5540,7 @@ def _stop_rule_verdict(
 def _gate_paths_allow(
     latest: ReviewRound, store: RunStore, gate_paths_touched: Callable[[], bool]
 ) -> bool:
-    """Whether the merge gate paths rule lets the stop rule accept *latest* (#3422).
+    """Whether the merge gate paths rule lets the stop rule accept *latest*.
 
     A head that touches merge gate paths owes two full reviews before anything
     stands on it, and accepted residuals stand like a READY. So the stop rule
@@ -5595,10 +5554,12 @@ def _gate_paths_allow(
     ``NEEDS_FULL``, so it is neither remediated nor counted against
     ``max_rounds``, and a confirming full round runs next. Only a
     ``NEEDS_CHANGES`` row dispatch did not decide that way (one recorded
-    before #3422, or a round that was no full review) is refused here; its
-    NEEDS_CHANGES then stands and is remediated. The gate paths are read last,
-    only for a round the rule would otherwise accept, and a head whose paths
-    cannot be read (:class:`GatePathsUnreadError`) waits for the next tick.
+    before dispatch recorded such rounds as NEEDS_FULL, or a round that was no
+    full review) is
+    refused here; its NEEDS_CHANGES then stands and is remediated. The gate
+    paths are read last, only for a round the rule would otherwise accept,
+    and a head whose paths cannot be read (:class:`GatePathsUnreadError`)
+    waits for the next tick.
     """
     prior = [
         r
@@ -5622,7 +5583,7 @@ def _gate_paths_allow(
 def _mark_retry_pending(
     item_id: str, latest: ReviewRound, exc: RoundMarkRetryError
 ) -> None:
-    """The acceptance is attested but not yet marked on its round (#2151).
+    """The acceptance is attested but not yet marked on its round.
 
     Nothing moved: the round stays the standing ``NEEDS_CHANGES`` this tick read,
     so the next tick re-reads the same acceptance and retries the mark. Recording
@@ -5718,7 +5679,7 @@ def _accept_round(
 ) -> int | None:
     """The accepted round's residual issue — filed once, and marked on the round.
 
-    The chain event is the attested acceptance; the mark (#2151) is what a reader
+    The chain event is the attested acceptance; the mark is what a reader
     polling ``review_rounds`` sees, and the merge gate requires both
     (``acceptance_on_record``), so neither half can merge the node on its own.
     This runs on every tick that reads an acceptance, not only the filing one, so
@@ -5808,7 +5769,7 @@ def _file_and_record(
     OPEN issue for them (a push voids the acceptance, not the findings), so that
     issue is reused rather than re-filed — the new acceptance points at it, the
     first one is never orphaned, and no duplicate is filed for a residual that
-    drifted a line or a word between rounds (#2152).
+    drifted a line or a word between rounds.
     """
     after_rounds = config.review.stop_rule_after_rounds
     max_severity = config.review.stop_rule_max_severity
@@ -5907,15 +5868,15 @@ def _publish_verdict_surfaces(
 ) -> None:
     # Mirror the verdict onto the PR head SHA: READY (bound to this head) flips
     # the required `kew-review` check to success; NEEDS_CHANGES holds it failure
-    # until a later round on the current head records READY (#1056).
-    # NEEDS_FULL (#2111) is not a failure: the full round it calls for is
+    # until a later round on the current head records READY.
+    # NEEDS_FULL is not a failure: the full round it calls for is
     # still due on this head, so the gate stays pending.
     if config.review.publish_status and verdict == VERDICT_NEEDS_FULL:
         review_status.publish_pending(repo, result.head_sha)
     elif config.review.publish_status:
         review_status.publish_verdict(repo, result.head_sha, verdict)
-    # Publish the full verdict details to the PR as an edit-in-place comment
-    # (#1046): one comment per PR, updated in place on every round.
+    # Publish the full verdict details to the PR as an edit-in-place comment:
+    # one comment per PR, updated in place on every round.
     if config.review.publish_comment:
         review_comment.post_verdict_comment(
             repo,
@@ -5929,7 +5890,7 @@ def _publish_verdict_surfaces(
             acceptance_evidence=sidecar.parsed.acceptance_evidence,
             acceptance_executed=sidecar.parsed.acceptance_executed,
             acceptance_reason=sidecar.parsed.acceptance_reason,
-            # The per-criterion verdict (#2291), and every criterion this round
+            # The per-criterion verdict, and every criterion this round
             # did NOT judge: the ids the prompt could not carry, and the whole
             # recorded plan when a stale artifact meant none were rendered. The
             # comment is the surface the merge is approved from, so a narrowed
@@ -5938,7 +5899,7 @@ def _publish_verdict_surfaces(
             criteria_results=sidecar.parsed.criteria_results,
             omitted_criterion_ids=result.omitted_criterion_ids,
             unjudged_criteria=result.unjudged_criteria,
-            # What the reviewer checked, and could not check (#3419) — shown
+            # What the reviewer checked, and could not check — shown
             # only for a round that was held to the coverage contract.
             coverage=sidecar.parsed.coverage,
             not_checked=(
@@ -5946,16 +5907,16 @@ def _publish_verdict_surfaces(
             ),
             not_checked_dropped=sidecar.parsed.dropped_not_checked,
             blocking=config.review.blocking,
-            # How near the branch is to the producer guard's run cap (#3193).
+            # How near the branch is to the producer guard's run cap.
             branch_runs=_branch_run_count(store, result.item_id),
-            # The pre-review gate's skip on this head, if any (#3280).
+            # The pre-review gate's skip on this head, if any.
             gate_skipped=gate_skip_reason(store, result.item_id, result.head_sha),
-            # Why a full READY awaits a second full review (#3422). A delta
+            # Why a full READY awaits a second full review. A delta
             # round's NEEDS_FULL is the full-pass rule's, not this one's.
             gate_paths=(
                 result.gate_paths if result.review_mode == REVIEW_MODE_FULL else ()
             ),
-            # The tests kew excused as declared off the findings (#3516).
+            # The tests kew excused as declared off the findings.
             excused_tests=sidecar.parsed.excused_tests,
         )
 
@@ -6002,7 +5963,7 @@ def _handle_unparseable(
     """An unparseable / evidence-free sidecar is the crash path — never guessed
     into a READY. Blocking → HELD review_unparseable; advisory → DEGRADED
     attested + proceed. Either way the verdict names the prompt the reviewer
-    ran under (*provenance*, #3024). A reviewer that provably never started
+    ran under (*provenance*). A reviewer that provably never started
     received no prompt, so its verdict and round attest no received text and
     no profile; the base artifact governed the attempt and is still named."""
     hold_reason = _crash_hold_reason(error_category)
@@ -6014,7 +5975,7 @@ def _handle_unparseable(
             item_id,
             hold_reason,
         )
-        # The HELD node still owes the chain its launch evidence (#1393): attest
+        # The HELD node still owes the chain its launch evidence: attest
         # the crash with its failing layer + error category so a dark lane is
         # diagnosable from the verdict stream under blocking too, not only in
         # advisory mode. Emit-only (no recorded round — the round never
@@ -6098,7 +6059,7 @@ def _attest_degraded(
     """Advisory-mode degrade: record a DEGRADED round + attest it, then proceed
     (the overlay reads DEGRADED as neither READY nor NEEDS_CHANGES → IN_REVIEW).
     A degrade from a launched reviewer records the prompt it ran under
-    (*provenance*, #3024) on the round and the attested verdict."""
+    (*provenance*) on the round and the attested verdict."""
     round_num = store.record_review_round(
         epic_ref,
         item_id,

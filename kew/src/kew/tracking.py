@@ -164,6 +164,9 @@ class DispatchResult:
     session_id_rejection: str = ""
     session_id_warning: str = ""  # Fixed credential-collision marker; never a handle.
     error_category: str = ""
+    #: A containment refusal's cause token (``kew.sandbox.REFUSAL_*``) when a
+    #: placed run was refused after admission; the hold is keyed on it.
+    containment_refusal: str = ""
     subtype: str = ""  # e.g. "error_max_budget_usd"
     stop_reason: str = ""  # e.g. "end_turn", "tool_use"
     # The runner's last non-protocol output lines, redacted and bounded

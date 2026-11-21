@@ -1,4 +1,4 @@
-"""Sandboxed dispatch execution, extracted from ``dispatch_core`` (Task 5).
+"""Sandboxed dispatch execution: the container half of the dispatch core.
 
 This module owns the container-execution sub-surface of the dispatch core: the
 ``pending``-row write (``_record_sandbox_start``), the telemetry folders
@@ -7,16 +7,14 @@ This module owns the container-execution sub-surface of the dispatch core: the
 and the two-layer launcher (``_run_sandboxed`` / ``_run_sandboxed_container``).
 
 Every telemetry path here reads the container's stdout through the RESOLVED
-runner's ``parse_line`` — the same parser the host path uses (#1147) — so kew
+runner's ``parse_line`` — the same parser the host path uses — so kew
 keeps one interpretation of a stream rather than a claude-only second one.
 Telemetry parsing suppresses adapter display because raw events can contain credentials.
-The terminal update reads the derived sidecar without replaying a transcript (I06T).
+The terminal update reads the derived sidecar without replaying a transcript.
 
-It is a pure seam extraction: the sandbox lifecycle and its exit-path finalization
-ordering (#725/#761/#SFD-152/#SFD-155) are UNCHANGED, and the seams the review
-launcher (#992) reaches — ``_stream_sandbox_log`` and ``_finalize_sandbox_run`` —
-keep their signatures and their importable-from-``dispatch_core`` names via the
-re-export in ``dispatch_core``.
+The review launcher reaches ``_stream_sandbox_log`` and
+``_finalize_sandbox_run`` through ``dispatch_core``, which re-exports them, so
+both keep their signatures and stay importable from there.
 
 Container entrypoint contract
 ----------------------------
@@ -31,9 +29,8 @@ particular the ones the dispatch/sandbox suites ``mock.patch`` at
 ``kew.dispatch_core.*`` (``_launch_container``, ``_stream_sandbox_log``,
 ``_push_and_open_pr``, ``_post_agent_report``, ``_detect_sandbox_runtime``) — are
 reached as attributes of the ``kew.dispatch_core`` module at call time. That
-mirrors the Wave 1 precedent (``run_store_reservations``): it both preserves the
-patch targets and breaks the import cycle (``dispatch_core`` imports these names
-back at load time for the re-export).
+both preserves the patch targets and breaks the import cycle (``dispatch_core``
+imports these names back at load time for the re-export).
 The dispatch core module is deliberately imported only at call time below. It
 re-exports this module's seams, so importing it while this module is still
 initializing makes a cold ``dispatch_sandbox`` import order-dependent.
@@ -86,6 +83,7 @@ from kew.exit_signal import (
     DiagnosticTail,
     name_signal_exit,
 )
+from kew.fleet_placement import placed_here
 from kew.ids import branch_slug
 from kew.inference_transport import resolve_inference_transport
 from kew.model_wait import model_wait_for
@@ -152,6 +150,7 @@ from kew.sandbox import (
     redact_credentials,
     remove_never_started_container,
     remove_prompt_handoff,
+    require_open_egress_acknowledgement,
     resource_caps,
     runtime_daemon_identity,
     settle_never_started_start,
@@ -458,7 +457,7 @@ def _sandbox_route_profile(
     # The caller resolved the immutable image ID (and refused the dispatch if
     # it could not) and resolved the transport BEFORE this capture — so the
     # profile records the endpoint the money actually goes through, not None
-    # dressed up as evidence (#1550 review F1/F3).
+    # dressed up as evidence.
     boundary = RealizedLaunchBoundary(
         containment=Containment.CONTAINED,
         source_provider=tracker or None,
@@ -508,7 +507,7 @@ def _record_placed_profile(
     store resolved the tag to, because that is the only answer describing the
     bytes the agent runs — this machine's ID for the same tag names bytes no
     container on the instance ever reads, and the tag they share names build
-    inputs rather than content (#2526 review).
+    inputs rather than content.
 
     The publication-credential gate runs here too, for the same reason it runs
     in :func:`_record_ready_sidecar_profile`: it reads the attempt's profile,
@@ -568,7 +567,7 @@ def _profile_recorded_after_launch(
     the immutable ID that describes its bytes is the one that instance resolves
     — read before its container starts and attested there
     (:func:`_record_placed_profile`). Recording this machine's ID for either
-    would attest bytes the agent never ran (#1550 F1, #2526 review).
+    would attest bytes the agent never ran.
     """
     if deferred:
         return True
@@ -660,7 +659,7 @@ def _record_sandbox_start(
     prompt_profile_version_id: int | None = None,
     profile_deferred: bool = False,
 ) -> str:
-    """Write the "pending" run row for a sandboxed dispatch (#739).
+    """Write the "pending" run row for a sandboxed dispatch.
 
     This row is the epic driver's liveness signal: ``_reconcile_reservations``
     treats a reservation with no run row past the startup grace as a dead
@@ -669,20 +668,18 @@ def _record_sandbox_start(
     declared dead. ``run_tracked_agent`` writes this row for host runs; the
     sandboxed path must do the same.
 
-    ``worker_cap`` > 0 makes this row an atomic worker-slot admission (#745),
+    ``worker_cap`` > 0 makes this row an atomic worker-slot admission,
     mirroring ``run_tracked_agent``: it is inserted only if the fleet is below
     the cap in the same transaction as the count, else ``WorkerCapReached`` is
     raised (no row written) so the caller requeues.
 
-    ``runner_name`` is the RESOLVED runner behind the container image (#1147),
-    not a constant: it was hardcoded to ``"claude-code"``, so run history
-    asserted a falsehood about every contained non-claude run. The stored value
-    is what ``kew status`` attributes spend with — ``_status_cost_by_runner``
-    buckets every run's cost by this column — so a wrong one moved a contained
-    opencode run's dollars onto claude-code's line. It is a plain column on the
-    record; the admission call below is untouched by it.
+    ``runner_name`` is the RESOLVED runner behind the container image, not a
+    constant. The stored value is what ``kew status`` attributes spend with —
+    ``_status_cost_by_runner`` buckets every run's cost by this column — so a
+    wrong one moves a contained run's dollars onto another runner's line. It is
+    a plain column on the record; the admission call below is untouched by it.
 
-    I01: the row goes through ``admit_run_with_identity`` — the same normalized
+    The row goes through ``admit_run_with_identity`` — the same normalized
     primitive the host path uses — so the immutable admission identity
     (``tracker`` + opaque ``item_id`` + delivery ``repo`` + epic node) is
     written in the same transaction as the run row. ``tracker`` and ``repo``
@@ -691,16 +688,16 @@ def _record_sandbox_start(
     identity exists to replace.
 
     ``repo`` lands on the run ROW as well as the identity, exactly as
-    ``_save_pending_run`` does it (#2097). The row is the only repository
-    binding a detached canonical publication gets, because it deliberately
-    never reads its worktree's origin. Stamping only the identity left that
-    publication with no slug to resolve, and left the two dispatch paths
-    disagreeing on the very column ``_label_request_superseded`` matches
-    stop-label ownership on — so a newer contained run of an item could not
-    supersede an older run's pending label reset.
+    ``_save_pending_run`` does it. The row is the only repository binding a
+    detached canonical publication gets, because it deliberately never reads
+    its worktree's origin. Without it that publication has no slug to resolve,
+    and the two dispatch paths disagree on the very column
+    ``_label_request_superseded`` matches stop-label ownership on — so a newer
+    contained run of an item could not supersede an older run's pending label
+    reset.
 
     ``self_check`` is whether the prompt handed to this container carried the
-    pre-publish self-check (#2454) — the contained path's half of the fact the
+    pre-publish self-check — the contained path's half of the fact the
     host path records through ``run_tracked_agent``, so the round-1 READY rate
     can be read for every dispatch rather than only the uncontained ones.
 
@@ -710,7 +707,7 @@ def _record_sandbox_start(
     instance's image store, not this one's
     (:func:`_profile_recorded_after_launch`).
 
-    I03C: ``image``/``runtime`` carry the containment boundary this row is
+    ``image``/``runtime`` carry the containment boundary this row is
     admitted for, so the same transaction also records the attempt's realized
     route profile — the resolved IMAGE ID, never the mutable tag. They default
     to ``None`` for callers that are not a contained dispatch; such a caller
@@ -744,7 +741,7 @@ def _record_sandbox_start(
             self_check=self_check,
             prompt_profile_version_id=prompt_profile_version_id,
         )
-        # Fleet concurrency is keyed on item_id (A3): exclude this run's own
+        # Fleet concurrency is keyed on item_id: exclude this run's own
         # item so it never counts itself. exclude_item wins over the legacy
         # int exclude_issue, which collapses every Linear row onto the 0
         # sentinel.
@@ -772,7 +769,7 @@ def _record_sandbox_start(
             cap=worker_cap,
             exclude_issue=cap_exclude_issue,
             exclude_item=item_id,
-            # The held review-stage slot this run starts under (#2459) is not
+            # The held review-stage slot this run starts under is not
             # a second run against it — same rule as the host path.
             exclude_run=held_reservation(),
             on_admit=admit_budget_check if worker_cap > 0 else None,
@@ -794,10 +791,10 @@ def _record_sandbox_start(
 def config_with_run_cap(
     config: DispatchConfig, budget_override_usd: float | None
 ) -> DispatchConfig:
-    """*config*, carrying a runtime override as the run cap (#1462).
+    """*config*, carrying a runtime override as the run cap.
 
     The container argv reads its cap from ``config.agent.max_budget_usd``, so a
-    caller holding an override (``max_remediation_usd``, #993) hands the runner
+    caller holding an override (``max_remediation_usd``) hands the runner
     a copy carrying it — the override then wins in the container as it does in
     the host argv. The caller's config is never mutated.
     """
@@ -810,7 +807,7 @@ def config_with_run_cap(
 
 @dataclass(frozen=True)
 class ContainedCostGovernor:
-    """The host path's mid-run cost ceilings, applied to a contained run (#1462).
+    """The host path's mid-run cost ceilings, applied to a contained run.
 
     ``budget_check`` is the run cap (``budget_watchdog(..., contained=True)``)
     and ``anomaly_threshold_usd`` the circuit breaker's ceiling, both decided
@@ -838,7 +835,7 @@ class ContainedCostGovernor:
 
 
 #: What a contained cost stop is recorded as. The host's ``_classify_attempt``
-#: turns a watchdog trip into ``budget_stop`` (#859): the item fails and the
+#: turns a watchdog trip into ``budget_stop``: the item fails and the
 #: checkout is kept. ``budget_exceeded`` would complete a clean tree and delete
 #: it, and a contained agent commits inside the container, so its clean clone
 #: is exactly where the work is.
@@ -873,7 +870,7 @@ class _CostStop:
     def observe(self, cost: float, compactions: int) -> bool:
         self.peak_usd = max(self.peak_usd, cost)
         if not self.tripped:
-            # The host counts compactions on the result the breaker reads (#859).
+            # The host counts compactions on the result the breaker reads.
             self.result.compaction_count = compactions
             self.tripped = _should_trip_budget(
                 self.peak_usd,
@@ -977,7 +974,7 @@ class SilencePacing:
 
 
 class StreamSilenceWatch:
-    """Stop a contained run whose model call went silent for too long (#2240).
+    """Stop a contained run whose model call went silent for too long.
 
     The stream consumer blocks in ``for line in handle``, so the watch runs on a
     thread beside it. Every line the wrapped stream yields is output and resets
@@ -1180,11 +1177,11 @@ def _record_stream_silence(
 class _SandboxTelemetry:
     """Cost/token/model telemetry folded from a sandbox stream's ``StreamEvent``s.
 
-    Host runs get this via ``run_tracked_agent``; contained rows were blind, so
-    cost tracking, ``kew report``, budget accounting, and the breaker's
-    per-(model, complexity) buckets all under-counted sandboxed runs (#761).
-    All fields default to zero/``None`` — the fallback for a stream that
-    reported nothing. ``from_result_event`` distinguishes "the run genuinely
+    Host runs get this via ``run_tracked_agent`` and contained runs get it here,
+    or cost tracking, ``kew report``, budget accounting, and the breaker's
+    per-(model, complexity) buckets would under-count sandboxed runs. All
+    fields default to zero/``None`` — the fallback for a stream that reported
+    nothing. ``from_result_event`` distinguishes "the run genuinely
     reported these zeros" from "the stream never reached a terminal result
     event", so the terminal update can preserve live-flushed telemetry instead
     of overwriting it with a truncated replay. ``has_native_cost`` draws the
@@ -1203,7 +1200,7 @@ class _SandboxTelemetry:
     reported_service_tier: str | None = None
     from_result_event: bool = False
     has_native_cost: bool = False
-    # What the cost governor prices (#1462), as the host's watchdog does: the
+    # What the cost governor prices, as the host's watchdog does: the
     # per-turn usage and per-step native cost exactly as streamed. A result
     # event restates the run over the fields above; it never touches these, so
     # a forged or early summary line cannot lower the cost the governor sees.
@@ -1221,7 +1218,7 @@ def _resolve_stream_parser(runner: str) -> AgentRunner | None:
 
     Fail-SAFE, not fail-closed, and deliberately so: this resolution also runs
     during terminal finalization, where raising would leave the run row
-    "pending" forever and pin the node's reservation (#739). The fail-CLOSED
+    "pending" forever and pin the node's reservation. The fail-CLOSED
     gate is at launch (``run_container_and_stream`` → ``get_runner``), so an
     unknown runner never reaches a container in the first place; reaching here
     with an unresolvable name means kew lost the name after the run, and the
@@ -1247,14 +1244,14 @@ def _capture_reported_model(live: _SandboxTelemetry, raw: object) -> None:
 
 
 def _accumulate_native_cost(live: _SandboxTelemetry, event: StreamEvent) -> bool:
-    """Sum a ``step`` event's native per-step cost into *live* (#1082).
+    """Sum a ``step`` event's native per-step cost into *live*.
 
     Mirrors ``orchestrator._accumulate_native_step_cost``: opencode/pi report
     the provider-billed figure per step, so a run's spend exists ONLY as this
     sum; claude-code sends ``None`` here and restates its total on the result
     event instead. ``bool`` is rejected explicitly (it is an ``int`` subclass),
     and so is a negative step: a bill never refunds, and a negative figure
-    would buy back spend under the cost governor (#1462).
+    would buy back spend under the cost governor.
     """
     cost = event.metadata.get("cost_usd")
     if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
@@ -1271,8 +1268,8 @@ def _apply_run_totals(live: _SandboxTelemetry, event: StreamEvent) -> None:
     A runner that restates the whole run (claude-code's ``modelUsage``) is
     authoritative and replaces the per-turn accumulation. One that does not
     (opencode, pi, lemonade, hermes) leaves the accumulated per-step figures
-    standing — overwriting those with an absent summary is precisely the
-    zeroing #761 was about.
+    standing — overwriting those with an absent summary would zero the run's
+    real cost and tokens.
 
     Each half of the summary is applied only when the runner actually reported
     it, cost and tokens alike: claude-code ALWAYS attaches a ``RunTotals`` (a
@@ -1313,10 +1310,10 @@ def _fold_stream_event(live: _SandboxTelemetry, event: StreamEvent) -> bool:
 
     Deliberately the SAME event grammar ``orchestrator._handle_stream_event``
     reads, so a contained run and a host run derive one run's telemetry the same
-    way rather than kew keeping two interpretations of ``StreamEvent`` (#1147):
+    way rather than kew keeping two interpretations of ``StreamEvent``:
     ``metadata["model"]`` names the model, ``usage`` events accumulate tokens
     (``step`` is excluded — runners emit a paired usage+step per turn and
-    summing both double-counts, #310/#311), ``step`` events sum the native
+    summing both double-counts), ``step`` events sum the native
     per-step cost, and a ``result`` event applies the run summary if it carries
     one.
 
@@ -1337,7 +1334,7 @@ def _fold_stream_event(live: _SandboxTelemetry, event: StreamEvent) -> bool:
         return _accumulate_native_cost(live, event)
     if event.event_type == "compaction":
         # Counted for the breaker's compaction allowance, as the host's
-        # ``_handle_stream_event`` counts it (#859).
+        # ``_handle_stream_event`` counts it.
         live.compaction_count += 1
         return False
     if not event_contributes_usage(event):
@@ -1360,19 +1357,17 @@ def _accumulate_stream_line(
     runner: AgentRunner,
     derivation: StreamDerivation | None = None,
 ) -> bool:
-    """Fold one container stream line into *live* via ``runner.parse_line`` (#1147).
+    """Fold one container stream line into *live* via ``runner.parse_line``.
 
-    The sandbox path used to read claude-shaped JSON fields directly, so every
-    non-claude image recorded zero cost and zero tokens — the #761 blindness
-    class. Routing through the runner's OWN parser is what makes a contained
-    opencode/pi run's spend land on the row, and it is the same parser the host
-    path (``orchestrator._process_line``) already uses.
+    Routing through the runner's OWN parser, not claude-shaped JSON fields, is
+    what makes a contained opencode/pi run's spend land on the row, and it is
+    the same parser the host path (``orchestrator._process_line``) uses.
 
     Container stdout is another process's untrusted output: a parser that trips
     on a malformed or interleaved line must not kill the tail loop (which would
     abort a live run under ``sandbox_stream_error``) or the terminal replay.
     *derivation*, when given, reads each parsed event for the agent's
-    ``KEW_NEEDS_HUMAN`` stop exactly as the host path does (#2601).
+    ``KEW_NEEDS_HUMAN`` stop exactly as the host path does.
     Returns True when the line moved a cost/token figure."""
     try:
         events = runner.parse_line(line)
@@ -1388,13 +1383,12 @@ def _accumulate_stream_line(
 
 
 def _telemetry_from_evidence(log_file: Path | None) -> _SandboxTelemetry:
-    """A finished sandbox run's telemetry from its DERIVED evidence (I06T).
+    """A finished sandbox run's telemetry from its DERIVED evidence.
 
-    This used to re-read the whole transcript through the runner's parser,
-    which is why the transcript had to exist. The fold now happens once, live,
-    in ``_stream_sandbox_log`` — the same ``parse_line`` over the same lines,
-    at the only moment the raw bytes are allowed to be in memory — and the
-    totals ride to the finalizer in the sidecar instead of in a log.
+    The fold happens once, live, in ``_stream_sandbox_log`` — the runner's
+    ``parse_line`` over the stream, at the only moment the raw bytes are allowed
+    to be in memory — and the totals ride to the finalizer in the sidecar, so
+    no transcript is re-read here.
 
     ``from_result_event`` is False when the stream carried no terminal result
     event at all, and equally when there is no sidecar (a legacy contained run,
@@ -1461,7 +1455,7 @@ def _planned_bound_usd(
     model: str,
     overrides: dict[str, tuple[float, float]] | None,
 ) -> float | None:
-    """The planned half of a sandbox row's cost pair (#1092): *tokens* priced at
+    """The planned half of a sandbox row's cost pair: *tokens* priced at
     *model*'s bound, or None when there is no usable rate to price against.
 
     Mirrors ``DispatchResult.compute_cost`` on the host path — an unpriced model
@@ -1495,7 +1489,7 @@ def _priced_tokens_usd(
     """Token counts priced at *model*, or None when no finite price exists.
 
     The counts come from container output, which is untrusted: a count past
-    what a float holds raises out of the pricing arithmetic (#1462). The
+    what a float holds raises out of the pricing arithmetic. The
     parser bounds each figure (``protocol_int``), so only an absurd sum gets
     here; the governor reads None as unbounded spend, and a row write records
     :data:`MAX_RECORDED_COST_USD`.
@@ -1532,7 +1526,7 @@ def _mark_unpriced_accounting(
     burned tokens against a model with no usable rate records $0.00, which the
     ledger cannot tell from a run that genuinely cost nothing — local inference
     under a free provider prefix is $0 *by design* and stays readable as such,
-    because ``is_priced_model`` counts a free prefix as priced (#1565).
+    because ``is_priced_model`` counts a free prefix as priced.
     """
     from kew.pricing import is_priced_model
 
@@ -1554,7 +1548,7 @@ def _effective_cost_usd(
 
     Mirrors ``DispatchResult.compute_cost``'s preference on the host path — a
     provider-billed number beats a rate-card estimate whenever the stream
-    produced one (#1082), and a runner that never reports one (lemonade; pi and
+    produced one, and a runner that never reports one (lemonade; pi and
     hermes when the provider omits it) is priced from its tokens rather than
     recorded as free. claude-code reports nothing until its result event, so it
     is estimate-priced for the whole run and native-priced at the end.
@@ -1618,7 +1612,7 @@ def _write_live_sandbox_telemetry(
     live_cost = _effective_cost_usd(live, model, overrides)
     if live_cost is not None:
         stored.estimated_cost_usd = live_cost
-    # The planned half of the pair (#1092), kept in step with the token columns
+    # The planned half of the pair, kept in step with the token columns
     # written just above. Provisional: this is the token subset seen so far, and
     # ``_finalize_sandbox_run`` recomputes it from the authoritative totals.
     stored.planned_cost_usd = _planned_bound_usd(live, model, overrides)
@@ -1641,20 +1635,20 @@ def _stream_sandbox_log(
     on_cost: CostObserver | None = None,
     _now: Callable[[], float] = time.monotonic,
 ) -> int:
-    """Fold the container stream into evidence, writing a sanitized log (I06T).
+    """Fold the container stream into evidence, writing a sanitized log.
 
     The container's stdout is raw provider output. It is folded twice as it
-    arrives — through the runner's own ``parse_line`` for cost/tokens (#1147)
+    arrives — through the runner's own ``parse_line`` for cost/tokens
     and through :class:`StreamDerivation` for first-edit, tool, terminal and
     report facts — and then dropped. What lands on disk is the sanitized
     progress log plus the derived-evidence sidecar the finalizer, the report
     publisher and the first-edit columns all read; nothing re-reads the log,
-    because there is no longer anything in it to re-read.
+    because it holds no raw stream to re-read.
 
     Live telemetry still flushes to the run row at most every
     ``_SANDBOX_LIVE_FLUSH_SECS``. Returns the container exit code.
 
-    *runner* names the parser (#1147): the container is running THAT agent, so
+    *runner* names the parser: the container is running THAT agent, so
     its stream is read by that agent's ``parse_line`` rather than assumed to be
     claude stream-json.
 
@@ -1693,7 +1687,7 @@ def sandbox_log_fold(
     """The per-line fold :func:`_stream_sandbox_log` applies, as a callable.
 
     Split out so a run whose agent is NOT on this machine folds its stream
-    through exactly this code (:mod:`kew.dispatch_placement`, #2526). A remote
+    through exactly this code (:mod:`kew.dispatch_placement`). A remote
     placement relays its lines to a callback rather than over a pipe, and a
     second fold written against that shape would be a second set of evidence
     rules — a sanitized log and a derived-evidence sidecar that drifted from
@@ -1711,7 +1705,7 @@ def sandbox_log_fold(
     # once the agent starts reporting).
     flushed_at = [_now() - _SANDBOX_LIVE_FLUSH_SECS]
     # The credential this run launches under: a usage warning seen under
-    # another one is for a token since replaced (#3329).
+    # another one is for a token since replaced.
     record_runner_launch(store, runner)
     tripped = [False]
     try:
@@ -1760,7 +1754,7 @@ def sandbox_log_fold(
 def _record_stream_quota_warning(
     store: RunStore | None, derivation: StreamDerivation, runner: str, run_id: str
 ) -> None:
-    """Record the stream's usage warning against the runner's token (#3329).
+    """Record the stream's usage warning against the runner's token.
 
     Every contained run — a dispatch and a reviewer alike — folds through
     here, so a warning either kind's stream carried is recorded once, before
@@ -1809,7 +1803,7 @@ def _cost_tripped(
     exited process. codex reports its last usage on that same
     ``turn.completed`` line; the usage still counts toward the row. Only a
     line that carries a result is spared: a line after it that spends is
-    judged normally (#1798)."""
+    judged normally."""
     if on_cost is None or (ends_run and not tripped):
         return tripped
     return on_cost(_governed_cost_usd(live, model, overrides), live.compaction_count)
@@ -1859,7 +1853,7 @@ def _is_diagnostic_line(line: str) -> bool:
 
 @dataclass
 class _DiagnosticTap:
-    """A container stream that keeps its last non-protocol lines (#3191).
+    """A container stream that keeps its last non-protocol lines.
 
     Keeps the stream consumer's contract (iterate, then ``wait``) unchanged,
     as :class:`kew.review_stream.ReviewResultTap` does, so every run kind's
@@ -1868,7 +1862,7 @@ class _DiagnosticTap:
 
     stream: Any
     diagnostic: DiagnosticTail
-    #: Reads every protocol line for the runner's own budget stop (#1462).
+    #: Reads every protocol line for the runner's own budget stop.
     budget: RunnerBudgetLatch | None = None
 
     @property
@@ -1956,17 +1950,16 @@ def _finalize_sandbox_run(
 
     *cost_floor_usd* is the least cost the row may record: a cost-stopped
     run's cost at the stop (:func:`_cost_stop_floor_usd`), which no line the
-    agent wrote afterwards can lower (#1462).
+    agent wrote afterwards can lower.
 
     Reads the run's cost/token/model telemetry from the derived-evidence
-    sidecar the streaming loop wrote, so contained rows stop recording zero
-    cost and the wrong model (#761) without the transcript that used to be
-    replayed for it (I06T). *runner* no longer selects a parser here — the
-    runner that parsed the stream is the one that tailed it — it only names the
-    producer the derived facts are imported into the ledger under, so a runner
-    claim stays distinguishable from a host attestation forever.
+    sidecar the streaming loop wrote, so a contained row records the run's
+    cost and model without replaying a transcript. *runner* does not select a
+    parser here — the runner that parsed the stream is the one that tailed it —
+    it only names the producer the derived facts are imported into the ledger
+    under, so a runner claim stays distinguishable from a host attestation forever.
 
-    *model*/*overrides* price the planned bound (#1092) against the SAME
+    *model*/*overrides* price the planned bound against the SAME
     authoritative token totals written below. The live streaming path flushes
     only periodically and never after its last line, so its provisional bound
     covers a token subset; recomputing here keeps both halves of the pair
@@ -1990,7 +1983,7 @@ def _finalize_sandbox_run(
     now = datetime.now(UTC)
     # *status* overrides the derived one so a finished run whose publication
     # failed lands directly in awaiting_publication: one write, no window in
-    # which the row reads as a plain success (review round 18).
+    # which the row reads as a plain success.
     stored.status = status or ("success" if exit_code == 0 else "failure")
     stored.exit_code = exit_code
     stored.finished_at = now
@@ -2021,12 +2014,11 @@ def _finalize_sandbox_run(
 def _import_contained_runner_evidence(
     store: RunStore, stored: RunRecord, runner: str
 ) -> None:
-    """Import a contained run's derived stream facts into the ledger (I06).
+    """Import a contained run's derived stream facts into the ledger.
 
     The host path does this from ``dispatch_core._import_runner_evidence``; a
-    contained run finalizes here instead, and a receipt that could describe a
-    host run but not the same run in a container would be the containment
-    blind spot (#761) reappearing in the evidence layer.
+    contained run finalizes here instead, so a receipt can describe the same
+    run in a container as well as on the host.
 
     Telemetry, so best-effort — a ledger that cannot take these must never
     leave a terminal row unwritten. An absent derivation is imported as an
@@ -2084,8 +2076,8 @@ def _apply_terminal_telemetry(
     overrides: dict[str, tuple[float, float]] | None,
 ) -> None:
     """Overwrite *stored*'s cost/token/model columns with the run's
-    authoritative result-event telemetry (#761), repricing the planned bound
-    (#1092) from the same totals. Only ever called with telemetry that came
+    authoritative result-event telemetry, repricing the planned bound
+    from the same totals. Only ever called with telemetry that came
     from a real result event — see ``_finalize_sandbox_run``.
 
     Cost goes through ``_effective_cost_usd`` for the same reason the host path
@@ -2124,8 +2116,8 @@ def host_producer() -> Producer:
 def _artifact_recorder(store: RunStore) -> Callable[..., Any]:
     """The store's normalized artifact writer, or a refusal.
 
-    ``RunStore`` is a Protocol; the artifact index arrived with I06 as a mixin
-    on the SQLite implementation. A store without it cannot index the prompt,
+    ``RunStore`` is a Protocol; the artifact index is a mixin on the SQLite
+    implementation. A store without it cannot index the prompt,
     and an unindexed prompt is one no receipt can name — so this refuses rather
     than retaining bytes nothing points at.
     """
@@ -2155,14 +2147,14 @@ def _trusted_base_observation(checkout_dir: Path) -> tuple[str, str]:
 
     Read here, before the container exists, because after launch the checkout
     is agent-writable: a base read afterwards is a base the agent could have
-    rewritten, and I06P/I07 bind a package and an artifact tree to this exact
+    rewritten, and the run's package and artifact tree are bound to this exact
     commit.
 
     Returns ``(value, source)``. An unreadable or non-SHA answer is recorded as
     an explicit :data:`TRUSTED_BASE_UNAVAILABLE` observation with an
     ``unobservable`` source — never as a plausible-looking sha, and never as
-    silence. The consumer that needs a real base (I06P's package, I07's
-    artifact tree) refuses on the typed gap; a dispatch that can still be
+    silence. The consumer that needs a real base (the package, the artifact
+    tree) refuses on the typed gap; a dispatch that can still be
     described honestly is not this node's to stop.
     """
     sha = ""
@@ -2192,7 +2184,7 @@ def _placed_base_observation(checkout_dir: Path, placement: Placement) -> str:
     could have rewritten. What this adds is that the local path does not pay
     for it — a placement on this machine publishes from the checkout the agent
     wrote, with no artifact to bind to a base — so ``placement = local`` makes
-    exactly the ``git`` calls it made before placement existed (#2526).
+    no ``git`` call here.
 
     An UNOBSERVABLE base refuses the placement, before admission, rather than
     travelling as the :data:`TRUSTED_BASE_UNAVAILABLE` marker. The instance
@@ -2233,12 +2225,32 @@ def _held_placement(
     instance is claimed (:func:`kew.dispatch_placement.hold_contained_placement`)
     and an unobservable base releases that claim on its way out.
     """
-    from kew.dispatch_placement import hold_contained_placement
+    from kew.dispatch_placement import hold_contained_placement, placed_remotely
 
     with hold_contained_placement(
         config, store, runner=runner, run_kind=run_kind, transport=transport
     ) as held:
+        if not placed_remotely(held.placement) and not placed_here(config, run_kind):
+            # Admission skipped this machine's network while the site was open.
+            _admit_local_egress(config, runner=runner, transport=transport)
         yield held, _placed_base_observation(checkout_dir, held.placement)
+
+
+def _admit_local_egress(
+    config: DispatchConfig,
+    *,
+    runner: str,
+    transport: ResolvedInferenceTransport | None,
+) -> None:
+    """Refuse unacknowledged open egress on this machine, else warn."""
+    warning = require_open_egress_acknowledgement(
+        config.sandbox,
+        runner=runner,
+        runtime=config.sandbox.runtime,
+        sidecar=transport is not None and transport.sidecar,
+    )
+    if warning:
+        _warn(warning)
 
 
 def protected_prompt_root(config: DispatchConfig) -> Path:
@@ -2252,8 +2264,8 @@ def protected_prompt_root(config: DispatchConfig) -> Path:
     points at, and a second project (or a test) pointed at its own log dir gets
     its own protected tree instead of writing into the developer's checkout.
 
-    The layout under that anchor is I06's
-    (:func:`kew.sensitive_prompt.default_root`), unchanged: ``.kew/private/
+    The layout under that anchor is
+    :func:`kew.sensitive_prompt.default_root`'s: ``.kew/private/
     prompts``, owner-only, outside SQLite, never staged by a backup.
     """
     return default_root(Path(config.logging.dir).resolve())
@@ -2276,12 +2288,12 @@ def _capture_launch_evidence(
 
     * the **exact compiled prompt** — retained by :mod:`kew.sensitive_prompt`
       as owner-only bytes outside SQLite, indexed by a normalized artifact row,
-      and named in the ledger by digest only (I06). The prompt is written into
+      and named in the ledger by digest only. The prompt is written into
       the mounted checkout for the entrypoint to read, and the checkout is
       agent-writable, so the copy the host attests to must be taken from the
       string it compiled, not read back from the mount.
-    * the **trusted base commit** the package, artifact tree and receipt of
-      I06P/I07 are later bound to.
+    * the **trusted base commit** the package, artifact tree and receipt are
+      later bound to.
 
     Fail-closed: both are required evidence, so a store that cannot record them
     refuses the launch rather than running an attempt no receipt can describe.
@@ -2455,24 +2467,24 @@ def _run_sandboxed(
     Container mounts only checkout_dir. On exit code 0 the host runs
     `git push` and `gh pr create` so the agent never needs a GitHub token.
 
-    ``worker_cap``/``cap_exclude_issue`` forward the #745 atomic worker-slot
+    ``worker_cap``/``cap_exclude_issue`` forward the atomic worker-slot
     admission down to the ``pending``-row write (``_record_sandbox_start``).
     ``tracker`` names which work tracker ``item_id`` belongs to — the same
     dispatch-time value ``execute_dispatch`` validated the id against — so the
     admission identity records the id's namespace instead of re-deriving it
-    from the id's shape (I01).
+    from the id's shape.
 
-    ``image`` is the caller's runner-derived image (``SandboxDecision.image``,
-    #1144). An empty one means the caller lost it somewhere between the
-    decision and here: refuse rather than guess, because the only guess
-    available is the claude image and that is the #1104 incident. ``runner`` is
-    the resolved runner name behind that image; it rides down to the container
-    args build (#1145) and to the credential env allowlist (#1146), so the
+    ``image`` is the caller's runner-derived image (``SandboxDecision.image``).
+    An empty one means the caller lost it somewhere between the decision and
+    here: refuse rather than guess, because the only guess available is the
+    claude image, which would run a non-claude agent in the wrong image.
+    ``runner`` is the resolved runner name behind that image; it rides down to
+    the container args build and to the credential env allowlist, so the
     flags, the credentials and the image all describe the same agent.
 
-    ``cost_governor`` is the run's mid-flight cost authority (#1462): the
-    admission gate only refuses new work, so without it a contained run that
-    passed its cap mid-run ran to completion.
+    ``cost_governor`` is the run's mid-flight cost authority: the admission
+    gate only refuses new work, so without it a contained run that passed its
+    cap mid-run would run to completion.
     """
     run_id = run_id or str(uuid.uuid4())
     if not image:
@@ -2482,9 +2494,8 @@ def _run_sandboxed(
             "[sandbox] images in docs/configuration.md)."
         )
     # Probe result gates availability only; argv[0] must be the BARE
-    # allowlisted runtime name, never the shutil.which() path (2026-07-16
-    # argv/allowlist incident — second resolution site, missed by the
-    # sandbox.py fix in #692).
+    # allowlisted runtime name, never the shutil.which() path, because the
+    # subprocess allowlist matches names only.
     # These three sandbox-runtime shims are aliased imports in dispatch_core
     # (renamed from kew.sandbox), so mypy does not treat them as re-exported
     # attributes — but the dispatch/sandbox suites patch them at
@@ -2510,11 +2521,10 @@ def _run_sandboxed(
             error_category="sandbox_runtime_missing",
         )
 
-    # Prompt handoff (#695): write the prompt into the mounted checkout dir so
-    # the container entrypoint feeds it to the agent on stdin. See
-    # docs/sandbox-entrypoint-contract.md for the full contract.
-    # Through the shared helper: the checkout is agent-writable, and a plain
-    # write follows a symlink planted there out of the checkout entirely.
+    # Prompt handoff (docs/sandbox-entrypoint-contract.md): the entrypoint feeds
+    # this file to the agent on stdin. The shared helper, because a plain write
+    # would follow a symlink planted in the agent-writable checkout out of it
+    # entirely.
     write_prompt_handoff(checkout_dir, prompt)
 
     result = None
@@ -2554,7 +2564,7 @@ def _run_sandboxed(
         raise
     finally:
         # Delete the mounted prompt handoff host-side on every exit path —
-        # success, failure, or kill (#725) — so it never lands in a PR branch.
+        # success, failure, or kill — so it never lands in a PR branch.
         # Tolerant of it already being gone, mirroring container teardown.
         with preserve_dispatch_result(result):
             remove_prompt_handoff(checkout_dir)
@@ -2575,17 +2585,16 @@ def build_agent_container_argv(
 
     The runner's own flags become the container command (``"$@"`` for the
     entrypoint, contract element 3): ``build_command()`` minus the binary and
-    minus the prompt, which travels via the mounted file and never argv (#695).
+    minus the prompt, which travels via the mounted file and never argv.
     ``model`` is the effective (routed) model the caller resolved, so routing
-    reaches the container and not just the run row (#761). An unknown runner
+    reaches the container and not just the run row. An unknown runner
     raises out of ``get_runner`` rather than falling back to claude flags.
 
     ``runtime`` is passed as the BARE name from config, never a
     ``shutil.which()`` path: argv[0] goes through the subprocess allowlist,
     which matches names only, so a resolved ``/usr/local/bin/docker`` is
-    rejected at launch. Enforcing that once is what killed the #1017 bug class
-    — which is why every contained caller builds its argv here, rather than
-    assembling its own and re-deriving the invariant.
+    rejected at launch. Every contained caller builds its argv here, rather
+    than assembling its own and re-deriving that invariant.
 
     ``inference_transport`` comes from the caller because the two callers
     resolve it at different moments: the sandbox launcher resolves it inline,
@@ -2655,7 +2664,7 @@ def _own_sidecar_identity(
 
     A worker whose ``start`` then fails is still ``created``; only an id lets
     the unwind remove it, and an unconfirmed removal would also keep the
-    supervisor from tearing down the proxy, network and volume (#2973).
+    supervisor from tearing down the proxy, network and volume.
     """
     handle.container_id = worker_id
     _register_sidecar_identity(store, run_id, supervisor, worker_id)
@@ -2972,7 +2981,7 @@ def _stale_removal_key(event: str, container_id: str) -> str:
 
 
 def _labelled_create_argv(argv: list[str], store: RunStore, run_id: str) -> list[str]:
-    """Stamp the container with the ledger and run creating it (#2973).
+    """Stamp the container with the ledger and run creating it.
 
     ``kew-<item>`` names are host-wide, so a leftover is only ever traced to
     an owner through these labels. A legacy ledger with no identity labels
@@ -3013,7 +3022,7 @@ def _proven_dead_here(
 def _remove_stale_created_container(
     store: RunStore, run_id: str, runtime: str, name: str
 ) -> bool:
-    """Free the item's container name from a never-started leftover (#2973).
+    """Free the item's container name from a never-started leftover.
 
     A container left ``created`` keeps ``kew-<item>``, and every later create
     of that name is refused. Only a never-started one that this ledger proves
@@ -3035,7 +3044,7 @@ def _remove_stale_created_container(
         _warn(f"Sandbox: stale container {name!r} kept: {runtime} daemon unnamed")
         return False
     # A finished run's leftover goes by its id even when a loaded daemon cannot
-    # be named (#3315): its intent then names no daemon, so only the removal
+    # be named: its intent then names no daemon, so only the removal
     # audited right after ``rm`` records it.
     audit = _stale_removal_audit(store, run_id, runtime, name, stale_id, daemon)
     return _audited_removal(store, runtime, audit)
@@ -3182,7 +3191,7 @@ def _create_freeing_stale_name(
 
     A create that times out is retried, after whatever it may have left is
     cleared, before the run is failed as :class:`ContainerCreateTimedOut`.
-    The retries also stop at *deadline* (#3186), a ceiling per container
+    The retries also stop at *deadline*, a ceiling per container
     attempt on :data:`launch_clock` — by default ``WALL_CLOCK_LIMIT_SECONDS``
     from this attempt's launch, not the run's configured timeout — and no
     retry starts that could end past it.
@@ -3221,7 +3230,7 @@ def _create_retry_fits(attempt: int, cost: float, deadline: float) -> bool:
 
 
 def run_deadline(seconds: float = WALL_CLOCK_LIMIT_SECONDS) -> float:
-    """The create-retry ceiling for a container attempt launching now (#3186):
+    """The create-retry ceiling for a container attempt launching now:
     *seconds* (``WALL_CLOCK_LIMIT_SECONDS``, the container's own wall-clock
     limit) on :data:`launch_clock` from this attempt's launch. Per attempt, and
     not the run's configured timeout."""
@@ -3230,13 +3239,13 @@ def run_deadline(seconds: float = WALL_CLOCK_LIMIT_SECONDS) -> float:
 
 #: How many times one launch tries a ``create`` the runtime did not answer in
 #: time. A loaded host is slow to create, not wrong: the next attempt usually
-#: lands, and a failure here is infrastructure, not the run (#3103).
+#: lands, and a failure here is infrastructure, not the run.
 CREATE_TIMEOUT_ATTEMPTS = 3
 #: The first wait before a timed-out create is tried again; it doubles each time.
 CREATE_TIMEOUT_BACKOFF_SECONDS = 2.0
 CREATE_RETRIED = "container_create_retried"
 #: The clock a container attempt's create-retry ceiling is read on, and the wait between
-#: create retries (#3186). Process boundaries, named once, so a test pins the
+#: create retries. Process boundaries, named once, so a test pins the
 #: clock instead of sitting out a backoff.
 launch_clock: Callable[[], float] = time.monotonic
 launch_wait: Callable[[float], None] = time.sleep
@@ -3251,9 +3260,9 @@ def _create_once_freeing_stale_name(
 ) -> str:
     """Create, and create once more only after the name was freed.
 
-    A failed create whose container this run's own create committed (#3007)
+    A failed create whose container this run's own create committed
     is not a conflict with anyone: that container is removed by its id and the
-    create runs again (#3246). Only a container from another run goes down the
+    create runs again. Only a container from another run goes down the
     stale-name path, which removes it only when its run is proven dead.
     """
     from kew.sandbox import create_registered_container
@@ -3276,7 +3285,7 @@ def _removed_own_committed_create(
     name: str,
     exc: ContainerStartFailed,
 ) -> bool:
-    """Remove a never-started container this run's own create left (#3246).
+    """Remove a never-started container this run's own create left.
 
     Ownership is the ledger and run labels, and the id is persisted on the
     row before anything is removed under it (:func:`_adopt_ambiguous_create`).
@@ -3311,7 +3320,7 @@ def _removed_adopted_id(
 
     The audit names the daemon this run recorded before its create. Once the
     container is gone the row's id is cleared, so a crash before the next
-    create returns leaves recovery the cidfile (#3315), never the removed id.
+    create returns leaves recovery the cidfile, never the removed id.
     """
     daemon = store.get_meta(container_daemon_key(run_id))
     audit = _stale_removal_audit(store, run_id, runtime, name, adopted, daemon)
@@ -3324,7 +3333,7 @@ def _removed_adopted_id(
 def _clear_timed_out_create(
     store: RunStore, run_id: str, argv: list[str], name: str
 ) -> bool:
-    """Free the name and cidfile a timed-out create may have taken (#3103).
+    """Free the name and cidfile a timed-out create may have taken.
 
     The daemon may have made the container after its client was killed. This
     run's own never-started container is removed through the stale-container
@@ -3339,7 +3348,7 @@ def _clear_timed_out_create(
     runtime = argv[0]
     if not _remove_stale_created_container(store, run_id, runtime, name):
         # A daemon too loaded to name refuses the audited reclaim; this run's
-        # own create is still removed, by the id its labels prove (#3246).
+        # own create is still removed, by the id its labels prove.
         adopted = _adopt_ambiguous_create(store, run_id, runtime, name)
         freed = (
             _removed_adopted_id(store, run_id, runtime, name, adopted)
@@ -3361,7 +3370,7 @@ def _record_create_retry(
     attempt: int,
     exc: subprocess.TimeoutExpired,
 ) -> None:
-    """Leave a trace of each create retried, so a slow host shows up (#3103)."""
+    """Leave a trace of each create retried, so a slow host shows up."""
     _warn(
         f"Sandbox: create of container {name!r} timed out after {exc.timeout:g}s "
         f"(attempt {attempt} of {CREATE_TIMEOUT_ATTEMPTS}); retrying"
@@ -3388,7 +3397,7 @@ def _record_create_retry(
 
 
 def _record_container_daemon(store: RunStore, run_id: str, runtime: str) -> None:
-    """Record which daemon this run's container is created on (#3124 L1).
+    """Record which daemon this run's container is created on.
 
     A container id means something only on its own daemon, so recovery
     trusts "no such container" only from the daemon recorded here
@@ -3530,7 +3539,7 @@ def _launch_openshell_sandbox(
     sidecar_supervisor: Any,
     run_kind: str,
 ) -> Any:
-    """Launch one attempt into an OpenShell sandbox (epic node N6).
+    """Launch one attempt into an OpenShell sandbox.
 
     The gateway owns create / upload / exec / delete, so there is no argv to
     build here and no daemon to register a container id with; everything the
@@ -3556,17 +3565,16 @@ def _launch_openshell_sandbox(
 
     ``separate_stderr`` is not threaded through: ``openshell sandbox exec``
     gives one merged stream, so the second pipe a governed review wants
-    (#2053) does not exist on this runtime. Since epic node N12 routes the
-    adversarial reviewer here, that is a LIVE limitation rather than a note
-    about a shape the pilot avoids: a review on this runtime reads its verdict
+    does not exist on this runtime. The adversarial reviewer does run here,
+    so this is a LIVE limitation: a review on this runtime reads its verdict
     off the same pipe the container's stderr lands on, so a runtime warning
     from the reviewed code can fail a genuine round under the contract's
     "any line that is not a typed event" rule. It fails the round CLOSED — a
     forged or stray line is never read as a verdict — and the remedy is the
     gateway growing a second pipe, not anything this module can thread.
 
-    ``run_kind`` decides which packaged policy the sandbox is created under
-    (epic node N12). An adversarial review is a different boundary from a
+    ``run_kind`` decides which packaged policy the sandbox is created under.
+    An adversarial review is a different boundary from a
     dispatch on the same image — it executes the reviewed PR's own tests — so
     it is created under the reviewer policy and certified against that policy's
     digest. Derived here from the kind the caller already threads rather than
@@ -3616,7 +3624,7 @@ def _record_unreleased_sandbox(exc: BaseException) -> None:
     the error and the evidence is attached here. Unconfirmed evidence is what
     keeps the run pending instead of finalizing it ``sandbox_launch_error``:
     a terminal run is one no recovery comes back for, and the sandbox may still
-    hold the run's provider (#2625).
+    hold the run's provider.
     """
     from kew.openshell_launch import UNRELEASED_SANDBOX_ATTR
     from kew.runtime_names import OPENSHELL_RUNTIME
@@ -3646,9 +3654,9 @@ def _register_openshell_client(
     id on the row and raises without one; here the row carries the sandbox
     name and no id by design (``openshell_launch._record_identity``), so the
     event carries the gateway's own id instead of a column that will never be
-    filled. ``_check_spawn_permit`` knows that about the gateway runtime;
-    before it did, the id it demanded of every runtime refused this
-    registration on every store-backed launch (PR #2401 review).
+    filled. ``_check_spawn_permit`` exempts the gateway runtime from its id
+    demand, which would otherwise refuse this registration on every
+    store-backed launch.
 
     Everything after that — the retry pgid and the spawn announcement — is the
     same bookkeeping, because the client process is an ordinary child whichever
@@ -3703,7 +3711,7 @@ def _launch_streaming_container(
     """Launch one attempt's container, on whichever runtime is configured.
 
     ``run_kind`` has no default on purpose. It is what decides the OpenShell
-    policy a sandbox is created under (epic node N12), and the default any
+    policy a sandbox is created under, and the default any
     absent value would take is the DISPATCH boundary — so a reviewer launch
     that forgot to pass it would run under a policy its certification was never
     bound to, which is the one mismatch the flow split exists to prevent.
@@ -3715,7 +3723,7 @@ def _launch_streaming_container(
     # The contained lane's workspace admission, and the host lane's rule
     # (``orchestrator._preflight_runner_workspace``) asked of the same
     # function: a tree refused on one lane must be refused on the other, or
-    # naming a runtime is a way around the check (PR #2461 review).
+    # naming a runtime is a way around the check.
     preflight_runner_workspace(runner, checkout_dir)
     if is_openshell(config.sandbox):
         return _launch_openshell_sandbox(
@@ -3816,7 +3824,7 @@ class ContainerLaunchFailure:
     cleanup_confirmed: bool
     owners: frozenset[tuple[str, str]] = frozenset()
     # The runtime reported the container ``created`` with no process before
-    # cleanup removed it: kew made it and could never start it (#2973).
+    # cleanup removed it: kew made it and could never start it.
     never_started: bool = False
 
 
@@ -3862,7 +3870,7 @@ def _stop_failed_container(handle: Any, exc: BaseException) -> None:
 def _adopt_ambiguous_create(
     store: RunStore, run_id: str, runtime: str, name: str
 ) -> str | None:
-    """Claim the container a failed ``create`` may still have committed (#3007).
+    """Claim the container a failed ``create`` may still have committed.
 
     The daemon can make the container and its client still exit nonzero. A
     container under the name that is ``created`` with no process, and labelled
@@ -3906,7 +3914,7 @@ def _settle_ambiguous_create(
     """Certify a failed create clean only when it provably left nothing.
 
     A create committed under this run's own labels is removed by the id it
-    was adopted under (#3007), and then the run fails as a container start.
+    was adopted under, and then the run fails as a container start.
     """
     removed = _removed_adopted_create(handle)
     clean = removed or _create_left_name_free(handle, exc)
@@ -3914,12 +3922,12 @@ def _settle_ambiguous_create(
 
 
 def _create_left_name_free(handle: Any, exc: BaseException) -> bool:
-    """A failed create that left nothing under the name made nothing (#2913).
+    """A failed create that left nothing under the name made nothing.
 
     The runtime answering that no container holds the name proves there is
     nothing to clean, so the run is finalized with the create's own reason.
     A timed-out create is excluded: its daemon may still commit the container
-    after the client was killed (#3103).
+    after the client was killed.
     """
     return (
         not isinstance(exc, ContainerCreateTimedOut)
@@ -3943,7 +3951,7 @@ def _ambiguous_create(handle: Any, exc: BaseException) -> bool:
 
     The daemon can make the container and the client still exit nonzero, so
     the name is neither stopped (it may not be ours) nor certified as clean:
-    the cidfile and the pending row stay for recovery (#2973).
+    the cidfile and the pending row stay for recovery.
     """
     failed = _failed_create(handle, exc)
     return failed is not None and not failed.name_conflict
@@ -3970,7 +3978,7 @@ def _created_container_removed(handle: Any) -> bool:
     """Remove a container the kill could not stop, under its own registration.
 
     A never-started container refuses ``kill`` and would otherwise keep the
-    item's name, so every later create of it fails (#2973). Only the full id
+    item's name, so every later create of it fails. Only the full id
     this registration created is removed, never a name.
     """
     if not isinstance(handle, _CreatedContainerHandle) or handle.container_id is None:
@@ -4019,13 +4027,13 @@ class _CreatedContainerHandle:
     cidfile: Path | None = None
     owned: bool = True
     # The id of a container a failed create committed under this run's
-    # labels (#3007): read by name, persisted, then removed by this id.
+    # labels: read by name, persisted, then removed by this id.
     adopted_id: str | None = None
 
     def _recorded_target(self) -> str | None:
         """This registration's container id: the one it recorded, else the
         full id its cidfile holds. Never the name, which is host-wide and may
-        be another run's container (#1963)."""
+        be another run's container."""
         if self.container_id is not None:
             return self.container_id
         if self.cidfile is None:
@@ -4104,7 +4112,7 @@ def launch_error_category(exc: BaseException) -> str:
     """Name a container that could not be created or started as just that.
 
     A start whose client could not even be spawned leaves the container kew
-    created in ``created``; the cleanup evidence says so (#2973).
+    created in ``created``; the cleanup evidence says so.
     """
     if isinstance(exc, ContainerStartFailed):
         return exc.category
@@ -4177,7 +4185,7 @@ def _require_sandbox_released(handle: object) -> None:
     here, carrying the unconfirmed cleanup evidence every launch path already
     honours: the run stays pending with its reservation, and the driver's
     recovery — which finds a present sandbox whose agent has ended — is what
-    brings the work home and deletes it (#2625). Finishing the run instead
+    brings the work home and deletes it. Finishing the run instead
     would leave a credential-attached sandbox behind a terminal row nothing
     ever reads again.
 
@@ -4201,7 +4209,7 @@ def _require_sandbox_released(handle: object) -> None:
 def _capture_realized_checkout(
     handle: ContainerHandle | _CreatedContainerHandle, result: DispatchResult | None
 ) -> None:
-    """Carry an OpenShell handle's realized checkout onto the result (N7).
+    """Carry an OpenShell handle's realized checkout onto the result.
 
     Read HERE, at the one seam both the success and the failure arms run
     through, because that is also where the realization happens: on this
@@ -4326,32 +4334,29 @@ def run_container_and_stream(
     ``admission``; sidecar launches also supply the existing container identity.
     The client registration callback executes before the workload can start.
 
-    The #1017 invariant lives HERE, in the single argv-build site exercised by
+    The bare-runtime invariant lives in the single argv-build site exercised by
     BOTH callers: ``argv[0]`` is the canonical BARE ``config.sandbox.runtime``
     name, never the resolved ``shutil.which()`` path. The subprocess allowlist
     matches bare names only, so a resolved ``/usr/local/bin/docker`` is rejected
-    at launch — enforcing this once kills the D bug class (#1017) for good.
+    at launch.
 
     ``image``/``runner`` are supplied by the caller: the image is resolved from
-    the runner (#1144) and is deliberately NOT read from ``config.sandbox.image``
+    the runner and is deliberately NOT read from ``config.sandbox.image``
     here (that field names the claude image only, so reading it would let a
-    non-claude runner land in the claude CLI's image — the #1104 incident), and
-    the runner name is what the container args are derived from (#1145) and what
-    keys the credential env allowlist (#1146) — so the container is handed its
+    non-claude runner land in the claude CLI's image), and the runner name is
+    what the container args are derived from and what keys the credential env
+    allowlist — so the container is handed its
     OWN provider's credentials and no other runner's. Both coming from the
     caller is what stops image, flags and credentials describing different
     runners.
 
-    ``cost_governor`` carries the run cap and the breaker ceiling (#1462): a
+    ``cost_governor`` carries the run cap and the breaker ceiling: a
     trip stops the container through its handle and records the category on
     ``result``.
     """
-    # The runner's own flags become the container command ("$@" for the
-    # entrypoint, contract element 3): build_command() minus the binary and
-    # minus the prompt, which travels via the mounted file and never argv
-    # (#695). ``model`` is the effective (routed) model the caller resolved, so
-    # routing reaches the container, not just the run row (#761). An unknown
-    # runner raises out of get_runner rather than falling back to claude flags.
+    # The runner's own flags become the container command ("$@", contract
+    # element 3); the prompt travels via the mounted file, never argv, and an
+    # unknown runner raises out of get_runner, never falling back to claude flags.
     #
     # Build and launch share one failure arm: the caller has already written the
     # ``pending`` row, so an argv that cannot even be BUILT must finalize it too
@@ -4498,15 +4503,15 @@ def run_container_and_stream(
 def _classify_stream_silence(
     silence: StreamSilenceWatch, result: DispatchResult
 ) -> None:
-    """Record a run the silence watchdog stopped under its own category
-    (#2240), over the bare signal exit its kill left; a cost stop stands."""
+    """Record a run the silence watchdog stopped under its own category,
+    over the bare signal exit its kill left; a cost stop stands."""
     if silence.silenced():
         result.error_category = STREAM_SILENT_CATEGORY
 
 
 class RunnerBudgetLatch:
     """Whether any result event of this run said the runner stopped at its own
-    run cap (#1462). Sticky: a later line can add to it, never take it back.
+    run cap. Sticky: a later line can add to it, never take it back.
 
     claude carries ``--max-budget-usd`` into the container and stops itself
     there, reporting a budget subtype or a total at/over the cap — the two
@@ -4569,7 +4574,7 @@ class RunnerBudgetLatch:
 
 def _reported_total_usd(total: float) -> float:
     """A runner-reported run total as a float, failing closed: a figure no
-    float holds, or one that is not finite, is unbounded spend (#1462)."""
+    float holds, or one that is not finite, is unbounded spend."""
     try:
         value = float(total)
     except OverflowError:
@@ -4585,7 +4590,7 @@ _BUDGET_STOP_REPLACES = frozenset({"", "permanent", "transient"})
 def classify_runner_budget_stop(
     latch: RunnerBudgetLatch | None, result: DispatchResult
 ) -> None:
-    """Record a run the agent stopped at its own run cap as a cost stop (#1462).
+    """Record a run the agent stopped at its own run cap as a cost stop.
 
     Where no governor is armed (the reviewer launcher, a remote placement)
     nothing else would see the stop, and a run that stopped mid-task — often
@@ -4615,7 +4620,7 @@ def classify_runner_budget_stop(
 def _name_container_signal_exit(
     handle: Any, result: DispatchResult, diagnostic: DiagnosticTail
 ) -> None:
-    """Give a contained 134/137 its signal, last output and category (#3191).
+    """Give a contained 134/137 its signal, last output and category.
 
     The same rule the host runner applies (:func:`kew.exit_signal.name_signal_exit`),
     read after the hard stop is classified so a confirmed OOM is ``resource``.
@@ -4634,10 +4639,10 @@ def _separates_container_stderr(run_kind: str) -> bool:
     """Whether this run's client needs the container's stderr on a second pipe.
 
     Only a governed review reads a VERDICT from the stream it folds, where any
-    line that is not a typed event fails the round (#2047). The client merges
-    the container's stderr into that same pipe by default, so a stray runtime
-    warning failed genuine rounds (#2053); a review therefore gets two pipes,
-    and every other run keeps the single merged operator view it always had.
+    line that is not a typed event fails the round. The client merges the
+    container's stderr into that same pipe by default, where a stray runtime
+    warning would fail a genuine round; a review therefore gets two pipes, and
+    every other run keeps the single merged operator view.
     """
     from kew.run_store import ADVERSARIAL_REVIEW_RUN_KIND
 
@@ -4656,7 +4661,7 @@ def _stream_with_review_capture(
     run_kind: str,
     on_cost: CostObserver | None = None,
 ) -> int:
-    """Stream the container, capturing a reviewer's terminal result (#2021).
+    """Stream the container, capturing a reviewer's terminal result.
 
     An adversarial review's verdict is the runner's own typed result event as
     the host reads it here, from the container's stdout. The capture sees each
@@ -4796,7 +4801,7 @@ def _container_stream_failed(
             run_id,
             exit_code=-1,
             error_category=result.error_category,
-            # A stream that failed after a cost trip is still that stop (#1462).
+            # A stream that failed after a cost trip is still that stop.
             status=_failed_run_status(result),
             reason=_cost_stop_reason(result) or result.stop_reason,
             model=model,
@@ -4815,9 +4820,9 @@ def _release_sandbox_before_finalize(
     """Release an OpenShell sandbox BEFORE its failed run can be finalized.
 
     The failure arm finalizes the row terminal, and the identity cleanup — on
-    this runtime the realization and the delete — ran only afterwards, so a
-    delete that could not be confirmed was left behind a terminal row with no
-    cleanup evidence (#2625). Releasing first lets an unconfirmed delete become
+    this runtime the realization and the delete — runs only afterwards, so a
+    delete that could not be confirmed would be left behind a terminal row with
+    no cleanup evidence. Releasing first lets an unconfirmed delete become
     UNCONFIRMED cleanup evidence on *exc*, which keeps the run pending with
     its reservation, exactly as :func:`_require_sandbox_released` does for a
     run that finished. Both steps are idempotent, so the cleanup the caller
@@ -4891,7 +4896,7 @@ def _contained_auth_path(runner_name: str) -> str | None:
 def _require_sandbox_store(store: RunStore | None) -> None:
     """Refuse a paid contained run that would leave no realized-route row.
 
-    The same rule the host path enforces (#1550 review F5, re-review F-6).
+    The same rule the host path enforces.
     Every production caller opens a store.
     """
     if store is None:
@@ -4908,7 +4913,7 @@ def _resolve_launch_inputs(
 
     (immutable image ID, resolved transport, effective model, service tier,
     resolved runner) — resolved once so the profile, the argv, the credentials
-    and the spend describe the same launch (#1550 review F1/F3). The runner
+    and the spend describe the same launch. The runner
     comes back with them because the bounded key is minted from its declared
     credential names, and resolving it again later would put a fail-closed
     runner lookup between the admission and its run row.
@@ -4924,7 +4929,7 @@ def _resolve_launch_inputs(
 def _resolve_launch_image_id(config: DispatchConfig, image: str, *, runner: str) -> str:
     """Resolve *image* to the immutable ID this dispatch will launch, or refuse.
 
-    One seam for the fail-closed rule (#1550 review F1): the profile records
+    One seam for the fail-closed rule: the profile records
     this ID and the container argv launches by it, so capture and execution
     cannot describe different bytes. No runtime, an image that was never built,
     or an unreadable daemon each refuse the dispatch before any row is written
@@ -4932,8 +4937,7 @@ def _resolve_launch_image_id(config: DispatchConfig, image: str, *, runner: str)
 
     ``runner`` is REQUIRED, with no default. It selects the packaged Dockerfile
     named by missing-image guidance. A default could build Claude Code under an
-    OpenCode tag. The reviewer once omitted this argument, so an omission
-    remains a type error.
+    OpenCode tag, so an omission is a type error.
     """
     from kew.sandbox import image_id_runtime, require_image_id
 
@@ -4960,7 +4964,7 @@ def _emit_sandbox_hard_stop(
     baseline: RunBaseline | None = None,
 ) -> None:
     """Emit the same breaker fact for the direct sandbox dispatch path: a hard
-    stop, or the cost governor's anomaly trip (#1462), as the host's
+    stop, or the cost governor's anomaly trip, as the host's
     ``_maybe_emit_breaker`` does for both, with the same baseline facts."""
     rule = result.breaker_rule or result.hard_stop
     if not rule or not config.breaker.enabled:
@@ -4988,7 +4992,7 @@ def _emit_sandbox_hard_stop(
             "oom_probe_diagnostic": redact_credentials(result.oom_probe_diagnostic)
             or None,
             "observed_usd": _breaker_observed_usd(result),
-            # How the runtime answered a cost kill (#1462); None for a hard stop.
+            # How the runtime answered a cost kill; None for a hard stop.
             "kill_status": result.cost_stop_kill or None,
             "model": model,
             "complexity": "",
@@ -5007,7 +5011,7 @@ def _hard_stop_audited(emit_hard_stop: Callable[[], None]) -> Iterator[None]:
 
     A stream that fails after the cost governor tripped raises past the code
     that read the trip, so the ``circuit_breaker`` fact health counts would be
-    lost with it; this emits it on that path too (#1462)."""
+    lost with it; this emits it on that path too."""
     try:
         yield
     finally:
@@ -5111,7 +5115,7 @@ def _require_initial_sandbox_publication_credentials(
 
 def _sandbox_execution_failed(exit_code: int, result: DispatchResult) -> bool:
     """A wrapper's clean exit cannot make an unstarted agent successful, and a
-    run kew stopped for cost never publishes, whatever its exit (#1462)."""
+    run kew stopped for cost never publishes, whatever its exit."""
     return exit_code != 0 or startup_refused(result) or _cost_stopped(result)
 
 
@@ -5126,7 +5130,7 @@ def _cost_stopped(result: DispatchResult) -> bool:
 
 def _cost_stop_reason(result: DispatchResult) -> str:
     """The audited reason of a cost stop: what stopped it, at what cost, and
-    how the runtime answered kew's kill (#1462). "" for any other failure."""
+    how the runtime answered kew's kill. "" for any other failure."""
     if not _cost_stopped(result):
         return ""
     kill = result.cost_stop_kill or "not requested"
@@ -5141,7 +5145,7 @@ def _cost_stop_reason(result: DispatchResult) -> str:
 def _cost_stop_floor_usd(result: DispatchResult) -> float:
     """The least cost a cost-stopped run's row may record: its cost at the
     stop, bounded as every recorded cost is. A run the breaker judged at all
-    keeps its trip cost too (#1798). 0.0 for any other run."""
+    keeps its trip cost too. 0.0 for any other run."""
     if not (_cost_stopped(result) or result.breaker_rule):
         return 0.0
     return _recordable_usd(result.estimated_cost_usd or 0.0)
@@ -5155,6 +5159,9 @@ def _failed_run_status(result: DispatchResult) -> RunStatus:
         return "budget_stop"
     if result.error_category == "circuit_breaker":
         return "killed"
+    if result.containment_refusal:
+        # A placement refused for containment after admission: not a failure.
+        return "refused"
     return "failure"
 
 
@@ -5185,7 +5192,7 @@ def _sandbox_refuses_publication(
 def _sandbox_quota_exhausted(
     exit_code: int, result: DispatchResult, log_file: Path
 ) -> bool:
-    """Read a contained run the provider refused for quota as such (#2643).
+    """Read a contained run the provider refused for quota as such.
 
     The rejection is read from the derived evidence the stream fold wrote, as
     on the host. The row lands ``refused`` — never a failure the epic overlay
@@ -5205,11 +5212,12 @@ def _sandbox_quota_exhausted(
 def _sandbox_needs_human(
     result: DispatchResult, log_file: Path, finalize: Callable[..., None]
 ) -> bool:
-    """Refuse publication of a run whose agent stopped for a human (#2601).
+    """Refuse publication of a run whose agent stopped for a human.
 
     The prompts tell the agent to end ``KEW_NEEDS_HUMAN: <reason>`` rather
     than publish — a policy gate it could not make pass, say. Such a run exits
-    0, so without this the contained path pushed the change the agent refused.
+    0, so without this the contained path would push the change the agent
+    refused.
     The stop is read from the derived evidence the stream fold wrote, and the
     run reaches dispatch's collect step as ``needs_human``, as on the host.
     """
@@ -5331,15 +5339,14 @@ def _run_sandboxed_container(
     push+PR on exit 0.
 
     Split out of ``_run_sandboxed`` so the caller's ``finally`` owns the
-    host-side prompt-file cleanup for every exit path (#725). The argv build,
+    host-side prompt-file cleanup for every exit path. The argv build,
     launch, and stream (and their error finalization) live in the shared
-    ``run_container_and_stream`` primitive (#1023, Wave 1); this caller keeps
+    ``run_container_and_stream`` primitive; this caller keeps
     only the record-start and the exit-0 broker tail.
     """
     # The routed effective model (what execute_dispatch resolved for the
-    # banner), falling back to the config default — so routing actually
-    # reaches the container, not just the run row (#761). Recorded on the row
-    # and passed to the primitive so `model` (routed) matches what runs.
+    # banner), else the config default: recorded on the row and passed to the
+    # primitive, so routing reaches the container and the row names what runs.
     from kew.dispatch_core import _invoke_admitted, _project_repo_slug
     from kew.dispatch_placement import (
         RemoteInputs,
@@ -5364,15 +5371,13 @@ def _run_sandboxed_container(
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"sandbox-{slug}.log"
 
-    # Boundary and transport resolve BEFORE any row is written or money moves
-    # (#1550 review F1/F3): the profile must record the immutable image ID the
-    # launch will use and the endpoint the spend goes through. An unresolvable
-    # ID refuses the dispatch — a mutable tag is not evidence of what ran.
+    # Boundary and transport resolve BEFORE any row is written or money moves,
+    # so the profile records the immutable image ID and endpoint the launch uses.
+    # An unresolvable ID refuses: a mutable tag is not evidence of what ran.
     _require_sandbox_store(store)
     assert store is not None  # nosec B101 - required immediately above
-    # Same resolution the host path uses (#2097): ``project.repo`` is optional
-    # ("auto-detected from gh"), so an unset one falls back to the project
-    # origin here, in the parent that holds the checkout. Both dispatch paths
+    # The host path's resolution: an unset ``project.repo`` falls back to the
+    # project origin, in the parent that holds the checkout. Both dispatch paths
     # must agree on this column — stop-label supersede matches runs on it.
     delivery_repo = _project_repo_slug(config)
     image_id, resolved_transport, effective_model, tier, agent_runner = (
@@ -5380,19 +5385,15 @@ def _run_sandboxed_container(
             config, image=image, runner=runner, model=effective_model
         )
     )
-    # WHERE this agent runs, decided before admission (#2526): a ``gcp`` pin
-    # with no free instance refuses the dispatch here, with no row written, no
-    # reservation spent and nothing charged. ``local`` — the default — asks the
-    # ledger nothing and constructs no provider; the launch below is then
-    # byte-for-byte the one this path has always made.
-    # Named, never defaulted: this launcher admits and records a ``dispatch``
-    # row (``_record_sandbox_start``), and the placement, the remote launch and
-    # its credential fence all read this same kind (#2526 review).
+    # WHERE this agent runs, decided before admission: a ``gcp`` pin with no free
+    # instance refuses with no row written, no reservation spent, nothing charged.
+    # ``local``, the default, asks the ledger nothing and constructs no provider.
+    # Named, never defaulted: this launcher records a ``dispatch`` row, and the
+    # placement, the remote launch and its credential fence all read this kind.
     run_kind = DISPATCH_RUN_KIND
-    # The instance is CLAIMED, not just chosen, and held for the whole
-    # dispatch: another process deciding at the same moment reads it as taken
-    # instead of picking it too and losing the host lock after admission
-    # (#2526 review).
+    # The instance is CLAIMED, not just chosen, and held for the whole dispatch,
+    # so another process deciding at the same moment reads it as taken instead
+    # of picking it too and losing the host lock after admission.
     with (
         _held_placement(
             config,
@@ -5405,18 +5406,13 @@ def _run_sandboxed_container(
         PendingAdmission(store, run_id) as admission,
         execution_cancellation(admission),
     ):
-        # A placed run's container is launched from the mutable TAG against the
-        # instance's image store, so this machine's immutable ID does not
-        # describe its bytes: the profile and the publication gate that reads
-        # it are deferred to the attestation the placement makes on the
-        # instance, before its container starts (#2526 review).
+        # A placed run launches the mutable TAG on the instance, so this machine's
+        # image ID does not describe its bytes: the profile and its publication
+        # gate wait for the placement's attestation there, before launch.
         placed = placed_remotely(held.placement)
-        # The bounded key lives exactly as long as the paid launch. It is
-        # minted before the admitted row records its identity and revoked
-        # when this context closes, which is BEFORE any publication below:
-        # publication admission requires confirmed revocation evidence for
-        # this run's issued key, so a key still live here would hold the
-        # PR instead of landing it (#1957 round 10).
+        # The bounded key lives exactly as long as the paid launch: minted before
+        # the admitted row records its identity, and revoked when this context
+        # closes, BEFORE publication, which requires its confirmed revocation.
         with bounded_run_credentials(
             run_id=run_id,
             config=config,
@@ -5465,7 +5461,7 @@ def _run_sandboxed_container(
                 credential=credential,
                 broker_provider=broker_provider,
                 # A placed run's boundary is attested on the instance, from the
-                # image ID that machine resolved (#2526 review).
+                # image ID that machine resolved.
                 profile_deferred=placed,
             )
 
@@ -5549,7 +5545,7 @@ def _run_sandboxed_container(
                 config,
                 store,
                 # The captured immutable ID, never the tag: what the profile claims
-                # and what launches must be the same bytes (#1550 review F1).
+                # and what launches must be the same bytes.
                 image=image_id,
                 runner=runner,
                 checkout_dir=checkout_dir,
@@ -5586,10 +5582,9 @@ def _run_sandboxed_container(
             )
 
             with preserve_dispatch_result(result):
-                # The placement decided before admission is carried out here
-                # (#2526). A local one is ``launch_here`` and nothing else.
-                # The breaker fact is emitted however the run ends, a stream
-                # that failed after a cost trip included (#1462).
+                # The placement decided before admission runs here; a local one
+                # is ``launch_here`` and nothing else. The breaker fact is emitted
+                # however the run ends, a stream failing after a cost trip included.
                 with _hard_stop_audited(
                     partial(
                         _emit_sandbox_hard_stop,
@@ -5641,7 +5636,7 @@ def _run_sandboxed_container(
                     return result
 
                 # The realized checkout replaces the uploaded one for every
-                # step below (N7). Resolved inside the credential context, so
+                # step below. Resolved inside the credential context, so
                 # a refusal finalizes before publication is reached at all.
                 realized = _publication_checkout(
                     config,
@@ -5657,10 +5652,9 @@ def _run_sandboxed_container(
         # The bounded key is revoked above. Publication runs outside that
         # context and inside the admission, which still owns cancellation.
         with preserve_dispatch_result(result):
-            # Exit 0: first check whether the agent made any real changes. A
-            # zero-change completion (agent found nothing to do) should NOT attempt
-            # push+PR — a branch with no diff causes `gh pr create` to fail, which
-            # the exception handler below misclassifies as a push failure (#958).
+            # Exit 0 with no real changes must NOT attempt push+PR: `gh pr create`
+            # fails on a branch with no diff, and the exception handler below
+            # would misclassify that as a push failure.
             _require_checkout_generation_or_finalize(
                 checkout_dir,
                 checkout_generation,
@@ -5675,28 +5669,16 @@ def _run_sandboxed_container(
                 dangerously_skip_containment=config.sandbox.dangerously_skip_containment,
             ):
                 finalize(0, _SANDBOX_NO_CHANGE_CATEGORY)
-                # Carry the run identity and the classification back out (I10B): the
+                # Carry the run identity and the classification back out: the
                 # host records the contained zero-change exit as the SAME durable
                 # no-change candidate the host-broker path records, and it can only
                 # bind that judgment to the attempt it names here.
                 result.error_category = _SANDBOX_NO_CHANGE_CATEGORY
                 return result
 
-            # Shadow mode (W1.1 / D5), default OFF. Runs the host-owned publication
-            # broker beside this dispatch and compares the tree it WOULD publish
-            # against the one the push below is about to. It publishes nothing, blocks
-            # nothing, and cannot raise — see kew.publication_shadow_hook.
-            #
-            # Placed HERE, after the zero-change check and before the push, because
-            # that is the only point where the legacy path's answer is settled and not
-            # yet acted on. Earlier and there may be nothing to compare; later and the
-            # comparison would be describing a publication that already happened.
-            # Belt as well as braces. run_shadow_comparison is contracted never to
-            # raise and its own tests prove it — but the cost of that contract ever
-            # breaking is a run that did the work and lost the PR, and "an
-            # observability feature ate my publication" is the one outcome that would
-            # justify never turning shadow mode on. Interrupts still pass through:
-            # Ctrl-C is the operator, not a shadow failure.
+            # Shadow mode, default OFF (kew.publication_shadow_hook): compares the
+            # tree the host-owned broker WOULD publish with the one the push below is
+            # about to, after the zero-change check. It publishes and blocks nothing.
             _run_sandbox_shadow(
                 config=config,
                 checkout_dir=checkout_dir,
@@ -5851,7 +5833,7 @@ def _publish_completed_sandbox(
         )
     if pr_url is not None:
         # Carried on the result itself: best-effort persistence must not be
-        # the only record of a PR that exists (review round 10).
+        # the only record of a PR that exists.
         result.published_pr_url = pr_url
     if pr_url is None:
         result.canonical_no_change = no_changes[0] if no_changes else None

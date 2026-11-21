@@ -328,6 +328,76 @@ def test_with_no_report_the_title_is_fix_and_the_issue_title() -> None:
     assert agent_pr_title("9", "", None) == "Fix #9"
 
 
+@pytest.mark.parametrize(
+    "said",
+    [
+        "fix(safety): cap RPE on deload days",
+        "feat: render an empty widget",
+        "refactor(pr-text)!: split the title rules",
+    ],
+)
+def test_a_conventional_title_line_is_kept_as_written(said: str) -> None:
+    report = _report(header=f"PR title: {said}\n")
+
+    assert agent_pr_title("9", ISSUE_TITLE, report, style="conventional") == said
+
+
+def test_a_conventional_summary_sentence_titles_the_pr() -> None:
+    report = _report(summary="docs: name the title style. More follows.")
+
+    title = agent_pr_title("9", ISSUE_TITLE, report, style="conventional")
+
+    assert title == "docs: name the title style"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        SUMMARY,
+        "Fix: the widget",  # a type is lower case
+        "feature: render an empty widget",  # not an allowed type
+        "fix(safety) cap RPE",  # no colon
+        "fix():  cap RPE",  # an empty scope
+        "[required: <type>(<scope>): <summary>]",  # the unfilled placeholder
+    ],
+)
+def test_a_plain_report_gives_a_conventional_repo_a_fix_title(said: str) -> None:
+    report = _report(header=f"PR title: {said}\n", summary=SUMMARY)
+
+    title = agent_pr_title("9", ISSUE_TITLE, report, style="conventional")
+
+    assert title == f"fix: {ISSUE_TITLE}"
+
+
+def test_a_conventional_issue_title_is_used_as_it_is() -> None:
+    issue = "feat(ui): an empty widget"
+
+    assert agent_pr_title("9", issue, None, style="conventional") == issue
+    assert agent_pr_title("9", "", None, style="conventional") == (
+        f"fix: {ZERO_WIDTH_SPACE}#9"
+    )
+
+
+@pytest.mark.parametrize(
+    ("said", "titled"),
+    [
+        ("fix: #12 caps RPE", f"fix: {ZERO_WIDTH_SPACE}#12 caps RPE"),
+        ("fix: closes #12", f"fix: c{ZERO_WIDTH_SPACE}loses #12"),
+        ("fix(safety): fixes #12", f"fix(safety): f{ZERO_WIDTH_SPACE}ixes #12"),
+    ],
+)
+def test_a_conventional_title_closes_nothing_and_keeps_its_type(
+    said: str, titled: str
+) -> None:
+    report = _report(header=f"PR title: {said}\n")
+
+    title = agent_pr_title("9", ISSUE_TITLE, report, style="conventional")
+
+    assert title == titled
+    assert _CLOSING.search(title.replace(ZERO_WIDTH_SPACE, "")) is not None
+    assert _CLOSING.search(title) is None
+
+
 def test_a_long_title_is_cut_on_a_word_boundary() -> None:
     words = "renders " * 60
     title = agent_pr_title("9", ISSUE_TITLE, _report(header=f"PR title: {words}\n"))
@@ -603,6 +673,48 @@ def test_with_no_report_the_pr_is_fix_and_the_issue_title(
     (created,) = published.forge.created_prs()
     assert created["title"] == f"Fix: {ISSUE_TITLE}"
     assert created["body"] == "Closes #9"
+
+
+def _conventional() -> DispatchConfig:
+    config = _Published.config()
+    config.publication.pr_title_style = "conventional"
+    return config
+
+
+def test_a_conventional_repo_publishes_the_reports_conventional_title(
+    published: _Published, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(published, "config", _conventional)
+    published.report(_report(header="PR title: fix(safety): cap RPE on deload days\n"))
+
+    published.open_pr()
+
+    (created,) = published.forge.created_prs()
+    assert created["title"] == "fix(safety): cap RPE on deload days"
+
+
+def test_a_conventional_repo_gives_a_loop_goal_a_type(
+    published: _Published, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(published, "config", _conventional)
+
+    published.open_pr(pr_title="Make the widget render empty input")
+
+    (created,) = published.forge.created_prs()
+    assert created["title"] == "fix: Make the widget render empty input"
+
+
+def test_a_conventional_loop_goal_naming_its_issue_closes_nothing(
+    published: _Published, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(published, "config", _conventional)
+
+    published.open_pr(pr_title="#9: Widget crashes on empty input")
+
+    (created,) = published.forge.created_prs()
+    assert (
+        created["title"] == f"fix: {ZERO_WIDTH_SPACE}#9: Widget crashes on empty input"
+    )
 
 
 def test_a_loop_pr_keeps_its_goal_line_as_its_title(published: _Published) -> None:

@@ -10,11 +10,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -219,6 +221,16 @@ def _completed(
     cmd: list[str], returncode: int = 0, *, stdout: str = "", stderr: str = ""
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+
+
+def _closed_network_runtime(
+    cmd: list[str], **_kwargs: object
+) -> subprocess.CompletedProcess[str]:
+    """A runtime that answers every call, and shows its network internal."""
+    if cmd[1:3] == ["network", "inspect"]:
+        internal = [{"Driver": "bridge", "Internal": True}]
+        return _completed(cmd, stdout=json.dumps(internal))
+    return _completed(cmd)
 
 
 def _seed_review_reservation(tmp_path, *, finished_ago_seconds: int) -> None:
@@ -1516,8 +1528,7 @@ def test_doctor_inspects_the_image_mapped_to_the_default_route(
         patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
         patch("kew.cli.doctor.register_tools", return_value={}),
         patch(
-            "kew.subprocess_utils.run",
-            side_effect=lambda cmd, **_kwargs: _completed(cmd),
+            "kew.subprocess_utils.run", side_effect=_closed_network_runtime
         ) as runtime_run,
         patch(
             "kew.cli.doctor.evaluate_agent_image_staleness",
@@ -1821,6 +1832,13 @@ def test_doctor_warns_when_the_allowlist_network_is_a_plain_bridge(
     """
     monkeypatch.chdir(tmp_path)
     _write_contained_config(tmp_path)
+    config_path = tmp_path / "kew.toml"
+    config_path.write_text(
+        config_path.read_text().replace(
+            "[sandbox.images]",
+            "[sandbox]\nacknowledge_open_egress = true\n[sandbox.images]",
+        )
+    )
     network = {driver_key: "bridge", internal_key: internal}
 
     def inspect(cmd, **_kwargs):
@@ -1845,6 +1863,225 @@ def test_doctor_warns_when_the_allowlist_network_is_a_plain_bridge(
         "open unless the host filters it, and kew cannot see host filters.)"
     )
     assert (warning in result.output) is warned
+
+
+def test_doctor_fails_plain_bridge_hidden_by_a_native_default_route(
+    tmp_path, monkeypatch
+) -> None:
+    """A native default cannot hide another route's container network."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (tmp_path / "kew.toml").write_text(
+        '[project]\nrepo = "o/r"\n'
+        '[routing]\ndefault = { runner = "codex" }\n'
+        'complex = { runner = "claude-code" }\n'
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n'
+        f'[logging]\ndir = "{logs}"\n'
+    )
+
+    def inspect(cmd, **_kwargs):
+        if cmd[1:] == ["network", "inspect", "kew-allowlist"]:
+            network = [{"Driver": "bridge", "Internal": False}]
+            return _completed(cmd, stdout=json.dumps(network))
+        return _completed(cmd)
+
+    with (
+        patch.object(shutil, "which", return_value="/usr/bin/docker"),
+        patch.object(subprocess, "run", side_effect=inspect),
+    ):
+        result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1, result.output
+    assert "allowlist-network: FAIL" in result.output
+    assert "kew-allowlist" in result.output
+    assert "acknowledge_open_egress = true" in result.output
+    assert "needed by route 'claude-code' (complex)" in result.output
+
+
+def _doctor_on_network(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    toml: str,
+    network: object = None,
+    *,
+    docker: bool = True,
+) -> Any:
+    """Run ``kew doctor`` with *toml* and *network* as the inspect document."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-value-never-reported")
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (tmp_path / "kew.toml").write_text(
+        f'[project]\nrepo = "o/r"\n{toml}[logging]\ndir = "{logs}"\n'
+    )
+
+    def inspect(cmd, **_kwargs):
+        if cmd[1:3] == ["network", "inspect"]:
+            return _completed(cmd, stdout=json.dumps(network))
+        return _completed(cmd)
+
+    def which(name, *_args, **_kwargs):
+        if name in ("docker", "podman", "openshell") and not docker:
+            return None
+        return f"/usr/bin/{name}"
+
+    with (
+        patch.object(shutil, "which", side_effect=which),
+        patch.object(subprocess, "run", side_effect=inspect),
+    ):
+        return runner.invoke(app, ["doctor"])
+
+
+_CODEX_DEFAULT = (
+    '[routing]\ndefault = { runner = "codex" }\n'
+    '[sandbox.images]\nclaude-code = "kew-agent:latest"\n'
+)
+_PLAIN_BRIDGE = [{"Driver": "bridge", "Internal": False}]
+
+
+def test_doctor_checks_the_reviewers_network_behind_a_native_routing_table(
+    tmp_path, monkeypatch
+) -> None:
+    """The adversarial reviewer launches a container whatever routing says."""
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        "[review]\nadversarial = true\n" + _CODEX_DEFAULT,
+        _PLAIN_BRIDGE,
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "allowlist-network: FAIL" in result.output
+    assert "needed by the reviewer 'claude-code'" in result.output
+
+
+def test_doctor_asks_nothing_of_a_network_no_configured_route_uses(
+    tmp_path, monkeypatch
+) -> None:
+    """The control: no reviewer stage and native routing launch no container."""
+    result = _doctor_on_network(tmp_path, monkeypatch, _CODEX_DEFAULT, _PLAIN_BRIDGE)
+
+    assert "allowlist-network: FAIL" not in result.output
+    assert "allowlist-network: PASS (not needed on this route" in result.output
+
+
+def test_doctor_skips_container_checks_for_a_route_admitted_to_the_host(
+    tmp_path, monkeypatch
+) -> None:
+    """A route that resolves to the host under the skip flag needs no container."""
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        '[routing]\ndefault = { runner = "codex" }\n'
+        'complex = { runner = "claude-code" }\n'
+        '[sandbox]\nenabled = "auto"\ndangerously_skip_containment = true\n'
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n',
+        _PLAIN_BRIDGE,
+        docker=False,
+    )
+
+    for check in ("container-runtime", "route-image", "allowlist-network"):
+        assert f"{check}: FAIL" not in result.output, result.output
+
+
+def test_doctor_admits_acknowledged_open_network_with_its_warning(
+    tmp_path, monkeypatch
+) -> None:
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        '[sandbox]\nnetwork = "open"\nacknowledge_open_egress = true\n'
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n',
+    )
+
+    assert "allowlist-network: PASS (network 'open' is set)" in result.output
+    assert "allowlist-network: WARN (network='open'" in result.output
+
+
+@pytest.mark.parametrize(
+    ("network", "closed"),
+    [
+        pytest.param([{"Driver": "bridge", "Internal": True}], True, id="internal"),
+        pytest.param([{"Driver": "null", "Internal": False}], True, id="null"),
+        pytest.param([{"Driver": "host", "Internal": False}], False, id="host"),
+        pytest.param([{"Driver": "macvlan", "Internal": False}], False, id="macvlan"),
+        pytest.param({}, False, id="unreadable"),
+    ],
+)
+def test_doctor_passes_only_a_network_shown_closed(
+    tmp_path, monkeypatch, network, closed
+) -> None:
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n',
+        network,
+    )
+
+    assert ("allowlist-network: FAIL" not in result.output) is closed, result.output
+
+
+def _sidecar_toml(tmp_path: Path) -> str:
+    """A Switchyard sidecar transport, which dispatch admits on any network."""
+    routes = tmp_path / "switchyard.yaml"
+    routes.write_text("x: 1\n")
+    return (
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n'
+        '[inference_transport]\nmode = "switchyard"\n'
+        "[inference_transport.switchyard]\n"
+        'route = "switchyard/passthrough"\nexpected_version = "6ff491a"\n'
+        f'config_path = "{routes}"\ncredential_env = ["ANTHROPIC_API_KEY"]\n'
+        "[inference_transport.switchyard.sidecar]\n"
+        'enabled = true\nimage = "kew-switchyard:pinned"\n'
+        'egress_network = "approved-egress"\n'
+    )
+
+
+def test_doctor_leaves_a_sidecar_route_out_of_the_network_judgement(
+    tmp_path, monkeypatch
+) -> None:
+    """The sidecar worker sits on a per-run internal network, as dispatch admits."""
+    result = _doctor_on_network(
+        tmp_path, monkeypatch, _sidecar_toml(tmp_path), _PLAIN_BRIDGE
+    )
+
+    assert "allowlist-network: FAIL" not in result.output, result.output
+    assert "allowlist-network: PASS" in result.output
+
+
+def test_doctor_still_judges_the_reviewer_beside_a_sidecar_route(
+    tmp_path, monkeypatch
+) -> None:
+    """The adversarial reviewer is never on the sidecar, so its network counts."""
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        "[review]\nadversarial = true\n" + _sidecar_toml(tmp_path),
+        _PLAIN_BRIDGE,
+    )
+
+    assert "allowlist-network: FAIL" in result.output
+    assert "needed by the reviewer 'claude-code'" in result.output
+    assert "route 'claude-code' (" not in result.output
+
+
+def test_doctor_asks_no_acknowledgement_on_openshell(tmp_path, monkeypatch) -> None:
+    """OpenShell attaches no container network; its own policy governs egress."""
+    result = _doctor_on_network(
+        tmp_path,
+        monkeypatch,
+        '[sandbox]\nruntime = "openshell"\n'
+        '[sandbox.images]\nclaude-code = "kew-agent:latest"\n',
+        _PLAIN_BRIDGE,
+    )
+
+    [line] = [
+        line for line in result.output.splitlines() if "allowlist-network:" in line
+    ]
+    assert "allowlist-network: PASS" in line
+    assert "acknowledge" not in line
 
 
 def test_doctor_missing_allowlist_network_fix_is_runtime_neutral_on_podman(
@@ -2108,10 +2345,7 @@ def test_doctor_unknown_image_is_not_reported_as_pass(tmp_path, monkeypatch) -> 
         patch("kew.cli.doctor.detect_runtime", return_value="/usr/bin/docker"),
         patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
         patch("kew.cli.doctor.register_tools", return_value={}),
-        patch(
-            "kew.subprocess_utils.run",
-            side_effect=lambda cmd, **_kwargs: _completed(cmd),
-        ),
+        patch("kew.subprocess_utils.run", side_effect=_closed_network_runtime),
         patch("kew.cli.doctor.evaluate_agent_image_staleness", return_value=unknown),
     ):
         result = runner.invoke(app, ["doctor"])

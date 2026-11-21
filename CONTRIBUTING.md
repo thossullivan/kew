@@ -220,6 +220,19 @@ behaviour it covers.
 run while a ledger exists. It records the starting point; it is never the way
 to make room for a rise.
 
+## Comment ratchet
+
+`kew/tests/test_comment_ratchet.py` runs `kew/scripts/comment_scan.py` over
+`kew/src` and `kew/tests` and counts, per file, the comment and docstring lines
+that cite an issue or PR number or tell review or incident history. It compares
+the counts with `kew/ratchets/comment_history.json`. A rise fails and names the
+file; a fall fails and asks you to bank it with
+`uv run python scripts/comment_scan.py --lower`. A file that moves or splits
+carries its ledger entry to the new path in the same PR; that is the one hand
+edit of the ledger the rule allows. The scan matches story phrasing only
+("round 3 found", "reviewer caught"), because review rounds and incidents are
+also kew's own terms. The rule is in `AGENTS.md`, under Comments.
+
 Ratchet ledgers live in `kew/ratchets/`, not `tests/`: that directory is a
 merge-gate path and an always-guarded loop path, so a change cannot widen its
 own exceptions unseen.

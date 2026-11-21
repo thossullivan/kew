@@ -66,10 +66,9 @@ from kew.run_store_artifacts import ArtifactStoreMixin
 from kew.run_store_artifacts import ArtifactValueError as ArtifactValueError
 from kew.run_store_artifacts import StoredArtifact as StoredArtifact
 
-# Re-exported from run_store_audit (Task 1 extraction) so callers importing
-# these names from run_store keep working unchanged (e.g. backup.py imports
-# _row_to_chain_row and _CHAIN_SELECT_ALL). The `as`-alias form marks them as
-# explicit re-exports for ruff.
+# Re-exported from run_store_audit for callers that import these names from
+# run_store (e.g. backup.py: _row_to_chain_row, _CHAIN_SELECT_ALL). The
+# `as`-alias form marks them as explicit re-exports for ruff.
 from kew.run_store_audit import _CHAIN_SELECT_ALL as _CHAIN_SELECT_ALL
 from kew.run_store_audit import _CHAIN_SELECT_TAIL as _CHAIN_SELECT_TAIL
 from kew.run_store_audit import AuditChainStoreMixin, audit_values
@@ -141,22 +140,15 @@ MAX_RUN_PAGE = 200
 """Largest page ``list_run_page`` will return. A poll that asks for more is a
 bug in the caller, not a request to read the whole ledger."""
 
-# Governed adversarial-review run kinds (F4/#977). A reviewer runs under
-# ``adversarial_review``; the driver-invoked remediation pass under
-# ``review_remediation``. Both are bucketed away from implementation spend
-# (run_kind bucketing precedent #445) AND filtered out of node-status
-# derivation: a pending reviewer row must not flip a node IN_PROGRESS and a
-# killed reviewer must not derive FAILED (the review crash table owns those
-# outcomes, not ``overlay_status``).
+# Governed adversarial-review run kinds: the reviewer and the driver-invoked
+# remediation pass. Both are bucketed away from implementation spend and never
+# derive node status; the review crash table owns those outcomes.
 ADVERSARIAL_REVIEW_RUN_KIND = "adversarial_review"
 REVIEW_REMEDIATION_RUN_KIND = "review_remediation"
 REVIEW_RUN_KINDS = frozenset({ADVERSARIAL_REVIEW_RUN_KIND, REVIEW_REMEDIATION_RUN_KIND})
-# The detached review stage's own row (#2459): a ``kew epic _review-node``
-# child that takes one node's review action (a reviewer round, a remediation or
-# the merge-main step) outside the tick. It carries the node's review
-# reservation and its owner, so the reconciler can prove a dead child dead; the
-# reviewer and remediation it starts keep their own kinds and rows. Its subject
-# is the open PR, so it sits with the PR-subject kinds and never derives status.
+# The detached ``kew epic _review-node`` child taking one node's review action.
+# It carries the node's review reservation and owner so the reconciler can prove
+# a dead child dead; its subject is the open PR, so it never derives status.
 REVIEW_STAGE_RUN_KIND = "review_stage"
 # CI fixes track existing PR work.
 # They never consume governed review pools or reservations.
@@ -175,7 +167,7 @@ PR_SUBJECT_RUN_KINDS = frozenset(
     }
 )
 
-# The one operational run kind a readiness probe pays on (I05A). A probe row is
+# The one operational run kind a readiness probe pays on. A probe row is
 # real money — it belongs in total and budget spend — but it is not customer
 # work: it carries no tracker item, no epic, no PR, and no complexity, so it is
 # excluded from per-item/epic economics here and from the outcome, completion,
@@ -185,18 +177,14 @@ PR_SUBJECT_RUN_KINDS = frozenset(
 # importing it. tests/test_run_store.py guards the two against drift.
 READINESS_PROBE_RUN_KIND = "readiness_probe"
 
-# The triage station's own run kind (#2293). A triage run classifies an item;
-# it publishes nothing (``publication_credentials._NON_PUBLICATION_RUN_KINDS``)
-# and it is filtered out of node-status derivation
-# (``graph.driver.overlay._implementation_runs``) for the same reason a reviewer
-# is: a classifier reading an item must never read as the item being worked on.
+# The triage station's run kind. It publishes nothing and never derives node
+# status (``graph.driver.overlay._implementation_runs``): a classifier reading
+# an item must never read as the item being worked on.
 TRIAGE_RUN_KIND = "triage"
 
-# The acceptance author's run kind (#2726): it writes a node's read-only
-# acceptance test file before the implementer starts. It writes no
-# implementation, so the scorecard never credits it with the PR the node ships
-# (``scorecard._NON_AUTHORING_RUN_KINDS``) even though it runs first; the
-# ledger records what it wrote in ``acceptance_contracts``.
+# The acceptance author's run kind: it writes only a node's read-only
+# acceptance tests, so the scorecard never credits it with the node's PR
+# (``scorecard._NON_AUTHORING_RUN_KINDS``).
 ACCEPTANCE_AUTHOR_RUN_KIND = "acceptance_author"
 
 #: Every run kind this build launches. The constants above and the role sets
@@ -204,7 +192,7 @@ ACCEPTANCE_AUTHOR_RUN_KIND = "acceptance_author"
 #: each answer "what is this kind FOR"; this answers "is this a kind at all",
 #: which is what config has to check a key *naming* a run kind against. A
 #: misspelled ``[sandbox] hosts`` key would otherwise pass load-time validation
-#: and silently resolve to the default host (#2437 review).
+#: and silently resolve to the default host.
 #: ``tests/test_run_store.py`` guards it against the role sets it must cover.
 KNOWN_RUN_KINDS = frozenset(
     {
@@ -227,7 +215,7 @@ KNOWN_RUN_KINDS = frozenset(
 #: The host a run lands on when nothing places it elsewhere: the operator
 #: machine. Every pre-v66 ``runs`` row reads as this, and so does every run
 #: under the default ``[sandbox] placement`` — ``local`` is the one host that
-#: needs no cloud account, and it stays the default (#2398).
+#: needs no cloud account, and it stays the default.
 LOCAL_RUN_HOST = "local"
 
 #: The gcp host: a Compute Engine instance reached through the ``gcloud`` CLI
@@ -254,9 +242,9 @@ TRIAGE_OUTCOMES = frozenset(
     }
 )
 
-#: How long an epic keeps contending for fleet worker slots after its last tick
-#: (#2094). Long enough that an epic driven on any sane interval (``kew epic
-#: run`` defaults to 60s) never ages out mid-flight, short enough that a driver
+#: How long an epic keeps contending for fleet worker slots after its last tick.
+#: Long enough that an epic driven on any sane interval (``kew epic run``
+#: defaults to 60s) never ages out mid-flight, short enough that a driver
 #: stopped yesterday stops dividing today's fleet cap.
 CONTENTION_STALE_AFTER = timedelta(days=1)
 
@@ -568,12 +556,12 @@ _NODE_PR_FACTS_AFTER = (
 #: One epic's rows only. A surface drawing ONE epic must be able to ask for it:
 #: without this, a page bounded by ``limit`` over every epic's newest snapshot
 #: can fill up before reaching the epic being looked at, and the caller cannot
-#: tell "nothing is stale here" from "this epic was past the page" (#2303).
+#: tell "nothing is stale here" from "this epic was past the page".
 _NODE_PR_FACTS_EPIC = "t.epic_ref = ?"
 _NODE_PR_FACTS_PAGE = " ORDER BY epic_ref, item_id LIMIT ?"
 
 #: :meth:`SqliteRunStore.append_epic_tick`'s write of each node's latest
-#: merge-state read (#2879). A re-read of the same state on the same head only
+#: merge-state read. A re-read of the same state on the same head only
 #: ever moves the instant forward: a tick GitHub answered ``UNKNOWN`` on carries
 #: the journaled row's older stamp, and must not undo a later read.
 _MERGE_STATE_READ_UPSERT = (
@@ -716,7 +704,7 @@ RunStatus = Literal[
     "budget_stop",
     "killed",
 ]
-# Outcome of an atomic reserve-under-cap (N10): the item was reserved, the
+# Outcome of an atomic reserve-under-cap: the item was reserved, the
 # reservation was lost to another surface (already reserved), or the fleet cap
 # was already full at reserve time — all decided inside one transaction.
 ReserveResult = Literal["reserved", "lost_claim", "fleet_full"]
@@ -765,7 +753,7 @@ class RunRecord:
     owner_start_time: str | None = None
     owner_start_token: str | None = None
     attempt_start_token: str | None = None
-    # V69: ``<machine>/<boot id>`` the owner ran under (#2812); see
+    # V69: ``<machine>/<boot id>`` the owner ran under; see
     # ``process_groups.machine_boot``. NULL means unrecorded, which proves nothing.
     owner_boot_id: str | None = None
     owner_ppid: int | None = None
@@ -779,8 +767,10 @@ class RunRecord:
     actor_type: str | None = None  # human | policy | agent
     actor_id: str | None = None
     repo: str | None = None
-    endpoint: str | None = None  # configured, not attested (see #251)
-    policy_hash: str | None = None  # null until #250
+    endpoint: str | None = None  # configured, not attested
+    # The bound policy's hash on rows dispatch_core writes; None when none
+    # was bound, and always None from the other run writers.
+    policy_hash: str | None = None
     # Served model reported by the runner or reconciled from bounded
     # Switchyard selection evidence; ``resolved_model_source`` records which.
     reported_model: str | None = None
@@ -797,21 +787,21 @@ class RunRecord:
     switchyard_proxy_observation: str | None = None
     # V41 managed adaptive evidence reconciliation verdict.
     accounting_status: str | None = None
-    # V8 outcome slots for #261 — schema-only, nothing writes them here
+    # V8 outcome slots — schema-only, nothing writes them here
     pr_state: str | None = None
     pr_merged_at: str | None = None
     review_cycles: int | None = None
     diff_additions: int | None = None
     diff_deletions: int | None = None
     diff_files: int | None = None
-    # V16 cache observability (#348)
+    # V16 cache observability
     prefix_key: str | None = None
     provider: str | None = None
     # V22 sandbox container name (e.g. "kew-42"); None for host-subprocess runs
     container_name: str | None = None
     container_id: str | None = None
     container_cidfile: str | None = None
-    # V24 durable work-item id (A3). For GitHub the numeric string ("42"); for
+    # V24 durable work-item id. For GitHub the numeric string ("42"); for
     # non-numeric trackers the opaque id ("SFD-12"). This is the fleet-wide
     # concurrency key (see ``live_run_count``) — NOT ``issue_num``, which for a
     # non-numeric item is written as the ``0`` sentinel (``runs.issue_num`` is
@@ -821,31 +811,26 @@ class RunRecord:
     # work item — e.g. an ``epic plan`` run) from the unique ``run_id`` rather
     # than the literal ``"0"`` (see ``_run_record_params``).
     item_id: str | None = None
-    # V26 run-kind discriminator (I1). Separates the cost-anomaly baseline
-    # bucket by dispatch path: "dispatch" (ordinary issue), "review" (PR
-    # review, routinely ~$5.37), "loop", "planning". Existing rows migrate to
-    # "dispatch" so heavyweight review runs stop being judged against cheap
-    # first-dispatch medians (#445). Never NULL: the column is
-    # NOT NULL DEFAULT 'dispatch'.
+    # V26 run-kind discriminator. Separates the cost-anomaly baseline bucket by
+    # dispatch path ("dispatch", "review", "loop", "planning"), so heavyweight
+    # review runs are not judged against cheap first-dispatch medians. NOT NULL.
     run_kind: str = "dispatch"
-    # V30 first-edit metrics (spec D2 — context-memory measurement substrate).
+    # V30 first-edit metrics (context-memory measurement substrate).
     # Derived from the stream-json transcript: how many model-response steps and
     # how many cumulative tokens the run spent before its first Edit/Write
     # tool_use. Both NULL (never 0) for a zero-edit run — a NULL distinguishes
     # "measured, never edited" from "edited on step 0". See transcript_metrics.
     steps_to_first_edit: int | None = None
     tokens_to_first_edit: int | None = None
-    # V30 injected-context accounting (spec D2 / R1-8 — governor cost-model
-    # inputs). ``map_tokens`` is the repo map actually rendered into the prompt;
-    # ``lesson_corpus_tokens`` is a placeholder that stays NULL until Phase 2
-    # ships the lesson-corpus layer. Both nullable INTEGER: existing rows and
-    # runs with no injected context migrate to NULL ("not measured").
+    # V30 injected-context accounting (governor cost-model inputs): the repo map
+    # rendered into the prompt, and a lesson-corpus placeholder. NULL means "not
+    # measured": existing rows and runs with no injected context.
     map_tokens: int | None = None
     lesson_corpus_tokens: int | None = None
-    # V34 planned half of the cost pair (#1092). The token×pricing-bound figure
+    # V34 planned half of the cost pair. The token×pricing-bound figure
     # dispatch planned against, kept alongside ``estimated_cost_usd`` (the
     # authoritative actual — the runner's native billed total when it reports
-    # one, #1082). NULL means no bound was recorded: historical rows, and runs
+    # one). NULL means no bound was recorded: historical rows, and runs
     # whose cost was never computed. Never 0.0-for-missing — a $0 planned bound
     # would read as an infinite over-run in the accuracy ratio.
     planned_cost_usd: float | None = None
@@ -863,12 +848,12 @@ class RunRecord:
     # Written only by the shared pre-admission refusal writer.
     pre_admission_refusal: bool = False
     # V65: the dispatch prompt this run was launched with carried the
-    # pre-publish self-check (#2454). Read off the rendered prompt bytes, so it
+    # pre-publish self-check. Read off the rendered prompt bytes, so it
     # cannot claim a section the agent never saw. False on every historical row
     # and on every run kind whose prompt has no such section (review,
     # remediation, resolve, ci-fix) — those were never offered one.
     self_check: bool = False
-    # V66 fleet placement (#2398). WHERE this run's agent ran: ``"local"`` for
+    # V66 fleet placement. WHERE this run's agent ran: ``"local"`` for
     # the operator machine (every pre-v66 row, and every run under the default
     # ``[sandbox] placement``) or a host kew knows, e.g. ``"gcp"``.
     # ``run_host_instance`` names the individual machine within that host — the
@@ -881,7 +866,7 @@ class RunRecord:
     run_host: str = "local"
     run_host_instance: str | None = None
     # V74: the ``prompt_profile_versions.id`` of the operator addendum this
-    # run's prompt rendered (#3022), or NULL for the bare base prompt. Fixed
+    # run's prompt rendered, or NULL for the bare base prompt. Fixed
     # at launch: the upsert keeps the first non-NULL value, so a later save
     # built without it cannot erase what the agent ran under.
     prompt_profile_version_id: int | None = None
@@ -889,7 +874,7 @@ class RunRecord:
 
 @dataclass(frozen=True)
 class EpicReservation:
-    """One epic-DAG node's atomic in-flight reservation (#427 Phase 2a).
+    """One epic-DAG node's atomic in-flight reservation.
 
     ``reserve_epic_node`` is the authoritative in-flight signal for the epic
     driver — it must NOT use ``try_claim_issue``. Uniqueness on ``issue_num``
@@ -900,7 +885,7 @@ class EpicReservation:
     epic_ref: str
     run_id: str
     reserved_at: datetime
-    # V25 durable work-item id (L3). For a GitHub node this is the stringified
+    # V25 durable work-item id. For a GitHub node this is the stringified
     # ``issue_num``; for a non-numeric tracker (Linear) ``issue_num`` is the
     # ``0`` sentinel and ``item_id`` carries the real key (``SFD-12``).
     item_id: str = "0"
@@ -958,17 +943,17 @@ class EpicHold:
     epic_ref: str
     reason: str
     held_at: datetime
-    # V25 durable work-item id (L3); see ``EpicReservation.item_id``.
+    # V25 durable work-item id; see ``EpicReservation.item_id``.
     item_id: str = "0"
 
 
 @dataclass(frozen=True)
 class OrphanPRRecord:
-    """A persisted orphan PR row (open agent PR with no successful run, #680).
+    """A persisted orphan PR row (open agent PR with no successful run).
 
     ``detected_at`` is the first-sighting timestamp (preserved across re-syncs);
-    ``acked_at`` is NULL until an operator acknowledges the PR (the ack verb
-    lands in a later group — this group only persists and queries the state).
+    ``acked_at`` is NULL until an operator acknowledges the PR
+    (:meth:`SqliteRunStore.ack_orphan_pr`).
     """
 
     pr_number: int
@@ -981,13 +966,13 @@ class OrphanPRRecord:
 
 NO_EARLIER_RETRY = datetime(1, 1, 1, tzinfo=UTC)
 """The ``retried_at`` and cutoff of a run-bound retry marker with no operator
-retry before it (#2969): earlier than any run, so it supersedes nothing by
+retry before it: earlier than any run, so it supersedes nothing by
 time."""
 
 
 @dataclass(frozen=True)
 class EpicRetry:
-    """One epic-DAG node's operator-initiated retry marker (#427 Phase 2).
+    """One epic-DAG node's operator-initiated retry marker.
 
     Non-destructive alternative to deleting a node's terminal-failure
     ``runs`` rows: ``retried_at`` records WHEN the operator retried, and the
@@ -999,15 +984,15 @@ class EpicRetry:
     issue_num: int
     epic_ref: str
     retried_at: datetime
-    # V25 durable work-item id (L3); see ``EpicReservation.item_id``.
+    # V25 durable work-item id; see ``EpicReservation.item_id``.
     item_id: str = "0"
-    # V72 (#2969): the runs a host-restart re-admission supersedes, by
+    # V72: the runs a host-restart re-admission supersedes, by
     # identity: the reaped run and every run an earlier retry had already
     # superseded. They are superseded whatever the clocks say; ``retried_at``
     # keeps the earlier operator retry's real time (the review cycle's start),
     # or :data:`NO_EARLIER_RETRY`.
     superseded_run_ids: frozenset[str] = frozenset()
-    # V72 (#2969): the failure-supersession cutoff of a run-bound marker, kept
+    # V72: the failure-supersession cutoff of a run-bound marker, kept
     # apart from ``retried_at``. None means ``retried_at`` is the cutoff.
     superseded_before: datetime | None = None
 
@@ -1021,16 +1006,16 @@ class EpicRetry:
 
 @dataclass(frozen=True)
 class ReviewRound:
-    """One persisted governed-review round for a DAG node (F8/#977).
+    """One persisted governed-review round for a DAG node.
 
     Append-only history: ``round`` is 1-based within the current review cycle,
     where a cycle boundary is the node's latest ``epic_retries`` marker (a
-    ``kew epic retry`` grants a fresh review allowance, F15). The reset is
+    ``kew epic retry`` grants a fresh review allowance). The reset is
     non-destructive — prior-cycle rows stay in the history; only
     :meth:`SqliteRunStore.review_round_count` and
     :meth:`SqliteRunStore.latest_review_round` scope to the current cycle. This
     is operational state, not an attested fact: the attested per-round verdict
-    is the ``adversarial_review_verdict`` audit event (Task 13), so the table
+    is the ``adversarial_review_verdict`` audit event, so the table
     lives off the audit hash chain.
     """
 
@@ -1044,21 +1029,20 @@ class ReviewRound:
     sidecar_path: str | None = None
     """Host path of this round's stored sidecar (``logs/dispatch/...``), when the
     round was recorded from a collected sidecar. NEEDS_CHANGES remediation reads
-    the findings from here (#1030); None for pre-v32 rows and refusal/DEGRADED
+    the findings from here; None for pre-v32 rows and refusal/DEGRADED
     rounds that carry no sidecar file."""
     review_mode: str | None = None
-    """``full`` or ``delta`` (#2111): whether the reviewer reviewed the whole PR
+    """``full`` or ``delta``: whether the reviewer reviewed the whole PR
     diff or the change since the previous round's head. None for pre-v58 rows
     (all full reviews) and for DEGRADED/refusal rounds that reviewed nothing."""
     accepted_verdict: str | None = None
     """The driver's own disposition for this round when the review stop rule
-    accepted it: ``READY_WITH_RESIDUALS`` (#2151). None for every other round,
-    and for pre-v59 rows — a pre-v59 acceptance is on the audit chain only,
-    which is the reader split #2151 closes. A separate column, never an
-    overwrite: ``verdict`` stays exactly as the reviewer returned it.
+    accepted it: ``READY_WITH_RESIDUALS``. None for every other round, and for
+    pre-v59 rows — a pre-v59 acceptance is on the audit chain only. A separate
+    column, never an overwrite: ``verdict`` stays exactly as the reviewer returned it.
     """
     plan_sha: str | None = None
-    """The recorded ``item_plans`` plan this round was judged against (#2290).
+    """The recorded ``item_plans`` plan this round was judged against.
     None for pre-v60 rows and for any round whose reviewer was given no
     criteria — which, until the reviewer is handed them, is every round. A
     reader must treat None as "judged against nothing stated", never as
@@ -1204,19 +1188,18 @@ EPIC_TICK_OUTCOME_EMPTY_GRAPH = "empty_graph"
 work at all, which it documents as exactly two things: a typo'd epic name or a
 wrong-tracker cwd. So a ref whose attempts ALL ended here is not an epic whose
 ticks were refused — it is a name that never named an epic, and
-:meth:`SqliteRunStore.list_epic_refs` leaves it out for that reason (#2438
-review).
+:meth:`SqliteRunStore.list_epic_refs` leaves it out for that reason.
 """
 
 EPIC_TICK_OUTCOME_FAILED = "failed"
 """The outcome of a tick that raised — the one a change strip keeps beside the
-changes, as its red × (#2844 D23)."""
+changes, as its red ×."""
 
-#: Outcomes an epic-driver tick attempt can finish on (#2304). The first four
+#: Outcomes an epic-driver tick attempt can finish on. The first four
 #: are what the tick DID, worst-first-is-not-the-point: they are read in this
 #: order so a tick that dispatched and merged in one pass reads as the dispatch
-#: an operator was waiting for. The next three are the paths that used to reach
-#: only stderr — the exception, the lock-out and the empty graph.
+#: an operator was waiting for. The next three are the paths that did not
+#: reach a result: the exception, the lock-out and the empty graph.
 #:
 #: ``abandoned`` is the one outcome no tick writes about itself: it is written
 #: for a row by a LATER tick of the same epic, because the driver that opened it
@@ -1239,11 +1222,11 @@ EPIC_TICK_REACHED_OUTCOMES = frozenset(("dispatched", "merged", "held", "nothing
 
 EPIC_TICK_LOG_REACHED_TICK = "reached_tick"
 """What an attempt's ``signal`` holds from the moment ``begin_epic_tick``
-succeeds until the attempt closes on a result (#2882).
+succeeds until the attempt closes on a result.
 
 An attempt row is opened before the lock, the preflight and the graph build,
-so "open" alone said nothing about whether a tick ever began, and an attempt
-blocked in preflight read as a heartbeat. ``signal`` is the column an open row
+so "open" alone does not say a tick began, and an attempt blocked in preflight
+must not read as a heartbeat. ``signal`` is the column an open row
 has no other use for, and the one ``finish_epic_tick_log`` writes the tick's
 real signal into when it records a result — so no schema step. A close with no
 signal (the exception path) and the ``abandoned`` sweep keep it: such an
@@ -1264,11 +1247,11 @@ EPIC_TICK_LOG_TAIL_MAX = 500
 
 
 def _epic_tick_log_stamp(last_id: int | None, closed: int, reached: int) -> str:
-    """The stamp a reader re-reads a tick strip on (#2304 review round 3).
+    """The stamp a reader re-reads a tick strip on.
 
     A strip can only change when the driver ATTEMPTS a tick, and the readers
     cannot poll a strip per row on a five-second roster. The heartbeat's
-    ``tick_count`` looked like the signal, but it is written by
+    ``tick_count`` is not the signal: it is written by
     ``begin_epic_tick`` — the far side of the lock, the preflight and the
     non-empty-graph guard — so a driver that is locked out, failing preflight
     or finding an empty graph moves it never, and those are exactly the
@@ -1283,7 +1266,7 @@ def _epic_tick_log_stamp(last_id: int | None, closed: int, reached: int) -> str:
     not re-read either.
 
     A third, ``reached``, counts the rows marked as having reached their tick
-    (:data:`EPIC_TICK_LOG_REACHED_TICK`, #2882): that mark lands on an OPEN
+    (:data:`EPIC_TICK_LOG_REACHED_TICK`): that mark lands on an OPEN
     row, between the two moves above, and a strip read before it would keep
     reading the attempt as one that never began.
     """
@@ -1292,12 +1275,11 @@ def _epic_tick_log_stamp(last_id: int | None, closed: int, reached: int) -> str:
 
 @dataclass(frozen=True)
 class EpicTickLogEntry:
-    """One epic-driver tick ATTEMPT, finished or not (#2304).
+    """One epic-driver tick ATTEMPT, finished or not.
 
     ``epic_ticks`` is a change journal: it dedups on the snapshot hash, so a
-    tick that changed nothing leaves no row and about nine ticks in ten are
-    invisible (the merge-path epic ran 476 ticks and journaled 18). This table
-    is the other reading — one row per attempt, including the attempts that
+    tick that changed nothing leaves no row and most ticks are invisible there.
+    This table is the other reading — one row per attempt, including the attempts that
     never reach the journal at all: a tick that raised, one locked out by
     another driver, one whose graph came back empty.
 
@@ -1321,7 +1303,7 @@ class EpicTickLogEntry:
     n_stuck: int
     journal_tick_id: int | None
     error_class: str | None
-    #: Whether the attempt got past ``begin_epic_tick`` (#2882): an outcome in
+    #: Whether the attempt got past ``begin_epic_tick``: an outcome in
     #: :data:`EPIC_TICK_REACHED_OUTCOMES`, or the mark
     #: :data:`EPIC_TICK_LOG_REACHED_TICK`. An open attempt without it is still
     #: before the lock, the preflight or the graph build — no heartbeat.
@@ -1340,7 +1322,7 @@ _JOURNAL_MARK_SQL = (
     )
     + " FROM epic_ticks WHERE epic_ref = ? ORDER BY id DESC LIMIT ?"
 )
-"""A change strip's journal rows (#2882): the instant and the action counts,
+"""A change strip's journal rows: the instant and the action counts,
 read in SQL so a malformed historical row reads as zero counts and an
 unreadable stamp as a NULL instant, rather than raising (the operator rule)."""
 
@@ -1356,7 +1338,7 @@ def _journal_outcome(row: sqlite3.Row) -> str:
 
 
 def _journal_mark(epic_ref: str, row: sqlite3.Row) -> EpicTickLogEntry:
-    """A change mark for a journal row no attempt row carries (#2882)."""
+    """A change mark for a journal row no attempt row carries."""
     signal = row["signal"]
     return EpicTickLogEntry(
         id=-int(row["id"]),
@@ -1430,10 +1412,10 @@ def _unpaired_mark(attempt: sqlite3.Row, paged: set[int]) -> bool:
 
 @dataclass(frozen=True)
 class EpicTick:
-    """One epic-driver tick journal entry (#454 Phase A).
+    """One epic-driver tick journal entry.
 
     Immutable snapshot of DAG state at one tick: ``signal`` + ``counts`` +
-    ``nodes`` + ``edges`` + ``frontier`` (never tick_ts or actions, per spec).
+    ``nodes`` + ``edges`` + ``frontier`` (never tick_ts or actions).
     Appends are dedup'd against the epic's latest row only: a snapshot whose
     hash matches the latest row is not re-inserted, but a hash recurring after
     intervening changes appends a new row.
@@ -1449,16 +1431,17 @@ class EpicTick:
 
 @dataclass(frozen=True)
 class NodePrFacts:
-    """One journaled DAG node's pull-request facts, read back (#2303).
+    """One journaled DAG node's pull-request facts, read back.
 
     The driver reads ``headRefOid``, ``mergeStateStatus`` and the head's push
-    time every tick and now persists them in the snapshot node, so a reader with
+    time every tick and persists them in the snapshot node, so a reader with
     no GitHub token can still tell a review verdict's head from the current one,
     and a conflict from a base that is merely behind.
 
     Every field but ``epic_ref``/``item_id``/``observed_at`` is ``None`` when the
-    snapshot does not carry it — a tick that could not read the forge, or a
-    pre-#2303 row. ``None`` is therefore "nobody looked", never "clean".
+    snapshot does not carry it — a tick that could not read the forge, or an
+    older row without these fields. ``None`` is therefore "nobody looked", never
+    "clean".
 
     ``observed_at`` is the TICK, not the merge read: the driver carries a merge
     state forward across a tick GitHub answered ``UNKNOWN`` on (so the flip does
@@ -1481,7 +1464,7 @@ class NodePrFacts:
 
 @dataclass(frozen=True)
 class EpicDriverState:
-    """One epic driver's heartbeat state (#454 Phase A).
+    """One epic driver's heartbeat state.
 
     Two-phase commit: begin_epic_tick (phase 1, UPSERT on epic_ref) writes
     last_tick_started_at and increments tick_count; finish_epic_tick (phase 2)
@@ -1491,7 +1474,7 @@ class EpicDriverState:
     ``tracker`` is the durable v33 column recording which control plane the
     driver reads (``github``/``linear``); None on a pre-v33 row that no tick has
     refreshed. It is part of the state a health reader needs, so it is carried
-    here rather than re-read through ``epic_trackers()`` (#2297).
+    here rather than re-read through ``epic_trackers()``.
     """
 
     epic_ref: str
@@ -1506,7 +1489,7 @@ class EpicDriverState:
     #: The v62 cadence EXPECTATION (``[epic] driver_expected_interval_seconds``)
     #: last recorded by a drive that has no cadence of its own. Never mixed into
     #: ``interval_s``: a reader must be able to tell a measured cadence from a
-    #: configured guess (#2297). None where no drive ever supplied one.
+    #: configured guess. None where no drive ever supplied one.
     expected_interval_s: float | None = None
     #: The v63 snapshot of this epic's driver LOCK, taken by the serve sweep for
     #: readers that cannot open the lock file themselves (every serve-side
@@ -1528,8 +1511,8 @@ class LoopRecord:
     """A first-class loop: a goal kew pursues to a terminal state.
 
     ``drive_mode`` is intentionally NOT stored — derive it from the runner's
-    ``loop_style`` at read time (spec R3). ``wall_clock_secs``/``max_steps`` are
-    mandatory non-null so a $0 cost estimate can never run unbounded (spec R2).
+    ``loop_style`` at read time. ``wall_clock_secs``/``max_steps`` are
+    mandatory non-null so a $0 cost estimate can never run unbounded.
     """
 
     loop_id: str
@@ -1549,15 +1532,15 @@ class LoopRecord:
     updated_at: datetime | None = None
     finished_at: datetime | None = None
     pause_requested: bool = False
-    # V24 durable work-item id (A3); mirrors ``RunRecord.item_id``. ``loops``
+    # V24 durable work-item id; mirrors ``RunRecord.item_id``. ``loops``
     # allows a NULL ``issue_num`` so no ``0`` sentinel is needed here.
     item_id: str | None = None
-    # V35 durable route (#1111): the model this loop runs under, recorded
+    # V35 durable route: the model this loop runs under, recorded
     # alongside ``runner_name`` so a later actor (resume, another process) can
     # reconstruct the SAME route instead of re-resolving the config default.
     # Empty = pre-v35 loop with no recorded model -> callers fall back to config.
     model: str = ""
-    # V35 routed complexity tier (#1111): the `[routing]` tier the route above was
+    # V35 routed complexity tier: the `[routing]` tier the route above was
     # resolved at, so a later actor re-resolving the route (a DB override raised
     # mid-flight) resolves it at the SAME tier instead of `[routing].default`.
     # Empty = pre-v35 loop with no recorded tier -> the default tier, as before.
@@ -1567,7 +1550,7 @@ class LoopRecord:
 @dataclass
 class InteractiveUsage:
     """One ingested interactive-usage observation: (runner, model, session,
-    export-instant). Stored off the hash chain in interactive_usage (#256)."""
+    export-instant). Stored off the hash chain in interactive_usage."""
 
     runner: str
     model: str
@@ -1580,10 +1563,10 @@ class InteractiveUsage:
     session_id: str | None
     ingest_source: str
     dedup_key: str
-    # V16 cache observability (#348)
+    # V16 cache observability
     prefix_key: str | None = None
     provider: str | None = None
-    # V18 per-subagent attribution (#382)
+    # V18 per-subagent attribution
     query_source: str | None = None
     agent_name: str | None = None
 
@@ -1591,12 +1574,12 @@ class InteractiveUsage:
 @dataclass
 class TrackerEvent:
     """One inbound tracker webhook delivery (Linear Issue/Comment/Project),
-    normalized off the audit hash chain in tracker_events (W1/#893).
+    normalized off the audit hash chain in tracker_events.
 
     ``delivery_id`` is the tracker's delivery identifier and the idempotency
     key (UNIQUE); a redelivered event collapses to the same row. ``payload``
     is the raw webhook JSON verbatim — an external fact, never an attested
-    governance action, so it stays OFF-CHAIN like interactive_usage (#256)."""
+    governance action, so it stays OFF-CHAIN like interactive_usage."""
 
     delivery_id: str
     source: str  # tracker source, e.g. "linear"
@@ -1613,7 +1596,7 @@ class IterationRecord:
     """One governance checkpoint within a loop (a step / assistant turn).
 
     ``run_id`` is the PARENT run and is nullable: in delegate mode one run has
-    many iterations, so it is shared, not unique (spec R4). ``status`` is a
+    many iterations, so it is shared, not unique. ``status`` is a
     free-form lifecycle snapshot string (intentionally not the ``LoopStatus``
     Literal — an iteration records a moment, not the loop's terminal verdict).
     """
@@ -1640,7 +1623,7 @@ class AuditEvent:
     run_id: str | None = None
     issue_num: int | None = None
     # V24 durable work-item id (mirrors RunRecord.item_id). In the entry_hash
-    # preimage of every row written from v77 on (#2029); rows written before
+    # preimage of every row written from v77 on; rows written before
     # that step leave it out. Null on the classic GitHub path (issue_num
     # carries the key).
     item_id: str | None = None
@@ -1648,8 +1631,10 @@ class AuditEvent:
     actor_type: str | None = None  # human | policy | agent
     actor_id: str | None = None
     endpoint: str | None = None
-    policy_hash: str | None = None  # null until #250
-    prev_hash: str | None = None  # null until #249
+    # The bound policy's hash on events audit.emit writes; None when none
+    # was bound, and always None from direct append_audit_event callers.
+    policy_hash: str | None = None
+    prev_hash: str | None = None  # set by the store on append
     payload: dict[str, Any] | None = None
     # V39 idempotency identity. Hashed like item_id on rows written from v77
     # on; continuation payloads also carry it inside the hashed payload.
@@ -1976,9 +1961,9 @@ class RunStore(Protocol):
         issue_nums: Sequence[int] | None = None,
         run_id: str | None = None,
     ) -> list[tuple[int, str, int]]: ...
-    # I06/I07 sealed lineage and I10A no-change judgments. Declared here
-    # because the zero-change dispatch path (I10B) reads and writes them
-    # through this protocol, not through the concrete store.
+    # Sealed lineage and no-change judgments. Declared here because the
+    # zero-change dispatch path reads and writes them through this protocol,
+    # not through the concrete store.
     def list_artifact_receipts(
         self, *, run_id: str | None = None
     ) -> list[ArtifactReceipt]: ...
@@ -2674,11 +2659,11 @@ _SCHEMA_V11 = [
 
 _SCHEMA_V22 = "ALTER TABLE runs ADD COLUMN container_name TEXT"
 
-# V25 (L3): re-key the epic tables on ``item_id``. Kept as per-table literal
+# V25: re-key the epic tables on ``item_id``. Kept as per-table literal
 # constants (never f-string-interpolated) so bandit's B608 stays quiet — the
 # table names are a fixed allowlist, not caller input.
 #: Where the full node-id list one epic hold was written with lives, keyed by
-#: the held item (#2884): a ``test_declarations_missing`` reason is capped and
+#: the held item: a ``test_declarations_missing`` reason is capped and
 #: ends ``+N more``. Written and deleted only with the hold row itself.
 _EPIC_HOLD_NODE_IDS_META_PREFIX = "epic_hold_node_ids:"
 
@@ -2907,7 +2892,7 @@ def _iso_to_dt(value: str | None) -> datetime | None:
 
 
 def _tick_is_stale(last_tick_ts: str | None, cutoff: datetime) -> bool:
-    """Whether a driver-state row's last tick predates ``cutoff`` (#2094).
+    """Whether a driver-state row's last tick predates ``cutoff``.
 
     Fails OPEN — a NULL (never ticked) or unparseable timestamp counts as fresh,
     so a malformed row keeps its epic contending rather than silently handing
@@ -2935,7 +2920,7 @@ def _epic_drive_silence_s(
     Fails OPEN like :func:`_tick_is_stale`: no previous drive, or a stamp that
     is not ISO-8601, returns None — "we cannot tell" — and the one caller
     (:meth:`SqliteRunStore._surviving_recorded_cadence`) then changes nothing.
-    A stamp is tolerated, never repaired (#2297 review round 2).
+    A stamp is tolerated, never repaired.
     """
     if last_tick_ts is None:
         return None
@@ -3201,7 +3186,7 @@ def _event_prefix_bounds(prefix: str) -> tuple[str, str | None]:
 
     Used instead of ``LIKE ? ESCAPE`` because an ESCAPE clause disables SQLite's
     LIKE optimization outright: the prefix read full-scanned ``audit_events``
-    where a range seeks ``idx_audit_events_event_ts`` (#2129). A range is also
+    where a range seeks ``idx_audit_events_event_ts``. A range is also
     an exact prefix test, where LIKE's default is case-insensitive.
 
     BINARY compares UTF-8 bytes, an order that agrees with code-point order, so
@@ -3266,7 +3251,7 @@ def _as_issue_num(value: str) -> int | None:
 
 
 def _audit_prefix_filters(prefixes: Sequence[str]) -> tuple[list[str], list[Any]]:
-    """An OR of index-served prefix ranges on ``event`` — never a LIKE (#2129).
+    """An OR of index-served prefix ranges on ``event`` — never a LIKE.
 
     Each prefix becomes its own half-open range (:func:`_event_prefix_bounds`);
     SQLite's OR optimization can still serve the union from
@@ -3327,9 +3312,9 @@ def _audit_item_scope(item_ids: Sequence[str] | None) -> tuple[list[str], list[A
     """``item_ids=`` — a durable-id scope, as index-served ``IN`` arms.
 
     The sibling of ``issue_nums`` for a tracker whose ids are not numbers, and
-    a scope rather than a second rule for the same reason (#2129): a caller
-    holding a handful of nodes — an epic's unsettled ones, read on a 1s poll
-    (#2392) — must not have to parse every event of its kind ever appended.
+    a scope rather than a second rule for the same reason: a caller holding a
+    handful of nodes — an epic's unsettled ones, read on a 1s poll — must not
+    have to parse every event of its kind ever appended.
     ``idx_audit_events_item_event`` serves the ``item_id`` arm; the
     ``issue_num`` one catches a pre-v24 row that has no ``item_id`` at all.
 
@@ -3394,7 +3379,7 @@ def _audit_scope_filters(
     """The narrowing filters of :meth:`SqliteRunStore.list_audit_events`, as
     index-served comparisons: an OR of half-open ranges on ``event`` (never a
     LIKE — see :func:`_event_prefix_bounds`), an ``IN`` over the issue scope
-    (#2129) or the durable-id scope (:func:`_audit_item_scope`), and the
+    or the durable-id scope (:func:`_audit_item_scope`), and the
     ``item=``/``epic=`` disjunctions."""
     issue_scope = (
         ([], [])
@@ -3422,10 +3407,8 @@ _AUDIT_EQ_FILTERS = (
     ("actor_type = ?", "actor_type"),
     ("issue_num = ?", "issue_num"),
     ("run_id = ?", "run_id"),
-    # A loop stamps its id inside the payload (there has never been a column
-    # for it), so the loop detail page used to read every audit row ever
-    # appended and filter in Python. The JSON arm is unindexed, which is why
-    # the caller must also bound the read (C3/#2296).
+    # A loop stamps its id inside the payload; there is no column for it. The
+    # JSON arm is unindexed, so the caller must also bound the read.
     ("json_valid(payload) AND json_extract(payload, '$.loop_id') = ?", "loop_id"),
 )
 
@@ -3472,7 +3455,7 @@ def _optional_bool(raw: Any) -> bool | None:
 
     Not ``bool(raw)``: that reads a NULL (nothing was ever observed) as False,
     and for ``lock_pid_alive`` False means "this pid is PROVABLY dead" — a
-    conclusive gone verdict, invented from an absence (#2297 review).
+    conclusive gone verdict, invented from an absence.
     """
     return None if raw is None else bool(raw)
 
@@ -3562,7 +3545,7 @@ def _row_to_loop(row: sqlite3.Row) -> LoopRecord:
         else False,
         item_id=_col(row, keys, "item_id"),
         # Pre-v35 rows have no model column / a NULL model -> "" (no recorded
-        # route); resume falls back to the config route for those (#1111).
+        # route); resume falls back to the config route for those.
         model=_col(row, keys, "model") or "",
         complexity=_col(row, keys, "complexity") or "",
     )
@@ -3586,7 +3569,7 @@ def _row_to_iteration(row: sqlite3.Row) -> IterationRecord:
 
 
 def _epic_item_id(row: sqlite3.Row) -> str:
-    """The durable ``item_id`` for an epic-table row (L3).
+    """The durable ``item_id`` for an epic-table row.
 
     Pre-v25 seeds that stamp the version without the column read as NULL — fall
     back to the stringified ``issue_num`` so a row never presents a NULL id."""
@@ -3597,20 +3580,15 @@ def _epic_item_id(row: sqlite3.Row) -> str:
 
 
 def _epic_issue_num(item_id: str) -> int:
-    """The int-shim ``issue_num`` DERIVED from ``item_id`` (L3): the number
+    """The int-shim ``issue_num`` DERIVED from ``item_id``: the number
     itself for a GitHub id, else the ``0`` non-numeric sentinel. The stored
     ``issue_num`` column (an auto-rowid for a Linear row) is never trusted."""
     return int(item_id) if GITHUB_ID_RE.fullmatch(item_id) else 0
 
 
-# The complete Linear-era epics whose runs carry numeric GitHub-twin item_ids
-# from a pre-SFD recording era. Item-id-shape inference reads a numeric id as a
-# GitHub issue number, so it misclassified these as ``github``; `epic run --all`
-# then probed them against GitHub labels, found them not-ready, and false-STALLED
-# them (#927, the third leak of #877). Their durable tracker is Linear, so
-# ``_apply_v33`` backfills the explicit ``epic_driver_state.tracker`` column that
-# ``epic_trackers`` now reads first. Identifiable only by name — a numeric twin
-# is indistinguishable from a real GitHub epic by shape alone.
+# Linear epics whose runs carry numeric GitHub-twin item_ids, which shape
+# inference would misread as ``github``. ``_apply_v33`` backfills their explicit
+# ``epic_driver_state.tracker``; only the name tells a twin from a GitHub epic.
 _LINEAR_ERA_EPIC_BACKFILL: tuple[str, ...] = (
     "driver-polish",
     "hold-controls",
@@ -3620,8 +3598,8 @@ _LINEAR_ERA_EPIC_BACKFILL: tuple[str, ...] = (
 
 
 def _infer_epic_tracker(item_ids: set[str]) -> str | None:
-    """Infer an epic's tracker from the shape of its recorded work-item ids
-    (#882/B1): a numeric id is a GitHub issue number (``"github"``), any opaque
+    """Infer an epic's tracker from the shape of its recorded work-item ids:
+    a numeric id is a GitHub issue number (``"github"``), any opaque
     key like ``SFD-12`` is Linear (``"linear"``), and no items at all yields
     ``None`` (unknown — drive under the active tracker rather than guess). Reuses
     the ``GITHUB_ID_RE`` numeric shape :func:`_epic_issue_num` keys on."""
@@ -3633,7 +3611,7 @@ def _infer_epic_tracker(item_ids: set[str]) -> str | None:
 
 
 def _epic_db_issue_num(item_id: str) -> int | None:
-    """The value to WRITE into the epic table's ``issue_num`` column (L3).
+    """The value to WRITE into the epic table's ``issue_num`` column.
 
     Always ``None``: ``issue_num`` is an ``INTEGER PRIMARY KEY``, so a NULL
     insert takes a fresh auto-rowid (always ``MAX(rowid)+1``, so unique and
@@ -3910,7 +3888,7 @@ class SqliteRunStore(
         if read_only:
             # A diagnostics reader (e.g. `kew doctor`) must NOT migrate the DB
             # as a side effect — bumping the schema under a live older process
-            # hard-blocks it with SchemaTooNewError (#972 review Finding 3).
+            # hard-blocks it with SchemaTooNewError.
             # Open read-only so no write (migration OR WAL pragma) can happen.
             self._conn = sqlite3.connect(
                 f"file:{db_path}?mode=ro",
@@ -3924,14 +3902,9 @@ class SqliteRunStore(
         if not read_only:
             self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA busy_timeout=5000")
-        # Serialize BEGIN IMMEDIATE...COMMIT sections in-process (I7). The TUI
-        # shares one connection across threads (check_same_thread=False); Python
-        # guards each individual execute() call, but NOT a multi-statement write
-        # transaction — two threads issuing BEGIN IMMEDIATE on the same
-        # connection interleave, and the second raises "cannot start a
-        # transaction within a transaction". This lock makes each transaction
-        # body atomic in-process; BEGIN IMMEDIATE still guards cross-process
-        # (multi-connection) writers.
+        # Serializes BEGIN IMMEDIATE...COMMIT bodies in-process: the TUI shares
+        # one connection across threads, where two BEGIN IMMEDIATEs interleave
+        # and the second raises. BEGIN IMMEDIATE still guards other processes.
         self._txn_lock = threading.Lock()
         # Include single-statement writers in provider-delivery fencing.
         self._write_lock = threading.RLock()
@@ -4004,7 +3977,7 @@ class SqliteRunStore(
         return self._db_path != ":memory:"
 
     def open_sibling(self) -> "SqliteRunStore":
-        """Open a second handle on this ledger for another thread (#2110).
+        """Open a second handle on this ledger for another thread.
 
         The handle binds the same file and project identity with its own
         thread-affine connection; WAL and ``busy_timeout`` arbitrate its writes
@@ -4146,7 +4119,7 @@ class SqliteRunStore(
         )
 
     def _apply_v13(self, cursor: sqlite3.Cursor) -> None:
-        """Create the content-addressed policy-snapshot table (#250).
+        """Create the content-addressed policy-snapshot table.
 
         Simple form (no BEGIN IMMEDIATE): an empty CREATE TABLE IF NOT EXISTS
         plus a monotonic MAX(version) bump races benignly under N concurrent
@@ -4165,7 +4138,7 @@ class SqliteRunStore(
         )
 
     def _apply_v14(self, cursor: sqlite3.Cursor) -> None:
-        """Add the runner-reported resolved-model column (#251).
+        """Add the runner-reported resolved-model column.
 
         Simple form (no BEGIN IMMEDIATE/backfill): an idempotent ALTER via
         _try_alter plus a monotonic MAX(version) bump races benignly under N
@@ -4178,7 +4151,7 @@ class SqliteRunStore(
         )
 
     def _apply_v15(self, cursor: sqlite3.Cursor) -> None:
-        """Create the off-chain interactive_usage table (#256).
+        """Create the off-chain interactive_usage table.
 
         New-table precedent of _apply_v13: a plain CREATE TABLE IF NOT EXISTS
         plus a monotonic MAX(version) bump races benignly under N concurrent
@@ -4210,7 +4183,7 @@ class SqliteRunStore(
         )
 
     def _apply_v16(self, cursor: sqlite3.Cursor) -> None:
-        """Add prefix_key and provider columns for cache observability (#348).
+        """Add prefix_key and provider columns for cache observability.
 
         Additive ALTER on both runs and interactive_usage. Pre-v16 rows
         read as NULL → treated as cold/unknown (no history migration).
@@ -4233,7 +4206,7 @@ class SqliteRunStore(
         )
 
     def _apply_v17(self, cursor: sqlite3.Cursor) -> None:
-        """Add config_overrides table for web config-manager (#368).
+        """Add config_overrides table for web config-manager.
 
         Additive CREATE TABLE IF NOT EXISTS + index; pre-v17 DBs upgrade
         cleanly with no history migration.
@@ -4254,7 +4227,7 @@ class SqliteRunStore(
         )
 
     def _apply_v18(self, cursor: sqlite3.Cursor) -> None:
-        """Add query_source and agent_name to interactive_usage (#382)."""
+        """Add query_source and agent_name to interactive_usage."""
         tbl = cursor.execute(
             "SELECT name FROM sqlite_master"
             " WHERE type='table' AND name='interactive_usage'"
@@ -4273,7 +4246,7 @@ class SqliteRunStore(
         )
 
     def _apply_v19(self, cursor: sqlite3.Cursor) -> None:
-        """Add epic_reservations and epic_holds tables (#427 Phase 2a).
+        """Add epic_reservations and epic_holds tables.
 
         New-table precedent of _apply_v13/_apply_v15/_apply_v17: plain
         CREATE TABLE IF NOT EXISTS + indexes plus a monotonic MAX(version)
@@ -4308,7 +4281,7 @@ class SqliteRunStore(
         )
 
     def _apply_v20(self, cursor: sqlite3.Cursor) -> None:
-        """Add epic_retries table (#427 Phase 2 retry-marker).
+        """Add the epic_retries retry-marker table.
 
         Same new-table precedent as _apply_v13/_apply_v15/_apply_v17/
         _apply_v19: plain CREATE TABLE IF NOT EXISTS + index plus a
@@ -4331,7 +4304,7 @@ class SqliteRunStore(
         )
 
     def _apply_v22(self, cursor: sqlite3.Cursor) -> None:
-        """Add container_name column for sandboxed dispatch (Node S5).
+        """Add container_name column for sandboxed dispatch.
 
         Additive ALTER via _try_alter; pre-v22 rows read as NULL → treated
         as host-subprocess runs (no container kill path).
@@ -4342,7 +4315,7 @@ class SqliteRunStore(
         )
 
     def _apply_v21(self, cursor: sqlite3.Cursor) -> None:
-        """Add epic_ticks journal + epic_driver_state heartbeat (#454 Phase A).
+        """Add epic_ticks journal + epic_driver_state heartbeat.
 
         New-table precedent of _apply_v13/_apply_v15/_apply_v17/_apply_v19/
         _apply_v20: plain CREATE TABLE IF NOT EXISTS + indexes plus a monotonic
@@ -4381,7 +4354,7 @@ class SqliteRunStore(
         )
 
     def _apply_v23(self, cursor: sqlite3.Cursor) -> None:
-        """Add orphan_prs persistence table (#680 Group 1).
+        """Add orphan_prs persistence table.
 
         Same new-table precedent as _apply_v19/_apply_v20/_apply_v21: plain
         CREATE TABLE IF NOT EXISTS + index plus a monotonic MAX(version) bump
@@ -4407,7 +4380,7 @@ class SqliteRunStore(
         )
 
     def _apply_v24(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``item_id`` to runs/loops/audit_events + backfill + indexes (A2).
+        """Add ``item_id`` to runs/loops/audit_events + backfill + indexes.
 
         Additive ALTERs via _try_alter (same duplicate-column-tolerant precedent
         as _apply_v22) so N concurrent openers race benignly. Existing rows are
@@ -4416,8 +4389,7 @@ class SqliteRunStore(
         rows whose ``item_id`` is still NULL so a re-run never clobbers ids a
         later version may have written. Indexes ``idx_runs_item_id`` /
         ``idx_loops_item_id`` mirror the existing ``issue_num`` indexes;
-        ``idx_runs_branch`` backs A6's ``find_run_by_branch`` (``runs.branch``
-        had no index before now).
+        ``idx_runs_branch`` backs ``find_run_by_branch``.
 
         The ``loops`` / ``audit_events`` steps are guarded on table existence:
         a genuine pre-v24 DB always has them (created at v9 / v8), but
@@ -4452,7 +4424,7 @@ class SqliteRunStore(
 
     def _apply_v25(self, cursor: sqlite3.Cursor) -> None:
         """Key ``epic_reservations``/``epic_holds``/``epic_retries`` on
-        ``item_id TEXT`` (L3).
+        ``item_id TEXT``.
 
         Additive ALTER via _try_alter (same duplicate-column-tolerant precedent
         as _apply_v22/_apply_v24) so N concurrent openers race benignly. Each
@@ -4480,7 +4452,7 @@ class SqliteRunStore(
         )
 
     def _apply_v26(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``run_kind`` to runs (I1/#445).
+        """Add ``run_kind`` to runs.
 
         Additive ALTER via _try_alter (same duplicate-column-tolerant precedent
         as _apply_v22/_apply_v24) so N concurrent openers race benignly. The
@@ -4499,7 +4471,7 @@ class SqliteRunStore(
         )
 
     def _apply_v27(self, cursor: sqlite3.Cursor) -> None:
-        """Create the off-chain tracker_events table (W1/#893).
+        """Create the off-chain tracker_events table.
 
         Inbound Linear (and later GitHub) webhook deliveries land here,
         normalized and idempotent on the tracker's delivery id. Same off-chain
@@ -4531,7 +4503,7 @@ class SqliteRunStore(
         )
 
     def _apply_v28(self, cursor: sqlite3.Cursor) -> None:
-        """Create the off-chain epic_graph_cache table (W2/#894).
+        """Create the off-chain epic_graph_cache table.
 
         Caches the last full provider graph fetch per epic so the driver /
         `kew epic status` can short-circuit the GraphQL fetch when no
@@ -4554,7 +4526,7 @@ class SqliteRunStore(
         )
 
     def _apply_v29(self, cursor: sqlite3.Cursor) -> None:
-        """Create the off-chain review_rounds table (F8/#977).
+        """Create the off-chain review_rounds table.
 
         Persists per-node governed-review state (round counter + per-round
         ``{head_sha, verdict, sidecar_digest}``) so a driver restart mid-review
@@ -4586,7 +4558,7 @@ class SqliteRunStore(
         )
 
     def _apply_v30(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``steps_to_first_edit``/``tokens_to_first_edit`` to runs (D2).
+        """Add ``steps_to_first_edit``/``tokens_to_first_edit`` to runs.
 
         First-edit metrics — the context-memory epic's measurement substrate.
         Both are nullable INTEGER columns (no DEFAULT): existing rows migrate to
@@ -4597,10 +4569,9 @@ class SqliteRunStore(
         concurrent openers race benignly. No index: these columns are read for
         per-run reporting/backfill, never as a query predicate.
 
-        History note: this step briefly also carried the Task-2 columns
-        (amended in-place instead of minting v31); DBs stamped 30 in that
-        window lack them, which is exactly why _apply_v31 exists. Migration
-        steps are immutable history — never amend a merged step.
+        The v31 columns are not added here, because a DB already stamped 30
+        never re-runs this step. Migration steps are immutable — never amend a
+        merged step.
         """
         self._try_alter(
             cursor, "ALTER TABLE runs ADD COLUMN steps_to_first_edit INTEGER"
@@ -4613,17 +4584,13 @@ class SqliteRunStore(
         )
 
     def _apply_v31(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``map_tokens``/``lesson_corpus_tokens`` to runs (D2 / R1-8).
+        """Add ``map_tokens``/``lesson_corpus_tokens`` to runs.
 
         Injected-context sizes — the governor's cost-model inputs. Nullable
         INTEGER columns (no DEFAULT), same NULL-means-not-measured semantics as
-        v30. Minted as its own step because Task 2 originally amended the
-        already-merged _apply_v30 in place: a DB stamped 30 by Task 1's code
-        never re-runs the v30 step, so the columns were missing and every
-        ``store.save()`` raised OperationalError (the PR #1033 adversarial-
-        review CRITICAL finding, live-hit 2026-07-24). _try_alter keeps this
-        idempotent for DBs that migrated through the amended-v30 window and
-        already have the columns.
+        v30. Its own step, not part of v30, because a DB already stamped 30
+        never re-runs the v30 step. _try_alter keeps it idempotent for a DB
+        that an earlier build's amended v30 step already migrated.
         """
         self._try_alter(cursor, "ALTER TABLE runs ADD COLUMN map_tokens INTEGER")
         self._try_alter(
@@ -4634,10 +4601,10 @@ class SqliteRunStore(
         )
 
     def _apply_v32(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``sidecar_path`` to review_rounds (#1030).
+        """Add ``sidecar_path`` to review_rounds.
 
         The NEEDS_CHANGES remediation leg feeds the host-stored sidecar findings
-        (not deletable PR comments, F10) as its input. Remediation runs on a
+        (not deletable PR comments) as its input. Remediation runs on a
         LATER tick than the review that produced the verdict, driven purely from
         persisted state, so the driver must be able to LOCATE that round's stored
         sidecar — the digest alone is not a path. This nullable column records
@@ -4656,7 +4623,7 @@ class SqliteRunStore(
 
     def _apply_v33(self, cursor: sqlite3.Cursor) -> None:
         """Add durable ``tracker`` to epic_driver_state + backfill Linear-era
-        epics with numeric GitHub-twin item ids (#927/N3, third leak of #877).
+        epics with numeric GitHub-twin item ids.
 
         ``epic_trackers`` inferred an epic's tracker from the SHAPE of its
         recorded work-item ids: a numeric id => github, an opaque key (SFD-12)
@@ -4685,12 +4652,11 @@ class SqliteRunStore(
 
     def _apply_v34(self, cursor: sqlite3.Cursor) -> None:
         """Add ``planned_cost_usd`` to runs — the planned half of the
-        planned/actual cost pair (#1092, phase 2 of #1082).
+        planned/actual cost pair.
 
-        ``estimated_cost_usd`` became the runner's native provider-billed total
-        when it reports one (#1082/PR #1091), which silently discarded the
-        token×pricing-bound figure dispatch had planned against (#351: bound
-        $1.0787 vs native actual $0.1064). This column keeps that bound, so
+        ``estimated_cost_usd`` is the runner's native provider-billed total
+        when it reports one, which discards the token×pricing-bound figure
+        dispatch planned against. This column keeps that bound, so
         every row carries the pair and the planning-accuracy ratio per model is
         computable. Nullable REAL with no DEFAULT: historical rows migrate to
         NULL — "no bound recorded", never a fabricated $0 planned (which would
@@ -4703,7 +4669,7 @@ class SqliteRunStore(
         )
 
     def _apply_v35(self, cursor: sqlite3.Cursor) -> None:
-        """Add durable ``model``/``complexity`` to loops — its route (#1111).
+        """Add durable ``model``/``complexity`` to loops — its route.
 
         A loop stored only ``runner_name``, so the model half of its route lived
         nowhere but the in-memory ``ResolvedRoute`` of the process that started
@@ -4715,12 +4681,11 @@ class SqliteRunStore(
         durable, so resume continues on the route the loop actually started on.
         Additive ALTER via _try_alter (duplicate-column-tolerant, same precedent
         as _apply_v30.._apply_v34); pre-v35 rows migrate to NULL, read as ``""``
-        = "no recorded model" -> callers fall back to the config route exactly as
-        they did before.
+        = "no recorded model" -> callers fall back to the config route.
 
         ``complexity`` records the routing TIER that decision was made at, which
         the record needs for the same reason: when a mid-flight DB route override
-        (#659) has to be re-resolved for a continuation, resolving it without the
+        has to be re-resolved for a continuation, resolving it without the
         tier would land on ``[routing].default`` — the same escalation by another
         door. Pre-v35 rows read as ``""`` = "no recorded tier" -> default tier.
 
@@ -4821,7 +4786,7 @@ class SqliteRunStore(
         )
 
     def _apply_v38(self, cursor: sqlite3.Cursor) -> None:
-        """Persist preserved-work continuation ownership (SFD recovery Task 1).
+        """Persist preserved-work continuation ownership.
 
         The composite primary key keeps separate recovery records distinct when
         an item is reused by another original run, branch, or worktree.  A
@@ -4929,7 +4894,7 @@ class SqliteRunStore(
         )
 
     def _apply_v42(self, cursor: sqlite3.Cursor) -> None:
-        """Add the normalized immutable admission identity (I01).
+        """Add the normalized immutable admission identity.
 
         Legacy rows are backfilled to an *honest partial* identity: the repo
         and attempt they actually recorded, and nothing else. No item id: the
@@ -4988,7 +4953,7 @@ class SqliteRunStore(
         )
 
     def _apply_v43(self, cursor: sqlite3.Cursor) -> None:
-        """Add the realized route profile of every paid attempt (I03C).
+        """Add the realized route profile of every paid attempt.
 
         Deliberately NOT backfilled. The columns a legacy row carries
         (``runner_name``, ``model``, ``container_name``) describe what kew
@@ -5045,7 +5010,7 @@ class SqliteRunStore(
         )
 
     def _apply_v44(self, cursor: sqlite3.Cursor) -> None:
-        """Create the readiness-probe lifecycle/lease/evidence table (I05A).
+        """Create the readiness-probe lifecycle/lease/evidence table.
 
         Off the audit hash chain and deliberately NOT backfilled: no run that
         predates this table was a probe, so there is nothing to reconstruct.
@@ -5091,7 +5056,7 @@ class SqliteRunStore(
         )
 
     def _apply_v45(self, cursor: sqlite3.Cursor) -> None:
-        """Create the normalized artifact index (I06).
+        """Create the normalized artifact index.
 
         Metadata only: kind, digest, byte length, an opaque locator and the
         retention/purge lifecycle. There is deliberately NO content column —
@@ -5130,7 +5095,7 @@ class SqliteRunStore(
         )
 
     def _apply_v46(self, cursor: sqlite3.Cursor) -> None:
-        """Create the immutable artifact-receipt table (I07).
+        """Create the immutable artifact-receipt table.
 
         One row per sealed lineage: source, run/attempt, trusted base,
         recoverable package, immutable tree, how the tree was verified, and the
@@ -5187,7 +5152,7 @@ class SqliteRunStore(
         )
 
     def _apply_v47(self, cursor: sqlite3.Cursor) -> None:
-        """Create the normalized publication-job table (I08).
+        """Create the normalized publication-job table.
 
         One row owns the whole publication of one lineage: the commit, push,
         open and reconcile intent, the attempt that was about to happen, and
@@ -5268,7 +5233,7 @@ class SqliteRunStore(
     )
 
     def _apply_v48(self, cursor: sqlite3.Cursor) -> None:
-        """Give the existing publication job its risk, policy and slot (I13).
+        """Give the existing publication job its risk, policy and slot.
 
         Deliberately additive columns on ``publication_job`` rather than a
         second table: a publication that a person is holding is the SAME job as
@@ -5387,7 +5352,7 @@ class SqliteRunStore(
     )
 
     def _apply_v49(self, cursor: sqlite3.Cursor) -> None:
-        """Persist the no-change judgment, its synchronization and its effects (I10A).
+        """Persist the no-change judgment, its synchronization and its effects.
 
         A zero-diff exit is the one outcome kew cannot read off its artifacts:
         "there was nothing to do" and "nothing got written" produce the same
@@ -5532,7 +5497,7 @@ class SqliteRunStore(
         )
 
     def _apply_v58(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``review_mode`` to review_rounds (#2111).
+        """Add ``review_mode`` to review_rounds.
 
         Records whether a round was a full review of ``base...head`` or a delta
         review of the change since the previous round's head, so the driver can
@@ -5550,7 +5515,7 @@ class SqliteRunStore(
         )
 
     def _apply_v59(self, cursor: sqlite3.Cursor) -> None:
-        """Add ``accepted_verdict`` to review_rounds (#2151).
+        """Add ``accepted_verdict`` to review_rounds.
 
         Records the review stop rule's acceptance of a low/medium-only
         ``NEEDS_CHANGES`` round on the round itself, so a reader polling the
@@ -5568,7 +5533,7 @@ class SqliteRunStore(
         )
 
     def _apply_v60(self, cursor: sqlite3.Cursor) -> None:
-        """Record each item's acceptance criteria, and bind a round to them (#2290).
+        """Record each item's acceptance criteria, and bind a round to them.
 
         ``item_plans`` is the ledger's copy of what an item asks for, one row
         per (item, body digest) with the plan JSON, its sha and how it was
@@ -5611,7 +5576,7 @@ class SqliteRunStore(
         )
 
     def _apply_v61(self, cursor: sqlite3.Cursor) -> None:
-        """Record what triage proposed about each item, and who decided (#2293).
+        """Record what triage proposed about each item, and who decided.
 
         ``triage_decisions`` is the ledger's copy of one classification: the
         item and body digest it was taken over, the backend/model/prompt that
@@ -5667,7 +5632,7 @@ class SqliteRunStore(
         )
 
     def _apply_v62(self, cursor: sqlite3.Cursor) -> None:
-        """Separate the driver's EXPECTED cadence from its recorded one (#2297).
+        """Separate the driver's EXPECTED cadence from its recorded one.
 
         ``epic_driver_state.interval_s`` is what the driver itself polls at
         (``epic run --interval``). A one-shot ``kew epic advance`` has no cadence
@@ -5689,7 +5654,7 @@ class SqliteRunStore(
         )
 
     def _apply_v63(self, cursor: sqlite3.Cursor) -> None:
-        """Land the driver LOCK's evidence in the store (#2297 review).
+        """Land the driver LOCK's evidence in the store.
 
         The lock file carries the two facts a heartbeat age cannot supply: the
         pid holding the epic and whether that pid is still a live process, plus
@@ -5728,7 +5693,7 @@ class SqliteRunStore(
         )
 
     def _apply_v64(self, cursor: sqlite3.Cursor) -> None:
-        """Add the epic_tick_log tick-attempt table (#2304).
+        """Add the epic_tick_log tick-attempt table.
 
         ``epic_ticks`` only ever held the ticks that CHANGED something, so the
         ticks that failed, were locked out, or found an empty graph reached no
@@ -5763,7 +5728,7 @@ class SqliteRunStore(
         )
 
     def _apply_v65(self, cursor: sqlite3.Cursor) -> None:
-        """Record whether a run's prompt carried the pre-publish self-check (#2454).
+        """Record whether a run's prompt carried the pre-publish self-check.
 
         The round-1 READY rate is the measurement this change exists to move,
         and it cannot be read without knowing which runs were offered the
@@ -5827,7 +5792,7 @@ class SqliteRunStore(
         (:data:`CURRENT_SCHEMA_VERSION`); the backup captures the DB exactly as
         it was before that version's migrations ran. A copy failure aborts the
         migration (the live DB is left untouched) rather than proceeding
-        silently — see #688.
+        silently.
         """
         if self._db_path in (":memory:", "") or self._db_path.startswith(
             "file::memory:"
@@ -5857,7 +5822,7 @@ class SqliteRunStore(
         )
 
     def _apply_v66(self, cursor: sqlite3.Cursor) -> None:
-        """Land WHERE a run ran in the ledger (#2398).
+        """Land WHERE a run ran in the ledger.
 
         The fleet cap was always counted off this table, but every row read as
         "on this machine": the only host there was. Once a run can land on a
@@ -5883,7 +5848,7 @@ class SqliteRunStore(
         )
 
     def _apply_v67(self, cursor: sqlite3.Cursor) -> None:
-        """Record each node's acceptance contract (#2726).
+        """Record each node's acceptance contract.
 
         ``acceptance_contracts`` holds one row per version of a node's
         acceptance test file: path, sha256, the ``acceptance_author`` run that
@@ -5910,7 +5875,7 @@ class SqliteRunStore(
         )
 
     def _apply_v68(self, cursor: sqlite3.Cursor) -> None:
-        """Bind each acceptance contract to the plan it was written for (#2774).
+        """Bind each acceptance contract to the plan it was written for.
 
         ``plan_sha`` is the :func:`kew.triage.plan.plan_sha` of the plan the
         author read, and ``test_names`` the JSON list of the ``test_ac<k>``
@@ -5930,7 +5895,7 @@ class SqliteRunStore(
         )
 
     def _apply_v69(self, cursor: sqlite3.Cursor) -> None:
-        """Record the boot each run's owner ran under (#2812).
+        """Record the boot each run's owner ran under.
 
         ``owner_boot_id`` is ``<machine>/<boot id>``: a run recorded under an
         earlier boot of this machine had an owner that died with that boot, so
@@ -5943,7 +5908,7 @@ class SqliteRunStore(
         )
 
     def _apply_v70(self, cursor: sqlite3.Cursor) -> None:
-        """Keep each node's merge-state read time out of the journal (#2879).
+        """Keep each node's merge-state read time out of the journal.
 
         ``epic_ticks`` is an immutable change journal, and a node's
         ``merge_state_at`` is not state: hashing it made every quiet tick a
@@ -5968,7 +5933,7 @@ class SqliteRunStore(
         )
 
     def _apply_v71(self, cursor: sqlite3.Cursor) -> None:
-        """The project's merge queue (#2814).
+        """The project's merge queue.
 
         One ``merge_queue`` row per queued PR head, in FIFO order by id, shared
         by every session on the host. The row stores admission-time behavior
@@ -6019,7 +5984,7 @@ class SqliteRunStore(
         )
 
     def _apply_v72(self, cursor: sqlite3.Cursor) -> None:
-        """Bind a host-restart retry marker to the run it supersedes (#2969).
+        """Bind a host-restart retry marker to the run it supersedes.
 
         ``superseded_run_ids`` (a JSON array) names the reaped run and every
         run an earlier retry had already superseded, which the overlay then
@@ -6041,7 +6006,7 @@ class SqliteRunStore(
         )
 
     def _apply_v73(self, cursor: sqlite3.Cursor) -> None:
-        """Say why a merge queue is stopped, and keep the failure (#2883).
+        """Say why a merge queue is stopped, and keep the failure.
 
         ``merge_queue_suspects.red_on`` held both a main a verify found red and
         a commit that landed a tree nobody verified, so a stopped queue could
@@ -6060,7 +6025,7 @@ class SqliteRunStore(
         )
 
     def _apply_v74(self, cursor: sqlite3.Cursor) -> None:
-        """Operator prompt profiles: versioned, approved addenda (#3020).
+        """Operator prompt profiles: versioned, approved addenda.
 
         ``prompt_profile_versions`` holds every addendum an operator proposed
         for an agent role, numbered per role. A row moves ``proposed`` ->
@@ -6108,7 +6073,7 @@ class SqliteRunStore(
         )
 
     def _apply_v75(self, cursor: sqlite3.Cursor) -> None:
-        """Record whether a tick attempt inserted its journal row (#2949).
+        """Record whether a tick attempt inserted its journal row.
 
         Every quiet tick after a change carries the change's journal id, so the
         change strip took the FIRST attempt carrying an id as the change. Once
@@ -6136,7 +6101,7 @@ class SqliteRunStore(
         )
 
     def _apply_v76(self, cursor: sqlite3.Cursor) -> None:
-        """Merge claims: an operator verify holds a PR head (#3198).
+        """Merge claims: an operator verify holds a PR head.
 
         One row per claimed ``(pr, head)``, owned by the verify (or hand flow)
         that took it, live until ``expires_at`` — see
@@ -6157,7 +6122,7 @@ class SqliteRunStore(
         )
 
     def _apply_v77(self, cursor: sqlite3.Cursor) -> None:
-        """The audit chain format: item_id and dedup_key enter the hash (#2029).
+        """The audit chain format: item_id and dedup_key enter the hash.
 
         Every row already stored reads as the legacy format and keeps its
         hash — the published anchors cover them, so nothing is re-chained.
@@ -6203,10 +6168,8 @@ class SqliteRunStore(
             )
         if 0 < current_version < CURRENT_SCHEMA_VERSION:
             # Snapshot the existing DB before mutating its schema, so a bad
-            # (or unexpected) migration is always recoverable — the #688
-            # incident auto-migrated the live dispatch.db to a newer version
-            # with no backup. A copy failure ABORTS the migration rather than
-            # silently proceeding.
+            # (or unexpected) migration is always recoverable. A copy failure
+            # ABORTS the migration rather than silently proceeding.
             self._backup_before_migrate(current_version)
         steps = [
             self._apply_v1,
@@ -6307,7 +6270,7 @@ class SqliteRunStore(
 
     @staticmethod
     def _ensure_additive_indexes(cursor: sqlite3.Cursor) -> None:
-        """Create indexes that are purely additive over existing columns (I8).
+        """Create indexes that are purely additive over existing columns.
 
         Run on EVERY open, gated on nothing and bumping no schema version:
         ``CREATE INDEX IF NOT EXISTS`` on an already-present column is
@@ -6324,11 +6287,9 @@ class SqliteRunStore(
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_started ON runs(started_at)"
         )
-        # ``idx_runs_finished`` backs the dashboard's recent-completions strip
-        # (C3/#2296): it keeps five rows, and without this index keeping them
-        # meant ordering every finished run in the ledger on every poll. The
-        # partial predicate keeps still-running rows out of the index.
-        # Synthetic pre-v3 fixtures build a ``runs`` table without the column.
+        # ``idx_runs_finished`` backs the dashboard's recent-completions strip,
+        # so a poll never orders every finished run; partial, so running rows
+        # stay out. Synthetic pre-v3 fixtures build ``runs`` without the column.
         columns = {
             str(row["name"]) for row in cursor.execute("PRAGMA table_info(runs)")
         }
@@ -6337,13 +6298,9 @@ class SqliteRunStore(
                 "CREATE INDEX IF NOT EXISTS idx_runs_finished"
                 " ON runs(finished_at) WHERE finished_at IS NOT NULL"
             )
-        # ``idx_runs_pr_merged`` backs the merge-evidence arm of the outcome
-        # scorecard's merged-PR read (``run_store_outcomes``, C3/#2301): which
-        # week a PR belongs to is decided by when it MERGED, not by when its
-        # runs started, and an unindexed range on this column would turn that
-        # read from a MULTI-INDEX OR of three seeks into a full ledger scan.
-        # Partial, because almost every run row carries no merge timestamp.
-        # Synthetic pre-v8 fixtures build a ``runs`` table without the column.
+        # ``idx_runs_pr_merged`` keeps the scorecard's merged-PR read
+        # (``run_store_outcomes``, a range on merge time) off a full ledger scan.
+        # Partial: most rows have no merge time. Pre-v8 fixtures lack the column.
         if "pr_merged_at" in columns:
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_runs_pr_merged"
@@ -6360,25 +6317,11 @@ class SqliteRunStore(
                 "CREATE INDEX IF NOT EXISTS idx_audit_events_run_id"
                 " ON audit_events(run_id)"
             )
-            # Every per-item audit read — the evidence chain, the work screen's
-            # attested facts, one item's lifecycle — filters on `item_id` AND
-            # `event`, and before this that pair had no index at all:
-            # `idx_audit_events_event_ts` leads with `event` and then the
-            # timestamp, so the item filter was a scan of every row that event
-            # ever had (C3/#2303).
-            #
-            # `(item_id, event)` and NOT `(event, item_id)`: the latter is a
-            # left-prefix match for the `event`-range predicate #2129's
-            # prefix read uses, and SQLite then PREFERS it over
-            # `idx_audit_events_event_ts` — which serves the same seek AND the
-            # `ORDER BY timestamp` for free. The plan loses the ordered read and
-            # gains a `USE TEMP B-TREE FOR ORDER BY`, which is the 1s-poll
-            # regression #2129 exists to prevent, reintroduced by an index meant
-            # to help. Leading with the selective column keeps this index out of
-            # that query's way and is the better order for its own reads anyway.
-            # `test_run_store.py::TestAuditEventsStore` pins both halves.
-            #
-            # Synthetic pre-v24 fixtures open without the column.
+            # Per-item audit reads filter on `item_id` AND `event`. Leading with
+            # `event` would make SQLite prefer this index for the event-prefix
+            # read and lose `idx_audit_events_event_ts`'s ordered read (a temp
+            # B-tree sort); TestAuditEventsStore pins both. Pre-v24 fixtures
+            # open without the column.
             audit_columns = {
                 str(row["name"])
                 for row in cursor.execute("PRAGMA table_info(audit_events)")
@@ -6535,7 +6478,7 @@ class SqliteRunStore(
 
     @staticmethod
     def _exclude_key(exclude_item: str | None, exclude_issue: int | None) -> str | None:
-        """Resolve the item-keyed exclusion for the worker-cap trio (A3).
+        """Resolve the item-keyed exclusion for the worker-cap trio.
 
         ``exclude_item`` (the durable id) wins; ``exclude_issue`` is the legacy
         int shim — a GitHub issue number stringified to match ``item_id``.
@@ -6556,13 +6499,11 @@ class SqliteRunStore(
         exclude_run: str | None = None,
         on_admit: Callable[[], None] | None = None,
     ) -> bool:
-        """Atomically admit a run under the fleet-wide worker cap (#745).
+        """Atomically admit a run under the fleet-wide worker cap.
 
-        Closes the read-then-insert overshoot window the #721 preflight left
-        open: two concurrent dispatchers could each read the same live count
-        and each admit, pushing the fleet past ``parallel.max_workers`` until
-        their ``pending`` rows landed. Here the count and the slot claim are
-        one transaction, so a second contender cannot slip between them.
+        The count and the slot claim are one transaction, so two concurrent
+        dispatchers cannot each read the same live count and each admit,
+        pushing the fleet past ``parallel.max_workers``.
 
         Under ``BEGIN IMMEDIATE`` (grabs the write lock up front, serializing
         contending writers): count the live runs (same UNION as
@@ -6576,8 +6517,8 @@ class SqliteRunStore(
         off ``pending``, so a finished or failed run vacates its slot with no
         extra bookkeeping.
 
-        *on_admit* folds a second admission gate into this same transaction
-        (H2): it runs AFTER the pending row is inserted (so the row is visible
+        *on_admit* folds a second admission gate into this same transaction:
+        it runs AFTER the pending row is inserted (so the row is visible
         to reads on this connection and counts toward its own reservation) but
         BEFORE COMMIT, and RAISES to reject. Because ``BEGIN IMMEDIATE``
         serializes contending writers, the reservation a rejected callback sees
@@ -6625,9 +6566,9 @@ class SqliteRunStore(
         never diverge between the identity-less and identity-bearing forms.
 
         ``exclude_run`` names the slot the admitting run was started under — a
-        detached review stage's held reservation (#2459) — so neither that
+        detached review stage's held reservation — so neither that
         reservation nor the ``review_stage`` row keyed to it counts against
-        the run it started (#2628).
+        the run it started.
         """
         exclude = self._exclude_key(exclude_item, exclude_issue)
         dead_pending = self._prepare_admission()
@@ -6670,7 +6611,7 @@ class SqliteRunStore(
         The sweep admission runs on its way in, offered on its own to a caller
         that decides before admission — a strict placement refuses there, so a
         crashed run's row would otherwise hold its instance for good, the sweep
-        that frees it never reached (#2627). Same proof, so a live or
+        that frees it never reached. Same proof, so a live or
         unprovable row survives. Returns how many rows it finalized.
         """
         return len(self._prepare_admission())
@@ -6701,26 +6642,25 @@ class SqliteRunStore(
         :meth:`live_run_count`). Factored out so :meth:`try_admit_run` can reuse
         it inside its transaction.
 
-        The cap counts RUNS (#2628): two pending runs of one item hold two
+        The cap counts RUNS: two pending runs of one item hold two
         slots — except a detached review, whose ``review_stage`` row and the
         run its child started under it are one piece of work and hold one
-        (:func:`~kew.run_store_liveness.stage_shadowed`, #2697).
+        (:func:`~kew.run_store_liveness.stage_shadowed`).
         ``exclude_item`` drops only that item's own reservation — the slot
         reserved for the run being admitted — never a pending run, so a
         second run of an item already running cannot admit under it.
         ``exclude_run`` (admission only) drops the pending row and reservation
-        with that run id: the held slot a run was started under (#2459).
+        with that run id: the held slot a run was started under.
 
-        Reservations are matched to runs on ``item_id`` (A3), NOT
+        Reservations are matched to runs on ``item_id``, NOT
         ``issue_num`` — every non-numeric item shares the ``0`` sentinel, so
         matching on ``issue_num`` would let one Linear item's pending run hide
         every other Linear reservation. Reservations carry their own
-        ``item_id`` since L3, so their side is read directly (no CAST) and
+        ``item_id`` since v25, so their side is read directly (no CAST) and
         compared against ``runs.item_id``. Pending rows fall
-        back to ``issue_num`` when ``item_id`` is NULL (rows written by A2-only
-        code).
+        back to ``issue_num`` when ``item_id`` is NULL.
 
-        ``liveness`` (#1059) makes the count owner-liveness-aware: a killed/
+        ``liveness`` makes the count owner-liveness-aware: a killed/
         crashed run finalizes its ``pending`` row only through an in-process
         ``finally``, so a hard-killed owner (breaker process-group kill, driver
         restart, crash) orphans the row as ``pending`` forever — and the plain
@@ -6741,7 +6681,7 @@ class SqliteRunStore(
             return count_admission_runs(
                 self, exclude_item, dead_pending, exclude_run=exclude_run
             )
-        # A review stage whose child's run is pending is that run's slot (#2697).
+        # A review stage whose child's run is pending is that run's slot.
         row = self._execute(
             "SELECT (SELECT COUNT(*) FROM runs WHERE status = 'pending'"  # nosec B608
             " AND run_id IS NOT ? AND NOT " + stage_shadowed("runs", "runs") + ")"
@@ -6786,14 +6726,14 @@ class SqliteRunStore(
         exclude_item: str | None,
         liveness: Callable[[RunRecord], bool | None],
     ) -> int:
-        """Owner-liveness-aware live count (#1059; see :meth:`_count_live_runs`).
+        """Owner-liveness-aware live count (see :meth:`_count_live_runs`).
 
         Resolves each ``pending`` row's live_id and marks an item dead only when
         NONE of its pending runs is (possibly) alive — the dead item is then
         dropped from BOTH the runs and reservation sides so a hard-killed orphan
         stops consuming a fleet worker slot. Every pending run of a live item
-        counts on its own (#2628), except a review stage whose child's run is
-        pending (#2697). A reservation with no run row is unprobeable
+        counts on its own, except a review stage whose child's run is
+        pending. A reservation with no run row is unprobeable
         and always counts.
 
         Host probes use ``pgid`` for the owner. ``attempt_pgid`` never frees a slot.
@@ -6824,7 +6764,7 @@ class SqliteRunStore(
         liveness: Callable[[RunRecord], bool | None] | None = None,
     ) -> int:
         """Fleet-wide live concurrency: every pending run plus each active epic
-        reservation not yet backed by one (#721; runs, not items, since #2628).
+        reservation not yet backed by one (it counts runs, not items).
 
         A run is "live" from the moment its ``pending`` row is written until it
         finishes; an epic-DAG node is reserved BEFORE its child writes that row
@@ -6838,9 +6778,9 @@ class SqliteRunStore(
         not per-process. ``exclude_item`` (or the legacy int ``exclude_issue``
         shim) drops the reservation of the item being dispatched so a run never
         counts its own reserved slot; another pending run of that item still
-        counts (#2628).
+        counts.
 
-        ``liveness`` (#1059) drops a ``pending`` row whose owning process/
+        ``liveness`` drops a ``pending`` row whose owning process/
         container is *provably* dead so one crashed/killed run can never
         permanently shrink the fleet below ``max_workers - live_real``; see
         :meth:`_count_live_runs`. Omit it for the pure-SQL fast path.
@@ -6963,7 +6903,7 @@ class SqliteRunStore(
         """The loop's newest ``limit`` iterations, oldest-first in the page.
 
         ``list_iterations`` reads every iteration a loop ever ran; the strip
-        surfaces want the tail, and a long-lived loop has thousands (#2304).
+        surfaces want the tail, and a long-lived loop has thousands.
         Bounded in SQL on ``idx``, which is the loop's own monotonic counter.
         """
         if limit < 1:
@@ -6979,7 +6919,7 @@ class SqliteRunStore(
 
         ``add_iteration`` is the write a working loop makes between its session
         start and its terminal — and it does NOT touch ``loops.updated_at`` — so
-        this is the freshest evidence a loop is moving (#2297). One grouped
+        this is the freshest evidence a loop is moving. One grouped
         query, not one per loop: the loops page reads every row at once.
         """
         rows = self._conn.execute(
@@ -7268,7 +7208,7 @@ class SqliteRunStore(
 
         Includes every successful run, plus any non-success run on a branch that
         has *no* successful sibling — an "orphan failure" whose PR may still have
-        merged out-of-band (e.g. a rescued run that failed its own gate; #611).
+        merged out-of-band (e.g. a rescued run that failed its own gate).
         A failure superseded by a later success on the same branch is excluded:
         that branch's PR is already carried by the successful run.
 
@@ -7278,7 +7218,7 @@ class SqliteRunStore(
         the syncability predicate above is unchanged, and the orphan-failure
         subquery still sees every sibling on the branch. A caller that wants a
         handful of items (an epic's nodes on a 1s poll) must not pay to
-        materialize every open PR on the host (#2096).
+        materialize every open PR on the host.
         """
         scope = None if item_ids is None else list(dict.fromkeys(item_ids))
         if scope == []:
@@ -7505,7 +7445,7 @@ class SqliteRunStore(
     ) -> bool:
         """True iff a tracker_events row has received_at >= since.
 
-        Cheap existence probe (LIMIT 1) for the reconcile short-circuit (W2):
+        Cheap existence probe (LIMIT 1) for the reconcile short-circuit:
         the driver / `kew epic status` ask "did anything change since the last
         fetch?" without materializing the rows. ``source`` scopes to one
         tracker (e.g. "linear"); ``None`` matches any. Passing an epoch-old
@@ -7528,7 +7468,7 @@ class SqliteRunStore(
     def get_epic_graph_cache(self, epic_ref: str) -> tuple[datetime, str] | None:
         """The cached (fetched_at, graph_json) for ``epic_ref``, or None.
 
-        Read side of the reconcile short-circuit (W2). ``fetched_at`` is the
+        Read side of the reconcile short-circuit. ``fetched_at`` is the
         instant the cached graph was fetched from the provider; ``graph_json``
         is the adapter-serialized graph replayed when the fetch is skipped.
         """
@@ -7545,7 +7485,7 @@ class SqliteRunStore(
     def put_epic_graph_cache(
         self, epic_ref: str, source: str, fetched_at: datetime, graph_json: str
     ) -> None:
-        """Upsert the cached provider graph for ``epic_ref`` (W2)."""
+        """Upsert the cached provider graph for ``epic_ref``."""
 
         def _do_put() -> None:
             self._execute(
@@ -7663,7 +7603,7 @@ class SqliteRunStore(
 
         ``issue_nums`` narrows to those issues — a scope, not a second rule, so
         a caller that wants a handful of items (an epic's nodes on a 1s poll)
-        need not parse every matching event on the host (#2129). An empty
+        need not parse every matching event on the host. An empty
         sequence means no issues are in scope and reads nothing. ``item_ids``
         is the same scope keyed by durable item id, for the trackers whose ids
         are not numbers and for a caller that holds ids rather than issue
@@ -7675,7 +7615,7 @@ class SqliteRunStore(
         and ``epic=`` filters (:func:`_audit_item_filters`,
         :func:`_audit_epic_filters`).
 
-        ``after_seq`` is the FORWARD cursor (C3/#2300): a strict
+        ``after_seq`` is the FORWARD cursor: a strict
         lower-exclusive id bound read oldest-first, which is the only ordering
         a forward page can be taken in. ``after_id`` pages the other way, so
         the two are alternatives — a caller that sets both gets the
@@ -7808,7 +7748,7 @@ class SqliteRunStore(
         """The schema version the ledger records now, 0 when it records none.
 
         Read on this open store, past the open guard: a ledger a newer kew
-        migrated after this store opened is read rather than refused (#3197).
+        migrated after this store opened is read rather than refused.
         """
         row = self._conn.execute(
             "SELECT version FROM schema_version WHERE id = 1"
@@ -7859,7 +7799,7 @@ class SqliteRunStore(
         payload: dict[str, Any] | None = None,
     ) -> bool:
         """Write every ``(key, expected, value)`` and chain one audit row, in
-        one ``BEGIN IMMEDIATE`` transaction, or none of it (#2975): each key
+        one ``BEGIN IMMEDIATE`` transaction, or none of it: each key
         must still read *expected* (``None`` = absent), so no other connection
         sees half the writes, and the writes never land without their fact.
         False, with nothing written, when a key moved; a fact the chain cannot
@@ -7919,12 +7859,12 @@ class SqliteRunStore(
         superseded: Callable[[str], str],
     ) -> tuple[bool, str | None]:
         """Write *value* over *key* if it still reads *expected*, unless
-        *item_id* has a pending run, or a dispatch run started after *since*
-        (#2975): then ``superseded(run_id)`` is written instead, naming it.
+        *item_id* has a pending run, or a dispatch run started after *since*:
+        then ``superseded(run_id)`` is written instead, naming it.
         One ``BEGIN IMMEDIATE`` transaction, so no run is recorded between the
         look and the write. ``(wrote, run_id)``; False when *key* moved.
 
-        The liveness reconciliation admission runs comes first (#3010 F2): a
+        The liveness reconciliation admission runs comes first: a
         pending row whose owner is proven dead is finalized, so it fences
         nothing, while a live or unprovable one still does.
         """
@@ -7988,8 +7928,8 @@ class SqliteRunStore(
         """Successful runs per ``runner_name`` since *since*, counted SQL-side.
 
         The proof the health page needs before it calls a credential missing
-        from ``kew serve``'s own environment a note rather than an outage
-        (#2566): a runner that finished a run successfully this window was
+        from ``kew serve``'s own environment a note rather than an outage:
+        a runner that finished a run successfully this window was
         launched by a process that held its credential. A run with no recorded
         runner proves nothing about any runner, so it is not counted.
         """
@@ -8088,9 +8028,9 @@ class SqliteRunStore(
         return [_row_to_record(row) for row in rows], cursor
 
     def find_run_by_branch(self, branch: str) -> RunRecord | None:
-        """The latest PR-opening run for an EXACT branch match, or None (A3).
+        """The latest PR-opening run for an EXACT branch match, or None.
 
-        Written fresh for the Linear PR→item resolution path (A6): with no
+        Serves the Linear PR→item resolution path: with no
         ``Closes #N`` marker to parse, the branch is the join key back to the
         run that opened the PR. Index-backed by ``idx_runs_branch``. Runs whose
         subject was that PR (``PR_SUBJECT_RUN_KINDS``: reviews and their
@@ -8111,11 +8051,10 @@ class SqliteRunStore(
     ) -> dict[int, float]:
         """Aggregate estimated_cost_usd per issue_num, single indexed query.
 
-        Replaces an N-per-node store.list_by_issue scan (one query per DAG
-        node, per 1s poll) in kew.service.epics._drain_costs — see #454
-        Phase B PR #458 review. Readiness probes are excluded: they are real
-        spend (see :func:`kew.report.compute_stats`) but they are not this
-        item's economics, so folding them in would charge a node for a
+        One query instead of one store.list_by_issue per DAG node. Readiness
+        probes are excluded: they are real spend (see
+        :func:`kew.report.compute_stats`) but they are not this item's
+        economics, so folding them in would charge a node for a
         fleet-wide capability check. finished_at is stored as ISO-8601 UTC text
         (_dt_to_iso); string comparison against *since*/*until* is
         intentional and sufficient (same rationale as _run_in_window in
@@ -8142,7 +8081,7 @@ class SqliteRunStore(
     def sum_costs_by_item(
         self, item_ids: list[str], *, since: str, until: str | None = None
     ) -> dict[str, float]:
-        """``sum_costs_by_issue`` twin keyed on the durable ``item_id`` (A3).
+        """``sum_costs_by_issue`` twin keyed on the durable ``item_id``.
 
         Same windowing semantics (inclusive both ends; pending rows excluded,
         readiness probes excluded); items with no matching runs are absent from
@@ -8166,7 +8105,7 @@ class SqliteRunStore(
         return {str(row["item_id"]): float(row["total"] or 0.0) for row in rows}
 
     def list_by_items(self, item_ids: list[str]) -> dict[str, list[RunRecord]]:
-        """``list_by_item`` for a whole set of items, in ONE query (#2270).
+        """``list_by_item`` for a whole set of items, in ONE query.
 
         The epic timeline needs every run of every node of an epic; per-node
         reads turn one page into one query per node. Returns oldest-first
@@ -8200,12 +8139,12 @@ class SqliteRunStore(
         status: str | None = None,
         kind: str | None = None,
     ) -> list[RunRecord]:
-        """One bounded page of runs, newest first, filtered in SQL (C3).
+        """One bounded page of runs, newest first, filtered in SQL.
 
-        The console polls this every few seconds. ``list_all`` read every row
-        of the ledger to keep the newest ``limit``, so the cost of one poll
-        grew with history forever. Here the window, the status filter and the
-        kind filter are all SQL predicates and the page is ONE query.
+        The console polls this every few seconds, so its cost must not grow
+        with history (``list_all`` reads every row). The window, the status
+        filter and the kind filter are all SQL predicates and the page is ONE
+        query.
 
         ``before`` is the stored ``started_at`` text of the last row of the
         previous page, so cursor comparisons match SQLite's own ordering;
@@ -8226,11 +8165,10 @@ class SqliteRunStore(
         return [_row_to_record(row) for row in rows]
 
     def list_recent_completions(self, *, limit: int = 5) -> list[RunRecord]:
-        """The newest finished runs, newest first — one bounded query (C3).
+        """The newest finished runs, newest first — one bounded query.
 
-        The dashboard strip keeps five. Reading them used to mean materializing
-        every run in the ledger and sorting in Python; ``idx_runs_finished``
-        makes this a backwards walk that stops at ``limit``.
+        The dashboard strip keeps five; ``idx_runs_finished`` makes this a
+        backwards walk that stops at ``limit``.
         """
         if limit < 1 or limit > MAX_RUN_PAGE:
             raise ValueError(f"completion limit must be between 1 and {MAX_RUN_PAGE}")
@@ -8245,7 +8183,7 @@ class SqliteRunStore(
         """Return all records with started_at >= since.
 
         Binds the *naive* (19-char) prefix of the UTC-normalized cutoff as a
-        single lower bound so the range is a seek on ``idx_runs_started`` (I8)
+        single lower bound so the range is a seek on ``idx_runs_started``
         rather than a full scan. ``_dt_to_iso`` always writes UTC, so a
         tz-suffixed row (``...+00:00``, 25 chars) sorts strictly after its own
         naive prefix and a legacy naive row (19 chars) compares directly;
@@ -8339,7 +8277,7 @@ class SqliteRunStore(
     def list_stale_pending(self, max_age_hours: float = 24.0) -> list[RunRecord]:
         """The rows ``cleanup_stale_pending`` would mark failed now, unchanged.
 
-        ``kew cleanup --dry-run`` previews the sweep with this (F18).
+        ``kew cleanup --dry-run`` previews the sweep with this.
         """
         return self._stale_pending_candidates(
             datetime.now(UTC) - timedelta(hours=max_age_hours)
@@ -8355,10 +8293,9 @@ class SqliteRunStore(
         Returns the number of records cleaned up.
 
         The SELECT and the UPDATE run inside ONE ``BEGIN IMMEDIATE`` critical
-        section (#1059): the age-gated sweep is the backstop that reclaims a
-        crashed run's orphaned worker slot, and it was observed no-op'ing under
-        review-recovery's concurrent writes — a bare autocommit SELECT+UPDATE
-        can race a peer that finalizes a row between the two statements, so the
+        section: the age-gated sweep is the backstop that reclaims a crashed
+        run's orphaned worker slot, and a bare autocommit SELECT+UPDATE can race
+        a peer that finalizes a row between the two statements, so the
         blind ``run_id`` UPDATE would clobber a fresh terminal outcome (and the
         rowcount would misreport). Serializing the read-modify-write means a
         momentarily-busy DB is *retried* by ``_with_busy_retry`` (never a silent
@@ -8478,7 +8415,7 @@ class SqliteRunStore(
 
         return self._with_busy_retry("purge_older_than", _do_purge)
 
-    # ── config overrides (web config-manager #368) ────────────────────
+    # ── config overrides (web config-manager) ────────────────────
 
     def list_config_overrides(self) -> list[dict[str, Any]]:
         """All active config overrides, one dict per row."""
@@ -9278,16 +9215,16 @@ class SqliteRunStore(
         *,
         liveness: Callable[[RunRecord], bool | None] | None = None,
     ) -> dict[str, int]:
-        """Live epic-node reservations grouped by ``epic_ref``, fleet-wide (#864).
+        """Live epic-node reservations grouped by ``epic_ref``, fleet-wide.
 
         Powers the fleet-wide ``[parallel] max_workers`` cap's per-epic fairness
-        split (F4): every reservation row is one live slot held by its epic (a
+        split: every reservation row is one live slot held by its epic (a
         node stays reserved from dispatch until its run terminates — see
         :meth:`live_run_count`), so counting rows per ``epic_ref`` across the
         WHOLE table gives each concurrently-driven epic's current footprint off
         the same rows the aggregate cap counts — no separate counter to drift.
 
-        ``liveness`` (#2094) makes the footprint owner-liveness-aware, exactly as
+        ``liveness`` makes the footprint owner-liveness-aware, exactly as
         it does for :meth:`live_run_count`: a hard-killed run strands its
         ``pending`` row AND the reservation backing it, and only the epic's own
         driver reconciles that away — so an epic abandoned mid-drive leaks a
@@ -9318,7 +9255,7 @@ class SqliteRunStore(
         stale_after: timedelta = CONTENTION_STALE_AFTER,
         liveness: Callable[[RunRecord], bool | None] | None = None,
     ) -> set[str]:
-        """Epic refs currently CONTENDING for fleet worker slots (#864 F4).
+        """Epic refs currently CONTENDING for fleet worker slots.
 
         An epic contends when it is on the driver-state roster (``kew epic
         plan`` seeds a row via :meth:`register_epic`), its last tick did NOT
@@ -9337,11 +9274,10 @@ class SqliteRunStore(
         a slot to reserve. Counting registered non-terminal epics makes that
         sibling divide the cap regardless of which epic ticks first.
 
-        Contention AGES OUT (#2094). A ``progressing`` row is only evidence of
+        Contention AGES OUT. A ``progressing`` row is only evidence of
         contention while some driver is still ticking it: an epic finished by
         hand or abandoned keeps that row forever and would divide the cap for
-        good (four such rows once pinned a live epic to one node per tick). A
-        row whose last tick is older than ``stale_after`` therefore stops
+        good. A row whose last tick is older than ``stale_after`` therefore stops
         contending UNLESS the epic still holds a live reservation — a real
         fleet slot outranks any clock. A registered-but-never-ticked row has no
         tick to age and keeps contending: that is the cold-start case above,
@@ -9374,10 +9310,10 @@ class SqliteRunStore(
     def hold_epic_node_item(
         self, epic_ref: str, item_id: str, reason: str, *, node_ids: Sequence[str] = ()
     ) -> None:
-        """Hold a DAG node keyed on the durable ``item_id`` (L3).
+        """Hold a DAG node keyed on the durable ``item_id``.
 
-        *node_ids* is the full list a hold whose reason is capped names
-        (#2884); it is written in the hold's own transaction and replaces
+        *node_ids* is the full list a hold whose reason is capped names;
+        it is written in the hold's own transaction and replaces
         whatever list the row carried, so a hold written without one carries
         none. :meth:`epic_hold_node_ids` reads it back.
         """
@@ -9426,13 +9362,13 @@ class SqliteRunStore(
         The conditional upsert a writer that owns ONE reason needs: read the
         standing hold and write over it inside one ``BEGIN IMMEDIATE``
         transaction, so another writer's hold upserted between a separate
-        lookup and the write is never replaced (#2869). ``held_at`` is kept
+        lookup and the write is never replaced. ``held_at`` is kept
         across a repeat hold, exactly as :meth:`hold_epic_node_item` keeps it.
         Owns its rollback, as :meth:`remove_epic_hold` does.
 
         *meta* is one ``(key, value)`` upserted in the same transaction, for a
-        writer whose record of why it held must stand or fall with the hold
-        (#3191): written only when the hold is.
+        writer whose record of why it held must stand or fall with the hold:
+        written only when the hold is.
         """
         issue_num = _epic_db_issue_num(item_id)
 
@@ -9488,7 +9424,7 @@ class SqliteRunStore(
     ) -> None:
         """Bind *node_ids* to ``item_id``'s hold, inside the caller's
         transaction; none deletes the list, so a release or another writer's
-        hold never leaves an earlier hold's ids behind (#2884)."""
+        hold never leaves an earlier hold's ids behind."""
         key = f"{_EPIC_HOLD_NODE_IDS_META_PREFIX}{item_id}"
         if not node_ids:
             self._execute("DELETE FROM meta WHERE key = ?", (key,))
@@ -9500,7 +9436,7 @@ class SqliteRunStore(
         )
 
     def epic_hold_node_ids(self, item_id: str) -> tuple[str, ...]:
-        """The node ids ``item_id``'s standing hold was written with (#2884).
+        """The node ids ``item_id``'s standing hold was written with.
 
         Empty when the node is not held, its hold carries no list, or the
         stored value is unreadable.
@@ -9580,14 +9516,14 @@ class SqliteRunStore(
         counters read as the cycle lower bound. It rides inside the same
         transaction because the driver's next review pass is the thing being
         raced: a release that left the count standing would be re-HELD before a
-        second call could reset it (#2154). Caller-supplied (the vocabulary
+        second call could reset it. Caller-supplied (the vocabulary
         lives in :mod:`kew.epic_holds`) and empty by default, so the driver's
         own ``ci_pending`` release stays a plain delete. A name matches the
-        reason itself or the reason carrying ``: <detail>`` after it (#3201).
+        reason itself or the reason carrying ``: <detail>`` after it.
 
         ``receipt_key``/``receipt_reason_prefixes`` are the same shape for a
         DERIVED hold — one a later pass would simply compute again (the merge
-        queue's ``merge_gate_touched``, #2184). Deleting the row releases
+        queue's ``merge_gate_touched``). Deleting the row releases
         nothing there, so the released reason is written to that ``meta`` key
         for the deriving pass to read back, and for the same reason it rides in
         this transaction: between a bare delete and a separate write, the
@@ -9597,7 +9533,7 @@ class SqliteRunStore(
         ``only_reason_prefixes`` narrows the delete to holds the caller owns: a
         row whose reason carries none of them is left alone and ``None`` is
         returned. It is read INSIDE the transaction because that is the whole
-        point — the driver clearing its own superseded dispatch refusal (#2217)
+        point — the driver clearing its own superseded dispatch refusal
         must not delete the honored hold another writer upserted over it
         between a separate lookup and the clear. Empty by default: the operator
         unhold releases whatever reason it finds.
@@ -9605,8 +9541,8 @@ class SqliteRunStore(
         ``keep`` is the same narrowing as a predicate, read in the same
         transaction: a row it returns True for is left alone and ``None`` is
         returned. The drive's reservation sweep uses it to retire only a hold
-        that predates its own check while no newer generation holds the item
-        (#3192). It may read the store; it must not write.
+        that predates its own check while no newer generation holds the item.
+        It may read the store; it must not write.
 
         Owns its rollback: ``_with_busy_retry`` only rolls back in its "locked"
         branch, so any other exception here must not leave the write
@@ -9664,7 +9600,7 @@ class SqliteRunStore(
         return [_row_to_epic_hold(row) for row in rows]
 
     def list_all_epic_holds(self) -> list[EpicHold]:
-        """Every epic-DAG node hold, across all epics (#680 Group 1).
+        """Every epic-DAG node hold, across all epics.
 
         The cross-epic generalization of ``list_epic_holds``; ordered by
         ``epic_ref`` then ``item_id`` for stable display.
@@ -9714,7 +9650,7 @@ class SqliteRunStore(
         self._with_busy_retry("sync_orphan_prs", _do_sync)
 
     def list_orphan_prs(self, include_acked: bool = False) -> list[OrphanPRRecord]:
-        """Persisted orphan PRs; hides acked rows unless ``include_acked`` (#680)."""
+        """Persisted orphan PRs; hides acked rows unless ``include_acked``."""
         sql = (
             "SELECT pr_number, url, branch, reason, detected_at, acked_at"
             " FROM orphan_prs"
@@ -9726,7 +9662,7 @@ class SqliteRunStore(
         return [_row_to_orphan_pr(row) for row in rows]
 
     def ack_orphan_pr(self, pr_number: int) -> bool:
-        """Set ``acked_at`` on an orphan PR row (the ack verb, #682). Idempotent.
+        """Set ``acked_at`` on an orphan PR row (the ack verb). Idempotent.
 
         Never touches the PR itself — acknowledging is a ledger-only act; the
         human decides whether to close. Returns True if a tracked orphan row
@@ -9754,7 +9690,7 @@ class SqliteRunStore(
         return self._with_busy_retry("ack_orphan_pr", _do_ack)
 
     def mark_epic_retry_item(self, epic_ref: str, item_id: str) -> None:
-        """Mark a DAG-node retry keyed on the durable ``item_id`` (L3)."""
+        """Mark a DAG-node retry keyed on the durable ``item_id``."""
 
         def _do_mark() -> None:
             self._mark_epic_retry_item_in_transaction(
@@ -9773,7 +9709,7 @@ class SqliteRunStore(
         precheck: Callable[[], None],
     ) -> None:
         """Re-run *precheck*, then append the ``epic_node_retry`` event and the
-        retry marker, in one ``BEGIN IMMEDIATE`` (#2960).
+        retry marker, in one ``BEGIN IMMEDIATE``.
 
         *audit* holds the event's other :meth:`append_audit_event` keywords.
         *precheck* reads through this connection under the write lock, so the
@@ -9816,7 +9752,7 @@ class SqliteRunStore(
     ) -> None:
         """Write the retry marker within the caller's transaction.
 
-        Runs the marker is already bound to stay superseded (#2969): a reaped
+        Runs the marker is already bound to stay superseded: a reaped
         run whose clock reads ahead of this retry would otherwise become the
         node's newest failure again. The retry's own time is the cutoff
         again, so a bound marker's own cutoff is cleared.
@@ -9841,7 +9777,7 @@ class SqliteRunStore(
     def _supersede_run_in_transaction(
         self, epic_ref: str, item_id: str, run_id: str
     ) -> None:
-        """Bind the node's retry marker to one reaped run (#2969).
+        """Bind the node's retry marker to one reaped run.
 
         The marker supersedes *run_id* by identity, whatever the clocks say,
         together with every run it already bound and every implementation run
@@ -9873,7 +9809,7 @@ class SqliteRunStore(
         )
 
     def _carried_runs(self, item_id: str, run_id: str) -> frozenset[str]:
-        """The runs a run-bound marker keeps from the marker before it (#2969).
+        """The runs a run-bound marker keeps from the marker before it.
 
         The runs that marker bound, plus the implementation runs other than
         *run_id* started before its cutoff — those an operator retry
@@ -9917,7 +9853,7 @@ class SqliteRunStore(
         return [_row_to_epic_retry(row) for row in rows]
 
     def superseded_runs_for_item(self, item_id: str) -> frozenset[str]:
-        """The runs a host-restart retry marker binds for *item_id* (#2969)."""
+        """The runs a host-restart retry marker binds for *item_id*."""
         row = self._execute(
             "SELECT superseded_run_ids FROM epic_retries WHERE item_id = ?",
             (item_id,),
@@ -9948,14 +9884,14 @@ class SqliteRunStore(
 
         Returns (id, inserted) tuple: id is the row id (new or existing), and
         inserted is True iff a row was written. Dedup compares ONLY against
-        the epic's LATEST row (per #454 spec constraint 2) — a snapshot hash
+        the epic's LATEST row — a snapshot hash
         that recurs after intervening state changes appends a new row, so the
         journal preserves the full state sequence.
 
         *rehash* is the caller's current hash function. When given, the latest
         row also matches if its stored snapshot re-hashes to *snapshot_hash*:
-        a row hashed by an older build (one that hashed ``merge_state_at``,
-        #2879) would otherwise never match, and the first upgraded tick would
+        a row hashed by an older build (one that hashed ``merge_state_at``)
+        would otherwise never match, and the first upgraded tick would
         append a false change.
 
         A journal row is never rewritten. Each node's merge-state read time is
@@ -10027,7 +9963,7 @@ class SqliteRunStore(
         )
 
     def begin_epic_tick_log(self, epic_ref: str, ts_started: str) -> int:
-        """Open one tick-attempt row and return its id (#2304).
+        """Open one tick-attempt row and return its id.
 
         The row is written BEFORE the tick does anything, so a tick that never
         finishes — killed driver, raised exception before the handler, host
@@ -10092,14 +10028,14 @@ class SqliteRunStore(
 
         Writes the counts and the outcome in one UPDATE. A close with no
         ``signal`` keeps the :data:`EPIC_TICK_LOG_REACHED_TICK` mark the row
-        may carry (#2882), so a tick that raised after it began still reads
+        may carry, so a tick that raised after it began still reads
         as one that began. The exception path
         calls this too, with ``outcome="failed"`` (or ``"empty_graph"``) and the
         exception's class name — never its message, which can carry a repo path
         or a token-bearing URL into a row every reader of the console can see.
 
         *journaled* says whether this attempt inserted the journal row it
-        carries (#2949) — the change strip draws only those. It defaults to
+        carries — the change strip draws only those. It defaults to
         False: a quiet tick carries the id of the row it matched, and only the
         caller knows whether its own append inserted that row, so an attempt
         is never drawn as the change unless its caller says so.
@@ -10140,7 +10076,7 @@ class SqliteRunStore(
         self._with_busy_retry("finish_epic_tick_log", _do)
 
     def mark_epic_tick_log_reached(self, row_id: int) -> None:
-        """Mark an OPEN attempt as having reached its tick (#2882).
+        """Mark an OPEN attempt as having reached its tick.
 
         Called once ``begin_epic_tick`` has committed: the attempt is past the
         lock, the preflight and the empty-graph guard, so it is a heartbeat and
@@ -10229,22 +10165,21 @@ class SqliteRunStore(
     def list_epic_tick_log_marks(
         self, epic_ref: str, *, limit: int = 200
     ) -> list[EpicTickLogEntry]:
-        """The epic's newest ``limit`` attempts a change strip draws (#2844).
+        """The epic's newest ``limit`` attempts a change strip draws.
 
         The changes (what CHANGE counts), the attempts that failed, and the one
         still running — oldest-first, like the tail. Filtered in SQL rather
-        than from a tail page: on live data 196 of 200 attempts are no-ops, so
-        a change reached the Epics list's strip only while fewer than a page of
-        no-ops followed it. Reaches back over the whole kept log
-        (:data:`EPIC_TICK_LOG_CAP`).
+        than from a tail page: almost every attempt is a no-op, so a tail page
+        loses a change once a page of no-ops follows it. Reaches back over the
+        whole kept log (:data:`EPIC_TICK_LOG_CAP`).
 
         A change is read off ``epic_ticks`` itself, not off the attempt that
-        appended it (#2882): the journal append is the committed fact, and the
+        appended it: the journal append is the committed fact, and the
         tick-log writes around it are best-effort. An attempt whose begin or
         finish write failed carries no journal id, so a change read only off
-        the log drew no dot while CHANGE went up. Each journal row is drawn
+        the log would draw no dot while CHANGE went up. Each journal row is drawn
         as its own attempt where the log holds the attempt marked
-        ``journaled`` — the one whose append inserted the row (#2949) — and
+        ``journaled`` — the one whose append inserted the row — and
         that attempt began no later than the row. On an
         unchanged snapshot :meth:`append_epic_tick` returns the existing
         row's id, so every no-op after a change carries that id too, but
@@ -10278,11 +10213,11 @@ class SqliteRunStore(
         """The newest tick attempt of each epic in *refs*, keyed by ref, in ONE
         query.
 
-        The roster's heartbeat reading (#2844 N18): a driver whose attempts
+        The roster's heartbeat reading: a driver whose attempts
         are turned away before ``begin_epic_tick`` — or that changed nothing —
         moves no heartbeat field, and the epic page reads this row instead.
         Only the refs passed are read, on the ``(epic_ref, id)`` index, so an
-        epic outside the roster — an archived one — costs nothing (#2900 C4).
+        epic outside the roster — an archived one — costs nothing.
         Epics with no attempt rows are absent.
         """
         wanted = list(dict.fromkeys(refs))
@@ -10320,15 +10255,15 @@ class SqliteRunStore(
         """The tick-attempt stamp of each epic in *refs*, keyed by epic ref, in
         ONE query.
 
-        The roster needs one per row and reads seventy rows every five seconds
-        (C3/#2296), so this joins the batched-read bundle rather than costing a
+        The roster needs one per row and re-reads every row every five
+        seconds, so this joins the batched-read bundle rather than costing a
         query per epic. Epics with no attempt rows are absent — the caller
         reads a missing stamp as the same ``""`` the point read returns.
 
         One grouped aggregate over a per-epic-capped table, and only over the
         refs passed, on the ``(epic_ref, id)`` index — so an epic outside the
         roster, an archived one, costs nothing, the same bound
-        :meth:`latest_epic_tick_attempts` keeps over this table (#2900 C4).
+        :meth:`latest_epic_tick_attempts` keeps over this table.
         """
         wanted = list(dict.fromkeys(refs))
         if not wanted:
@@ -10357,7 +10292,7 @@ class SqliteRunStore(
     def latest_epic_tick_snapshot(self, epic_ref: str) -> dict[str, Any] | None:
         """The epic's latest journal snapshot, or None when it cannot be read.
 
-        The driver's predecessor read (#2949). It decodes only the ``snapshot``
+        The driver's predecessor read. It decodes only the ``snapshot``
         column, never ``actions``, which the predecessor does not use. A row
         whose snapshot is not a JSON object reads as no predecessor, with a
         warning: :meth:`latest_epic_tick` raises on it, after the tick's
@@ -10403,11 +10338,9 @@ class SqliteRunStore(
     def list_epic_ticks_tail(self, epic_ref: str, *, limit: int = 50) -> list[EpicTick]:
         """The epic's NEWEST ``limit`` ticks, oldest-first within the page.
 
-        A live subscriber opening a stream wants the tail, and reading it with
-        ``after_id=0`` meant reading up to a thousand snapshots to keep the
-        last fifty — and then setting its cursor to the thousandth row rather
-        than the newest, so a long-running epic replayed its own history
-        before catching up (C3/#2296).
+        A live subscriber opening a stream wants the tail. Reading it from
+        ``after_id=0`` would read the oldest page and set the cursor there, so a
+        long-running epic would replay its own history before catching up.
         """
         if limit < 1:
             raise ValueError("epic tick tail limit must be >= 1")
@@ -10434,9 +10367,8 @@ class SqliteRunStore(
     def latest_epic_ticks(self) -> dict[str, EpicTick]:
         """Every epic's newest journaled tick, keyed by epic ref, in ONE query.
 
-        The Epics roster used to call :meth:`latest_epic_tick` once per epic;
-        at 70 epics that was 70 queries before any of the other four per-epic
-        reads (C3/#2296). An epic with no tick yet is absent from the dict.
+        The Epics roster reads this rather than one :meth:`latest_epic_tick`
+        per epic. An epic with no tick yet is absent from the dict.
         """
         rows = self._execute(
             "SELECT * FROM epic_ticks"
@@ -10536,14 +10468,14 @@ class SqliteRunStore(
         """:meth:`sum_costs_by_item` with a PER-PAIR window, in ONE query.
 
         Each epic's drain window starts at its own first tick, so summing a
-        whole roster's nodes meant one aggregate per epic. ``windows`` is a
-        collection of ``(item_id, since)`` pairs, ``since`` being that pair's
-        inclusive lower bound on ``finished_at``; the same exclusions apply
-        (pending rows and readiness probes are out). The answer is keyed by
-        the SAME pair, not by item id alone: two epics can share a DAG node
-        and still open their windows at different first ticks, and that node
-        then has two different drains — one per window (#2375 review). Pairs
-        with no matching runs are absent from the returned dict.
+        whole roster's nodes would otherwise take one aggregate per epic.
+        ``windows`` is a collection of ``(item_id, since)`` pairs, ``since``
+        being that pair's inclusive lower bound on ``finished_at``; the same
+        exclusions apply (pending rows and readiness probes are out). The answer
+        is keyed by the SAME pair, not by item id alone: two epics can share a
+        DAG node and still open their windows at different first ticks, and
+        that node then has two different drains — one per window. Pairs with
+        no matching runs are absent from the returned dict.
         """
         pairs = sorted(set(windows))
         if not pairs:
@@ -10576,12 +10508,10 @@ class SqliteRunStore(
         The attempt log is the third arm, not an optional one: a tick turned
         away before ``begin_epic_tick`` — failed preflight, locked out — writes
         an ``epic_tick_log`` row and touches neither the heartbeat nor the
-        change journal. An epic whose attempts were ALL refused that way was
-        therefore unreachable from every surface that enumerates epics through
-        here: the roster omitted the row, and
-        ``/api/epics/<ref>/tick-strip`` 404'd on it via ``known_epic_refs`` —
-        so the one table that recorded those attempts had no reader at all
-        (#2304 review round 4).
+        change journal. Without this arm an epic whose attempts were ALL refused
+        that way would be unreachable from every surface that enumerates epics
+        through here: the roster, and ``/api/epics/<ref>/tick-strip`` via
+        ``known_epic_refs``.
 
         Such an epic reads like a :meth:`register_epic` one: known, with no
         heartbeat and no snapshot, which is a state every caller already
@@ -10590,13 +10520,12 @@ class SqliteRunStore(
 
         ``empty_graph`` attempts are the arm's ONE exclusion, because that
         outcome is the one reading that argues the ref is not an epic at all
-        (:data:`EPIC_TICK_OUTCOME_EMPTY_GRAPH`). Admitting them made a mistyped
-        ``kew epic advance`` name a permanent roster member — and this list is
-        the roster ``kew epic run --all`` drives, which re-raised that epic's
-        empty graph as a STALLED classification and a non-zero exit on every
-        subsequent run, with no way to take it back off (nothing deletes an
-        epic's attempt rows) (#2438 review). A ref with any OTHER attempt —
-        including an open row, which is a tick in flight — stays admitted: that
+        (:data:`EPIC_TICK_OUTCOME_EMPTY_GRAPH`). Admitting them would make a
+        mistyped ``kew epic advance`` name a permanent member of the roster
+        ``kew epic run --all`` drives, which raises its empty graph as STALLED
+        with a non-zero exit on every run (nothing deletes an epic's attempt
+        rows). A ref with any OTHER attempt — including an open row, which is a
+        tick in flight — stays admitted: that
         is a real epic being refused, which is the gap this arm exists to close.
         """
         rows = self._execute(
@@ -10610,17 +10539,15 @@ class SqliteRunStore(
 
     def epic_trackers(self) -> dict[str, str | None]:
         """Classify each known epic's tracker, reading the durable ``tracker``
-        column FIRST and falling back to item-id-shape inference (#927/N3,
-        #882/B1).
+        column FIRST and falling back to item-id-shape inference.
 
         The driver records the active tracker on ``epic_driver_state.tracker``
         at each tick (:meth:`record_epic_tracker`), which is ground truth — a
         driver only builds a graph from, and drives, epics on its active
-        tracker. Reading that explicit value first is what fixes the third leak
-        of #877: four complete Linear epics carry numeric GitHub-twin item_ids
-        from a pre-SFD recording era, so inference read them ``"github"`` and
-        ``epic run --all`` false-STALLED them. An explicit ``"linear"`` (recorded
-        or backfilled in ``_apply_v33``) now overrides the misleading shape.
+        tracker. Four complete Linear epics carry numeric GitHub-twin item_ids
+        that inference would read as ``"github"``; their explicit ``"linear"``
+        (recorded or backfilled in ``_apply_v33``) overrides the misleading
+        shape.
 
         Inference is the fallback for rows with no recorded tracker (pre-v33 or
         never-ticked). A GitHub node records a numeric ``item_id`` (the issue
@@ -10631,7 +10558,7 @@ class SqliteRunStore(
         under the active tracker rather than guessing.
 
         The final UNION arm backfills epics whose rows predate ``item_id`` being
-        recorded on the epic tables (v25, #877/R2): a pre-v25 reservation carries
+        recorded on the epic tables (v25): a pre-v25 reservation carries
         only its ``run_id``, so its own ``item_id`` column is NULL, but the
         durable id still lives on the run it points at (``runs.item_id``,
         recorded since v24). Joining reservation ``run_id`` back to ``runs``
@@ -10668,13 +10595,13 @@ class SqliteRunStore(
         }
 
     def record_epic_tracker(self, epic_ref: str, tracker: str) -> None:
-        """Durably record the tracker an epic is driven under (#927/N3).
+        """Durably record the tracker an epic is driven under.
 
         Called each tick with the active tracker (``config.tracker.type``),
         which is ground truth: a driver only builds a graph from — and drives —
         epics on its own active tracker. :meth:`epic_trackers` reads this column
         FIRST, so a Linear epic whose runs carry numeric GitHub-twin item ids is
-        no longer misclassified ``"github"`` by shape inference. Upserts the
+        not misclassified ``"github"`` by shape inference. Upserts the
         driver-state row (never clobbering an in-flight heartbeat's tick_count),
         so recording does not depend on :meth:`begin_epic_tick` ordering."""
 
@@ -10692,7 +10619,7 @@ class SqliteRunStore(
     def register_epic(self, epic_ref: str) -> None:
         """Seed a driver-state row (tick_count=0) so a planned-but-unstarted
         epic is visible to `list_epic_refs()` — hence to `epic run --all` —
-        before its first tick (#740). No-op if the epic already has state, so
+        before its first tick. No-op if the epic already has state, so
         it never clobbers a live heartbeat."""
 
         def _do_register() -> None:
@@ -10734,7 +10661,7 @@ class SqliteRunStore(
         (:func:`kew.driver_cadence.cadence_lapsed`), nothing is polling at the
         recorded cadence and it is retired (None); otherwise a poller
         consistent with it may well be asleep between ticks, and the recorded
-        value survives (#2297 review round 2).
+        value survives.
 
         The bound is the reader's own ``gone`` threshold, which makes the rule
         exact: a cadence is retired precisely when keeping it would have made
@@ -10774,21 +10701,20 @@ class SqliteRunStore(
         proves nothing kept up with it.
 
         Both halves of that are load-bearing. Carrying the old value forward
-        unconditionally made a retired poller's cadence permanently unclearable,
-        so an epic moved from ``epic run --interval 60`` to a 5-minute cron read
-        ``gone`` two minutes after a SUCCESSFUL advance, forever (#2297 review).
-        Clearing it unconditionally was the mirror-image bug: a one-shot advance
-        landing in a LIVE ``epic run --interval 1800`` poller's inter-tick gap
-        blanked its cadence, and the console read ``gone`` until the poller's
-        next tick. The lock does not prevent that — it is held for the duration
-        of a tick, not between ticks, so a one-shot in the gap acquires it and
-        reaches this write (#2297 review round 2).
+        unconditionally would make a retired poller's cadence unclearable: an
+        epic moved from ``epic run --interval 60`` to a 5-minute cron would read
+        ``gone`` minutes after a SUCCESSFUL advance, forever. Clearing it
+        unconditionally would blank a LIVE ``epic run --interval 1800`` poller's
+        cadence whenever a one-shot advance lands in its inter-tick gap, and the
+        console would read ``gone`` until the poller's next tick. The lock does
+        not prevent that — it is held for the duration of a tick, not between
+        ticks, so a one-shot in the gap acquires it and reaches this write.
 
         ``expected_interval_s`` is the operator's configured expectation, and it
         lands in its own v62 column — refreshed by every drive that supplies one
         and never folded into ``interval_s``, so changing
         ``[epic] driver_expected_interval_seconds`` takes effect at the next
-        drive and liveness can report a guess AS a guess (#2297).
+        drive and liveness can report a guess AS a guess.
         """
 
         def _do_finish() -> None:
@@ -10836,7 +10762,7 @@ class SqliteRunStore(
         The lock file stays the source of truth (and the only place a steal is
         arbitrated); this is a dated copy of what the sweep saw, so a serve-side
         reading can threshold the holder's own mid-tick heartbeat and see a dead
-        holder pid the way ``kew epic status`` does (#2297 review). An all-None
+        holder pid the way ``kew epic status`` does. An all-None
         observation is recorded as such: "we looked and the lock was free" is a
         fact, and between ticks it is the normal one.
 

@@ -12,6 +12,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from support.attachment_network import PLAIN_BRIDGE, close_attachment_network
+from support.container_runtime import runtime_present
 from support.gh_fakes import FakeGh
 
 from kew import subprocess_utils
@@ -524,13 +526,30 @@ def test_planning_attests_and_forwards_container_before_launch(
     assert launch["sandbox_posture"] == "sandboxed"
 
 
+@pytest.mark.parametrize(
+    ("enabled", "runtime", "reason"),
+    [
+        (False, False, "runtime_unavailable"),
+        # A runtime and a plain bridge: the open-egress rule refuses.
+        (True, True, "open_egress_unacknowledged"),
+    ],
+    ids=["disabled", "open-egress"],
+)
 def test_planning_refuses_host_execution_without_escape_hatch(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    enabled: bool,
+    runtime: bool,
+    reason: str,
 ) -> None:
     from kew.config import SandboxConfig
     from kew.tracking import DispatchResult
 
-    config = DispatchConfig(sandbox=SandboxConfig(enabled=False))
+    config = DispatchConfig(sandbox=SandboxConfig(enabled=enabled))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-never-printed")
+    close_attachment_network(monkeypatch, PLAIN_BRIDGE)
+    if runtime:
+        runtime_present(monkeypatch)
     checkout = tmp_path / "checkout"
     resolved = SimpleNamespace(
         runner=SimpleNamespace(name="claude-code"), model="claude-sonnet-4-6"
@@ -568,6 +587,7 @@ def test_planning_refuses_host_execution_without_escape_hatch(
     launch.assert_not_called()
     assert events[0]["event"] == "sandbox_resolved"
     assert events[0]["payload"]["posture"] == "refused"
+    assert events[0]["payload"]["reason"] == reason
 
 
 def _patch_real_graph(monkeypatch: pytest.MonkeyPatch, count: int) -> None:

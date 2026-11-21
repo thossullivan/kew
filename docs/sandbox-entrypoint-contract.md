@@ -352,7 +352,7 @@ must survive:
 | `--ulimit fsize=1073741824` | **No single file** may exceed 1 GiB — one `dd` cannot fill the bind-mounted checkout's filesystem. |
 | `--ulimit core=0` | No core dumps into the mounted checkout. |
 | `--rm`, `--name <launch-slug>`, `--cidfile <unique-host-path>` | One named container runs per launch and is removed on exit. The cidfile records its immutable ID. It also proves whether Docker created the container. |
-| `--network` | `allowlist` joins `kew-allowlist` and fails closed when absent. `open` explicitly enables full egress and warns when a credential is injected. |
+| `--network` | `allowlist` joins `kew-allowlist` and fails when absent. A network kew cannot show closed (`Internal` true, or a `null`/`none` driver) refuses credential injection unless `[sandbox] acknowledge_open_egress = true`. An acknowledged launch still warns. |
 
 `--ulimit nproc` is deliberately **not** set: it is a per-UID *host* limit and
 every agent container runs as the same uid 1001, so one container's bound would

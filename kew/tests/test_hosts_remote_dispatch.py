@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support.fake_gcloud import fake_gcloud_on_path
+from support.fake_gcloud import fake_gcloud_on_path, internal_network_probe
 from support.fake_gcloud import read_state as _read_state
 from support.fake_gcloud import recorded_calls as _calls
 from support.fake_gcloud import write_state as _write_state
@@ -237,6 +237,7 @@ def _responses(*, agent: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         instance_image_probe(IMAGE, INSTANCE_IMAGE_ID),
         {"match": "id -u", "output": SITE_ANSWER, "exit": 0},
         agent or {"match": f"--name kew-{SLUG}", "output": EVENT_LINES, "exit": 0},
+        internal_network_probe(),
     ]
 
 
@@ -2185,7 +2186,164 @@ class TestTheEgressNetworkOnTheInstance:
         tmp_path: Path,
         fake_gcloud: Path,
     ) -> None:
-        """``network = "open"`` omits ``--network``: there is nothing to ask."""
+        """``network = "open"`` omits ``--network``: there is nothing to ask.
+
+        Acknowledged, because a credentialed placement on open egress is
+        refused without it.
+        """
+        _write_state(fake_gcloud, job_responses=_responses())
+        opened = config.model_copy(
+            update={
+                "sandbox": SandboxConfig(
+                    image=IMAGE,
+                    hosts={"dispatch": "gcp"},
+                    network="open",
+                    acknowledge_open_egress=True,
+                )
+            }
+        )
+
+        result = _place(provider, opened, checkout, tmp_path / "work")
+
+        assert result.exit_code == 0
+        assert not any("network inspect" in text for text in _commands(fake_gcloud))
+
+    def _instance_network(self, state: Path, network: list[dict[str, Any]]) -> None:
+        """Answer the network probe with *network* as the instance's shape."""
+        _write_state(
+            state,
+            job_responses=[
+                {"match": self.PROBE, "output": json.dumps(network), "exit": 0},
+                *_responses(),
+            ],
+        )
+
+    def test_a_plain_bridge_on_the_instance_refuses_the_credentialed_placement(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+    ) -> None:
+        """The instance's network decides, read where the container runs."""
+        self._instance_network(fake_gcloud, [{"Driver": "bridge", "Internal": False}])
+
+        with pytest.raises(RemoteDispatchError) as refusal:
+            _place(provider, config, checkout, tmp_path / "work")
+
+        message = str(refusal.value)
+        assert ALLOWLIST_NETWORK in message
+        assert "CLAUDE_CODE_OAUTH_TOKEN" in message
+        assert TOKEN not in message
+        assert "acknowledge_open_egress = true" in message
+        assert not any(f"--name kew-{SLUG}" in text for text in _commands(fake_gcloud))
+
+    def test_an_instance_network_kew_cannot_read_refuses_the_placement(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+    ) -> None:
+        _write_state(
+            fake_gcloud,
+            job_responses=[
+                {"match": self.PROBE, "output": "{}", "exit": 0},
+                *_responses(),
+            ],
+        )
+
+        with pytest.raises(RemoteDispatchError, match="could not read network"):
+            _place(provider, config, checkout, tmp_path / "work")
+
+        assert not any(f"--name kew-{SLUG}" in text for text in _commands(fake_gcloud))
+
+    @pytest.mark.parametrize(
+        ("output", "admitted"),
+        [
+            pytest.param(
+                json.dumps([{"Driver": "bridge", "Internal": True}]),
+                True,
+                id="internal",
+            ),
+            pytest.param("not an inspect document", False, id="garbage"),
+        ],
+    )
+    def test_only_the_probes_stdout_is_read_as_the_network_shape(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+        output: str,
+        admitted: bool,
+    ) -> None:
+        """ssh and the daemon may write stderr; it is not the inspect document."""
+        _write_state(
+            fake_gcloud,
+            job_responses=[
+                {
+                    "match": self.PROBE,
+                    "output": output,
+                    "stderr": "Warning: Permanently added 'agent-1' to known hosts\n",
+                    "exit": 0,
+                },
+                *_responses(),
+            ],
+        )
+
+        if admitted:
+            assert _place(provider, config, checkout, tmp_path / "work").exit_code == 0
+            return
+        with pytest.raises(RemoteDispatchError, match="could not read network"):
+            _place(provider, config, checkout, tmp_path / "work")
+
+    def test_an_internal_instance_network_admits_the_placement(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+    ) -> None:
+        self._instance_network(fake_gcloud, [{"Driver": "bridge", "Internal": True}])
+
+        result = _place(provider, config, checkout, tmp_path / "work")
+
+        assert result.exit_code == 0
+
+    def test_acknowledged_open_egress_on_the_instance_places_the_run(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+    ) -> None:
+        self._instance_network(fake_gcloud, [{"Driver": "bridge", "Internal": False}])
+        acknowledged = config.model_copy(
+            update={
+                "sandbox": config.sandbox.model_copy(
+                    update={"acknowledge_open_egress": True}
+                )
+            }
+        )
+
+        result = _place(provider, acknowledged, checkout, tmp_path / "work")
+
+        assert result.exit_code == 0
+
+    def test_open_egress_without_acknowledgement_refuses_the_placement(
+        self,
+        provider: GcpProvider,
+        config: DispatchConfig,
+        checkout: Path,
+        tmp_path: Path,
+        fake_gcloud: Path,
+    ) -> None:
         _write_state(fake_gcloud, job_responses=_responses())
         opened = config.model_copy(
             update={
@@ -2195,10 +2353,10 @@ class TestTheEgressNetworkOnTheInstance:
             }
         )
 
-        result = _place(provider, opened, checkout, tmp_path / "work")
+        with pytest.raises(RemoteDispatchError, match="network='open'"):
+            _place(provider, opened, checkout, tmp_path / "work")
 
-        assert result.exit_code == 0
-        assert not any("network inspect" in text for text in _commands(fake_gcloud))
+        assert not any(f"--name kew-{SLUG}" in text for text in _commands(fake_gcloud))
 
     @pytest.mark.parametrize("name", sorted(remote_dispatch.BUILT_IN_NETWORKS))
     def test_a_runtimes_own_network_is_never_probed(self, name: str) -> None:

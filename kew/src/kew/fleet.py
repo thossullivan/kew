@@ -447,18 +447,22 @@ def _recorded_runtime(record: RunRecord, config: DispatchConfig) -> str | None:
     still running under the recorded one as absent (re-audit F12). A
     recorded runtime whose binary this host lacks is unknown, never absent.
     A recorded runtime this build has no backend for is unknown too, and says
-    so: pinning capacity in silence is what that branch must never do.
+    so: pinning capacity in silence is what that branch must never do. The
+    configured runtime is probed too: ``kew kill`` and the console's stop run
+    no preflight, so nothing has registered it (#3609). One this host lacks
+    stays unregistered, and the allowlist refuses it, so it reads unknown.
     """
     runtime = launch_runtime(record, config)
-    if runtime != config.sandbox.runtime and runtime not in TOOL_PATHS:
+    if runtime not in TOOL_PATHS:
         try:
             path = backend_for(runtime).probe()
         except RuntimeBackendUnavailable as exc:
             _warn(f"Run {record.run_id}: {exc}")
             return None
-        if path is None:
+        if path is not None:
+            TOOL_PATHS[runtime] = path
+        elif runtime != config.sandbox.runtime:
             return None
-        TOOL_PATHS[runtime] = path
     return runtime
 
 

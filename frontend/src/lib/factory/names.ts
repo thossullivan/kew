@@ -492,6 +492,7 @@ export const REFUSAL_REASON_LABELS: Readonly<Record<string, string>> = {
   no_warm_alternatives: 'no warm alternatives',
   none: 'none',
   not_probed: 'not probed',
+  open_egress_unacknowledged: 'open egress not acknowledged',
   openshell_gateway_restart: 'OpenShell gateway restart',
   override_resolve_failed: 'override route could not be resolved',
   packet_leak: 'packet leak',

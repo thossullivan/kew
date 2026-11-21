@@ -33,6 +33,7 @@ from __future__ import annotations
 import html
 import re
 from collections.abc import Collection
+from typing import Literal
 
 from kew.commit_message import (
     CLOSING_KEYWORD,
@@ -43,6 +44,27 @@ from kew.commit_message import (
 )
 from kew.ids import closes_marker, item_ref
 from kew.merge_verify import behavior_change_lines
+
+#: How a repo wants its PR titles (``[publication].pr_title_style``): a plain
+#: sentence, or ``<type>(<scope>): <summary>`` for a repo whose CI checks it.
+PrTitleStyle = Literal["sentence", "conventional"]
+#: The types a conventional title may start with.
+CONVENTIONAL_TYPES = (
+    "feat",
+    "fix",
+    "docs",
+    "refactor",
+    "test",
+    "chore",
+    "perf",
+    "build",
+    "ci",
+    "style",
+    "revert",
+)
+_CONVENTIONAL = re.compile(
+    rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([^()\s][^()]*\))?!?: (?=\S)"
+)
 
 #: Where the agent's own Behavior changes lines go: a heading the merge's
 #: held-out gate does not read, so they are proposals, never declarations.
@@ -192,10 +214,56 @@ def _summary_sentence(report: str) -> str | None:
     return _plain(_SENTENCE_END.split(paragraph, maxsplit=1)[0]) if paragraph else None
 
 
-def agent_pr_title(item_id: str, title: str, report: str | None) -> str:
-    """What the product does once the PR merges, in one plain line."""
-    described = (_title_line(report) or _summary_sentence(report)) if report else None
+def is_conventional(text: str) -> bool:
+    """Whether *text* reads ``<type>(<scope>): <summary>`` with a known type."""
+    return _CONVENTIONAL.match(text) is not None
+
+
+def conventional_title(text: str) -> str:
+    """*text* as a conventional title: as written when it is one, else ``fix:``,
+    and closing nothing on merge, so ``#9: goal`` is not ``fix: #9: goal``."""
+    return _break_conventional(text if is_conventional(text) else f"fix: {text}")
+
+
+def _break_conventional(text: str) -> str:
+    """*text* with its summary's closing keywords broken, its type kept whole.
+
+    Breaking ``fix`` itself would leave a title the repo's check refuses, so a
+    ``fix: #9`` title breaks the reference after the type instead.
+    """
+    prefix = _CONVENTIONAL.match(text)
+    if prefix is None:
+        return break_closing_references(text)
+    summary = break_closing_references(text[prefix.end() :])
+    if CLOSING_KEYWORD.match(text):
+        summary = ZERO_WIDTH_SPACE + summary
+    return text[: prefix.end()] + summary
+
+
+def _conventional_pr_title(item_id: str, issue: str, report: str | None) -> str:
+    """The report's conforming title line or summary sentence, else ``fix:``."""
+    said = (_title_line(report), _summary_sentence(report)) if report else ()
+    text = next((s for s in said if s and is_conventional(s)), None)
+    text = text or conventional_title(issue or item_ref(item_id))
+    return _break_conventional(cap_on_word(text, MAX_TITLE_CHARS))
+
+
+def agent_pr_title(
+    item_id: str,
+    title: str,
+    report: str | None,
+    *,
+    style: PrTitleStyle = "sentence",
+) -> str:
+    """What the product does once the PR merges, in one plain line.
+
+    A ``conventional`` repo gets the report's line only when it conforms, else
+    ``fix: <issue title>`` (the issue title alone when it already conforms).
+    """
     issue = sanitize_commit_subject(title)
+    if style == "conventional":
+        return _conventional_pr_title(item_id, issue, report)
+    described = (_title_line(report) or _summary_sentence(report)) if report else None
     if not described and not issue:
         return f"Fix {item_ref(item_id)}"  # names the node's own issue, nothing else
     text = described or f"Fix: {issue}"

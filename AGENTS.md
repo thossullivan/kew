@@ -56,6 +56,18 @@ each trap has caused a red main; use the exact command when iterating on one gat
 - Characterization tests that pin behavior before a refactor are deliberate; say
   so in their docstring.
 
+## Comments
+
+- A comment states a current constraint or a non-obvious reason, in 3 lines or
+  fewer. If the code says it, leave it out.
+- No issue or PR numbers, review rounds, incident stories or "used to" text.
+  History goes in the commit message.
+- A docstring says what the code does, what it returns or raises, and what a
+  caller must know. It does not say how the code got there.
+- Keep the reason a security check exists when no test pins it.
+- `kew/tests/test_comment_ratchet.py` refuses a rise in issue references or
+  history lines per file (`kew/ratchets/comment_history.json`).
+
 ## TUI (Textual) Patterns
 
 The TUI dashboard lives in `src/kew/tui/`. Key patterns:

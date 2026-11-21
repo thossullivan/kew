@@ -3869,6 +3869,7 @@ class TestMigrationDocumentationDrift:
             "prompt.include_safety_rules",
             "prompt.repo_map_mode",
             "prompt.repo_map_tokens",
+            "publication.pr_title_style",
             "publication.publish",
             "publication.shadow",
             "publication.shadow_evidence",
@@ -3897,6 +3898,7 @@ class TestMigrationDocumentationDrift:
             "routing.simple.runner",
             "run_reports.enabled",
             "run_reports.sink_path",
+            "sandbox.acknowledge_open_egress",
             "sandbox.dangerously_skip_containment",
             "sandbox.enabled",
             "sandbox.host",
@@ -4234,6 +4236,7 @@ class TestMigrationDocumentationDrift:
         ("## `[resolve]`", "strategy", "resolve.strategy"),
         ("## `[resolve]`", "auto", "resolve.auto"),
         ("## `[publication]`", "publish", "publication.publish"),
+        ("## `[publication]`", "pr_title_style", "publication.pr_title_style"),
         ("## `[publication]`", "shadow", "publication.shadow"),
         (
             "## `[publication]`",

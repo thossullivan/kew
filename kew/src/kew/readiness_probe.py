@@ -264,6 +264,8 @@ def _contained_launch(
     # The container's entrypoint feeds the mounted prompt file to the CLI, so
     # the prompt travels as a file exactly as it does for a dispatch.
     write_prompt_handoff(workspace, PROBE_PROMPT)
+    # No open-egress gate: a fixed prompt in an empty workspace gives no
+    # untrusted input a way to steer the agent at the credential.
     argv = build_run_argv(
         runtime=runtime,
         image=route.image,

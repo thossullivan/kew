@@ -297,6 +297,11 @@ def resolved_policy(config: DispatchConfig, run_kind: str | None = None) -> str:
     return sandbox.host_for(run_kind)
 
 
+def placed_here(config: DispatchConfig, run_kind: str) -> bool:
+    """Whether every *run_kind* run runs on this machine, known before placement."""
+    return resolved_policy(config, run_kind) == PLACEMENT_LOCAL
+
+
 def place_run(
     config: DispatchConfig,
     occupancy: FleetOccupancy,

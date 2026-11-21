@@ -31,6 +31,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dispatch_owner_fixture import admission_owner as admission_owner
 from support import driver_fakes as _fx
+from support.attachment_network import PLAIN_BRIDGE, attachment_network
 from support.container_launch import ContainerLaunchCapture
 from support.driver_fakes import (
     EPIC,
@@ -985,6 +986,45 @@ def test_sandbox_reviewer_launcher_runs_orchestration_with_faked_container(
     finalized = [r for r in store.list_by_item(ITEM) if r.run_id == "rev-run-1"]
     assert finalized and finalized[0].status != "pending"
     assert collected.parsed.verdict == "READY"
+
+
+def test_the_reviewer_refuses_unacknowledged_open_egress_on_the_chain(
+    tmp_path: Path, store: SqliteRunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The reviewer holds a credential too: a plain bridge refuses it unlaunched."""
+    config = _fx._config()
+    config.review.adversarial = True
+    config.logging.dir = str(tmp_path / "logs")
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "credential-never-printed")
+    ctx = ReviewerLaunchContext(
+        item_id=ITEM,
+        run_id="rev-egress",
+        prompt="review this",
+        prompt_artifact_sha="sha256:prompt",
+        head_sha="a" * 40,
+        worktree=worktree,
+        log_dir=Path(config.logging.dir).resolve(),
+    )
+
+    import kew.dispatch_core as _dc
+    import kew.graph.driver.review_launcher as _rl
+
+    monkeypatch.setattr(_rl, "detect_runtime_cached", lambda _cfg: "docker")
+    with (
+        attachment_network(PLAIN_BRIDGE),
+        patch.object(_dc, "_launch_container") as launched,
+    ):
+        collected = sandbox_reviewer_launcher(config, store)(ctx)
+
+    launched.assert_not_called()
+    assert collected.failure_layer == "network"
+    assert collected.error_category == "sandbox_refused"
+    [event] = store.list_audit_events(event="sandbox_resolved")
+    assert event.payload["posture"] == "refused"
+    assert event.payload["reason"] == "open_egress_unacknowledged"
+    assert verify_chain(store.read_chain_rows()).ok
 
 
 def test_the_production_launcher_excuses_findings_for_declared_tests(

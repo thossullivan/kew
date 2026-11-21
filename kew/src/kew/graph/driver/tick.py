@@ -290,7 +290,7 @@ _NON_FRONTIER_STATUSES = frozenset(
         DriverStatus.AWAITING_PUBLICATION,
         DriverStatus.AWAITING_CONTINUATION,
         DriverStatus.HELD,
-        # Governed-review lifecycle (#977): a node under review or remediation
+        # Governed-review lifecycle: a node under review or remediation
         # has an open PR and a live review run — it must never re-enter the
         # dispatch frontier (a second implementation run would race the code the
         # reviewer is examining).
@@ -398,7 +398,7 @@ def _run_belongs_to_reservation(run: RunRecord, reserved_at: datetime) -> bool:
 def resolve_reservation_run(
     store: RunStore, reservation: EpicReservation
 ) -> RunRecord | None:
-    """Resolve the run row that decides a reservation's fate (Task 6).
+    """Resolve the run row that decides a reservation's fate.
 
     Primary: a child pinned to the parent reservation at admission.
     Next: an unbound run keyed exactly to the reservation's ``run_id``.
@@ -422,12 +422,12 @@ def resolve_reservation_run(
       ``finished_at`` admits a current-generation row that started a hair
     before ``reserved_at`` was stamped (the two clocks are independent:
     ``reserved_at`` is stamped in-process at reserve time, ``started_at`` by
-    the child) instead of silently dropping it (#972 review Finding 1).
+    the child) instead of silently dropping it.
 
     A CI-fix run never belongs to a governed reservation generation.
 
     Shared by the driver-tick reconciler and ``kew doctor`` so the two never
-    disagree about whether a reservation is stale (#972 review Finding 6).
+    disagree about whether a reservation is stale.
     """
     exact = _unbound_reservation_run(store, reservation)
     pinned: list[RunRecord] = []
@@ -494,7 +494,7 @@ def _reservation_binding_rank(
 _RESERVATION_STARTUP_GRACE_SECONDS = 600
 
 # The pseudo-epics whose reservations the driver reconcile sweeps. Both come
-# from the shared registry (kew.pseudo_epics, #979-F1) so the same list drives
+# from the shared registry (kew.pseudo_epics) so the same list drives
 # the driver reconcile and `kew doctor`; ``_DELEGATION_EPIC_REF`` keeps its
 # in-module alias for the many existing references below.
 #
@@ -515,7 +515,7 @@ def _record_dispatch_child_died(
     now: datetime,
 ) -> None:
     """Persist a terminal ``dispatch_child_died`` RunRecord for a dead spawn,
-    naming the executable the driver would have spawned (#808).
+    naming the executable the driver would have spawned.
 
     A dispatch child that never wrote its own ``pending`` run row within the
     startup grace crashed before startup — with DEVNULL stdio it fails
@@ -667,7 +667,7 @@ def _openshell_gateway_restarted(record: RunRecord, config: DispatchConfig) -> b
     docker run has no sandbox to ask about, and even an OpenShell one is not
     worth a gateway call until its exec stream is known to be over.
 
-    The local client being gone is NOT the agent being gone (#2625): the
+    The local client being gone is NOT the agent being gone: the
     client can die on this host while the remote exec runs on, and recovering
     then would download a live checkout and finalize a running run. So a
     sandbox that is still up is asked about its agent too, and only an agent
@@ -713,7 +713,7 @@ def _openshell_exec_may_start(record: RunRecord, now: datetime | None) -> bool:
     """Whether a sandbox whose exec stream is not over may still run an agent.
 
     A registered exec may: its client is still there. A sandbox that never got
-    one — the leader died between the create and the exec (#3208) — may only
+    one — the leader died between the create and the exec — may only
     within the startup grace; after it the sandbox is an empty shell, and
     reading it alive would pin its reservation until the reaper deleted it.
     """
@@ -749,7 +749,7 @@ def _openshell_workload_alive(
     if not _openshell_exec_ended_without_exit(record):
         return _openshell_exec_may_start(record, now)
     # The local client is gone; whether the agent is, only the sandbox can
-    # say (#2625). An agent that may still run keeps the run alive.
+    # say. An agent that may still run keeps the run alive.
     return {"running": True, "ended": False}.get(
         _openshell_remote_agent(record, config)
     )
@@ -765,8 +765,8 @@ def default_run_liveness(config: DispatchConfig) -> RunLivenessProbe:
 
 def _run_owner_liveness(config: DispatchConfig, run: RunRecord) -> bool | None:
     if is_remote(run):
-        # A run placed on another machine is UNPROBEABLE from here, never dead
-        # (#2398). Both probes below read this machine: the pgid is this
+        # A run placed on another machine is UNPROBEABLE from here, never dead.
+        # Both probes below read this machine: the pgid is this
         # kernel's process table and the container is this daemon's. A VM's
         # agent is absent from both, and "absent" is exactly what they return as
         # *provably dead* — so an unguarded probe would retire every remote run
@@ -801,7 +801,7 @@ def _reap_orphaned_run(
     precommit_check: Callable[[], None] | None = None,
 ) -> bool:
     """Mark a pending run whose owning process/container is provably dead as
-    ``killed`` and attest the reap (#1041).
+    ``killed`` and attest the reap.
 
     A dispatch the epic driver owned that dies WITH the driver (the driver is
     killed, or its sandbox container is torn down) leaves its ``pending`` run row
@@ -896,7 +896,7 @@ def _reap_never_started(
     now: datetime,
     precommit_check: Callable[[], None] | None,
 ) -> bool | None:
-    """Reap a dead run whose container never started (#3124); None if it did.
+    """Reap a dead run whose container never started; None if it did.
 
     The rule is :func:`kew.stop_recovery.never_started_verdict`: an owner
     proven dead past the startup grace, no attempt ever registered, and a
@@ -975,7 +975,7 @@ def _reap_category(
 ) -> tuple[str, str]:
     """The reaped run's error category, and the reason its reap is attested with.
 
-    A run the host died under is reaped for ``host_restart`` (#2812), any other
+    A run the host died under is reaped for ``host_restart``, any other
     for ``process_not_live``.
     """
     if not _host_died_under(run):
@@ -986,7 +986,7 @@ def _reap_category(
 def _host_restart_category(
     store: RunStore, reservation: EpicReservation, run: RunRecord
 ) -> str:
-    """How a run the host died under is finalized (#2812).
+    """How a run the host died under is finalized.
 
     The host dying is not the node failing, so an implementation run of a real
     epic is re-admitted once (:data:`HOST_RESTART_REAPED`). A node the host has
@@ -1006,7 +1006,7 @@ def _host_restart_category(
 def _host_deaths_recorded(
     store: RunStore, epic_ref: str, item_id: str, *, excluding_run: str
 ) -> bool:
-    """Has the host already died under this node once (#2812, #2964)?
+    """Has the host already died under this node once?
 
     A clean death leaves its ``host_restart`` retry, a dirty one its
     :data:`HOST_RESTART_DIRTY_EVENT`; both spend the one host-death budget.
@@ -1034,7 +1034,7 @@ def _host_deaths_recorded(
 def _dirty_host_restart_outcome(
     store: RunStore, reservation: EpicReservation, run: RunRecord
 ) -> str | None:
-    """What a host death under preserved dirty work does to the node (#2964).
+    """What a host death under preserved dirty work does to the node.
 
     ``None`` when the host did not die under *run*, or the run is not one the
     host-death budget covers. Else :data:`HOST_RESTART_CONTINUE` the first
@@ -1057,7 +1057,7 @@ def _record_dirty_host_restart(
     run: RunRecord,
     owned: Any | None,
 ) -> None:
-    """Spend the node's host-death budget on preserved dirty work (#2964).
+    """Spend the node's host-death budget on preserved dirty work.
 
     Written strictly BEFORE the preservation's first write, keyed by the dead
     run: a driver that dies at any later boundary leaves the marker behind,
@@ -1097,7 +1097,7 @@ def _record_dirty_host_restart(
 def _readmit_after_host_restart(
     _store: RunStore, _config: DispatchConfig, reservation: EpicReservation
 ) -> None:
-    """Log a node re-admitted because its run died with its host (#2812).
+    """Log a node re-admitted because its run died with its host.
 
     The reap transaction wrote both the retry marker and its audit event. This
     function performs no write that a driver crash could separate from them.
@@ -1162,7 +1162,7 @@ def _orphaned_processes_stopped(
 
     if _host_died_under(run):
         # Every host process of an earlier boot is gone, and the pids recorded
-        # for them may name strangers now: signal none of them (#2812).
+        # for them may name strangers now: signal none of them.
         return not run.container_name or _container_alive(run, config) is False
     if not stop_orphaned_attempt(run, store):
         return False
@@ -1173,7 +1173,7 @@ def _orphaned_processes_stopped(
 
 
 def _openshell_never_execd(run: RunRecord, config: DispatchConfig) -> bool:
-    """An OpenShell run whose leader died before it registered an exec (#3208).
+    """An OpenShell run whose leader died before it registered an exec.
 
     There is no client to prove dead: the exec is the only process the run
     would start, and the sandbox it would start in is the one just deleted.
@@ -1207,11 +1207,11 @@ def _stop_orphaned_container(run: RunRecord, config: DispatchConfig) -> bool:
 
 
 def _host_died_under(run: RunRecord) -> bool:
-    """Did this machine reboot under the run's owner (#2812)?
+    """Did this machine reboot under the run's owner?
 
     The rule is :func:`kew.run_liveness.host_died_under`, shared with
     ``kew epic continue`` so the command a host death offers accepts the
-    same evidence that reaped the run (#2960).
+    same evidence that reaped the run.
     """
     from kew.run_liveness import host_died_under
 
@@ -1221,7 +1221,7 @@ def _host_died_under(run: RunRecord) -> bool:
 def _pending_run_is_dead(
     run: RunRecord, probe: RunLivenessProbe, *, now: datetime
 ) -> bool:
-    """Whether a ``pending`` run should be reaped as an orphan (#1041).
+    """Whether a ``pending`` run should be reaped as an orphan.
 
     Fires ONLY on a positively-dead probe (``False`` — never ``None``, so a
     mid-startup or unprobeable run survives; concurrent-state invariant: prove
@@ -1302,7 +1302,7 @@ def _checkout_holds_work(
     — never the checkout's own refs, which the agent can rewrite.
     """
     if config.publication.publish != "canonical":
-        # A committed but unpublished change leaves a clean tree (#2971).
+        # A committed but unpublished change leaves a clean tree.
         return has_uncommitted_changes(worktree) or has_commits_ahead_of_base(
             worktree,
             config.branches.base or "main",
@@ -1323,8 +1323,7 @@ def _read_small_regular(path: Path, limit: int = _SMALL_FILE_LIMIT) -> str | Non
     """Read a small regular file as text without following links or blocking.
 
     A FIFO, a device, a symlink or an oversized file reads as None: the
-    recovery tick must never hang or grow on an agent-planted file (review
-    round 10 of #1440).
+    recovery tick must never hang or grow on an agent-planted file.
     """
     flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0)
     try:
@@ -1381,7 +1380,7 @@ def _git_worktree_matches(
 
     Under canonical publication the identity is the recorded reservation
     path alone; git is not asked, because the checkout is the agent's and
-    the branch it reports is its own claim (review round 9 of #1440).
+    the branch it reports is its own claim.
     """
     if config is not None and config.publication.publish == "canonical":
         return (
@@ -1472,7 +1471,7 @@ def _orphan_run_matches_reservation(
 
     Either proof will do: the run carries the reservation's own id, or a
     pinned ``dispatch_reservation_bound`` event names this reservation for it.
-    A real dispatch child has an id of its own and only the binding (#2812).
+    A real dispatch child has an id of its own and only the binding.
     """
     if (
         supplied.run_id,
@@ -1755,7 +1754,7 @@ def _settle_terminal_continuation(
     if run.error_category == HOST_RESTART_REPEATED:
         # Only a clean checkout's reap writes this on a continuation run (a
         # dirty one is preserved), and that reap died before it closed the
-        # continuation (#2964). Finish the close: there are no bytes left to
+        # continuation. Finish the close: there are no bytes left to
         # validate, and reopening would offer a clean checkout as preserved.
         _finalize_repeated_host_restart_continuation(
             store,
@@ -2118,7 +2117,7 @@ def _recover_openshell_gateway_restart(
     if not run.container_id:
         # No recorded gateway id: nothing proves the sandbox answering to this
         # name is the one this run created, and a download and delete of
-        # another run's sandbox is the outcome worse than none (#2625).
+        # another run's sandbox is the outcome worse than none.
         _logger.error(
             "epic %s: openshell sandbox %s has no gateway id on run %s, so it "
             "is not recovered; it is left on the gateway",
@@ -2604,7 +2603,7 @@ def _hold_for_contained_clone(
     reservation: EpicReservation,
     run: RunRecord,
 ) -> bool:
-    """Bring a contained host-restart run's dirty clone home, or hold (#2971).
+    """Bring a contained host-restart run's dirty clone home, or hold.
 
     A contained dispatch works in the standalone clone it launched from, under
     the system temp directory, so the host dispatch path holds nothing of its
@@ -2635,7 +2634,7 @@ def _hold_for_contained_clone(
     A reviewer's run with no recorded clone, or a pseudo-epic run whose
     recorded clone is gone, is the exception: a reviewer records its
     container but never owns a clone, and gone bytes are nothing to keep a
-    reservation over, so its fleet slot would only leak (#1059).
+    reservation over, so its fleet slot would only leak.
     """
     if not run.container_name or not _host_died_under(run):
         return False
@@ -2684,7 +2683,7 @@ def _recorded_contained_clone(
     )
     if not recorded:
         # A reviewer never binds a clone: refusing would keep its fleet slot
-        # held forever (#1059). Any other run may own one somewhere.
+        # held forever. Any other run may own one somewhere.
         if _run_owns_no_clone(reservation, run) or _clone_hold_released(
             store, reservation, run
         ):
@@ -2740,7 +2739,7 @@ def _run_owns_no_clone(reservation: EpicReservation, run: RunRecord) -> bool:
 
     Only that proves an unbound contained run left no bytes behind. The
     synthetic epic alone proves nothing: a delegated dispatch launched before
-    clone binding existed owns a clone no row names (#2971).
+    clone binding existed owns a clone no row names.
     """
     return reservation.epic_ref == REVIEW_EPIC_REF and (
         run.run_kind in _CLONELESS_RUN_KINDS
@@ -2790,7 +2789,7 @@ def pseudo_epic_clone_refusal(
 def _clone_hold_released(
     store: RunStore, reservation: EpicReservation, run: RunRecord
 ) -> bool:
-    """Has a person released this run's unprovable-clone hold (#2971)?
+    """Has a person released this run's unprovable-clone hold?
 
     A gone or unrecorded clone never becomes provable, so the refusal would
     re-hold the node on every tick after ``kew epic unhold`` and wedge it with
@@ -3166,8 +3165,8 @@ def _reopen_reaped_continuation(
 ) -> None:
     """Reopen one clean reaped continuation under its checkout claim.
 
-    A continuation the host died under for the second time is not reopened
-    (#2964): its node failed, and a stale awaiting record would offer a
+    A continuation the host died under for the second time is not reopened:
+    its node failed, and a stale awaiting record would offer a
     clean checkout back as preserved work. It is finalized instead.
     """
     reaped = store.get(run.run_id)
@@ -3227,7 +3226,7 @@ def _finalize_repeated_host_restart_continuation(
     *,
     issue_num: int | None,
 ) -> None:
-    """Close the continuation whose run the host died under twice (#2964)."""
+    """Close the continuation whose run the host died under twice."""
     finalized = store.finalize_continuation(
         owned.epic_ref,
         owned.item_id,
@@ -3322,7 +3321,7 @@ def _missing_run_may_still_start(
 ) -> bool:
     """Whether a reservation with no run row may still be a holder starting up.
 
-    A hand-run ``kew review`` records its process when it reserves (#3208),
+    A hand-run ``kew review`` records its process when it reserves,
     and checks out and builds before its run row exists. That process, probed,
     decides: alive keeps the reservation at any age, provably dead gives it
     back now. Anything nobody can probe is judged by the startup grace.
@@ -3399,7 +3398,7 @@ def _stage_may_be_reaped(
     probe: RunLivenessProbe,
 ) -> bool:
     """Whether a pending ``review_stage`` row goes on to the ordinary dead-run
-    reap (#2459). An ownerless row is settled here instead; an owned one only
+    reap. An ownerless row is settled here instead; an owned one only
     once every run its dead child left pending is reaped first."""
     if not stage.owner_pid:
         _reap_unstarted_stage(store, reservation, stage, now=now)
@@ -3412,7 +3411,7 @@ def _stage_may_be_reaped(
 def _reap_unstarted_stage(
     store: RunStore, reservation: EpicReservation, run: RunRecord, *, now: datetime
 ) -> None:
-    """Reclaim a detached review child that never claimed its row (#2459).
+    """Reclaim a detached review child that never claimed its row.
 
     The tick writes the ``review_stage`` row before it spawns the child, and
     the child records itself as owner the moment it starts — so an ownerless
@@ -3442,7 +3441,7 @@ def _reap_stage_children(
     now: datetime,
     probe: RunLivenessProbe,
 ) -> bool:
-    """Reap the runs a dead detached review child left ``pending`` (#2459).
+    """Reap the runs a dead detached review child left ``pending``.
 
     The reviewer or remediation a stage child starts writes its own row, owned
     by the child, and takes no reservation of its own — the stage row's
@@ -3513,8 +3512,8 @@ def _reconcile_one_reservation(
     """Reconcile one reservation while preserving its generation boundary."""
     from kew.review_occupancy import hand_run_review_running
 
-    # A hand-run ``kew review`` finishes its run row before it publishes
-    # (#3208); while its process lives, it gives the reservation back itself.
+    # A hand-run ``kew review`` finishes its run row before it publishes;
+    # while its process lives, it gives the reservation back itself.
     if hand_run_review_running(store, reservation):
         return
     continuation_owner = _continuation_owned_by_run(
@@ -3563,7 +3562,7 @@ def _restore_preserved_continuation(
     missing record is rebuilt first, from the run's own checkout under its
     claim and generation, exactly as the interrupted pass would have written
     it. A checkout that no longer proves the run's identity, or no longer holds
-    the work (cleaned since the crash, #3004 F1), raises the refusal instead,
+    the work (cleaned since the crash), raises the refusal instead,
     and the reconciler holds the node with the reservation kept.
     """
     if run.error_category != "orphaned_pending_preserved":
@@ -3650,7 +3649,7 @@ def _reconcile_reservations(
 ) -> set[str]:
     """Release reservations whose newest run row has already terminated,
     reap reservations whose newest run is ``pending`` but whose owning
-    process/container is provably dead (#1041), and reclaim reservations for a
+    process/container is provably dead, and reclaim reservations for a
     dispatch child that died before ever writing a run row (see
     `_RESERVATION_STARTUP_GRACE_SECONDS`).
 
@@ -3666,7 +3665,7 @@ def _reconcile_reservations(
     reservation is released, surfacing the node as FAILED instead of leaving
     it to re-spawn the same broken child every grace window.
 
-    Matching is keyed on ``run_id`` (Task 6): pre-spawn failures (budget
+    Matching is keyed on ``run_id``: pre-spawn failures (budget
     refusal, dead child) write their terminal row using the reservation's
     ``run_id``, so ``store.get(reservation.run_id)`` finds them directly.
     For normal dispatches whose child generates its own ``run_id``, the
@@ -3677,15 +3676,15 @@ def _reconcile_reservations(
     (see :func:`resolve_reservation_run`).
 
     Released via ``release_epic_node_item`` keyed on BOTH ``item_id`` and the
-    reservation's ``run_id`` (generation-conditional): this reconciler now runs
-    concurrently with the watch loop and other epic drivers (Task 5), so a
+    reservation's ``run_id`` (generation-conditional): this reconciler runs
+    concurrently with the watch loop and other epic drivers, so a
     plain item_id delete could race a live re-claimed reservation another actor
-    wrote between our check and our act (#972 review Finding 2). Passing
+    wrote between our check and our act. Passing
     ``run_id`` releases only the generation this pass verified terminal — a
     concurrently re-reserved live generation survives. The ``item_id`` key
     still keeps a non-numeric tracker's reservations off the ``0`` sentinel.
 
-    The ``pending``-but-dead case (#1041): a dispatch that dies WITH the epic
+    The ``pending``-but-dead case: a dispatch that dies WITH the epic
     driver that owned it (the driver is killed, or its sandbox container is torn
     down) never writes a terminal row — its ``pending`` row would otherwise pin
     the reservation forever, silently starving admissions. When the ``liveness``
@@ -3718,7 +3717,7 @@ def _clear_settled_reservation_refusal_hold(
     that reservation — the work preserved for continuation, or the node
     released — and nothing else would ever retire the hold: the overlay
     would read the claimed continuation HELD over live work, and the
-    remediator refuses to run while any hold stands (#2217 pattern).
+    remediator refuses to run while any hold stands.
 
     Only a pass that released THIS generation disproves the refusal; one
     that left it in place (a run not yet provably dead) re-tested nothing.
@@ -3818,11 +3817,11 @@ class _Overlays:
     stuck: list[StuckNode]
     continuation_reason_by_item: dict[str, str] = field(default_factory=dict)
     #: Each item's continuation history, as the continue selector reads it:
-    #: what a repeated host death's reason is normalized against (#2960).
+    #: what a repeated host death's reason is normalized against.
     continuation_histories: dict[str, ContinuationHistory] = field(default_factory=dict)
-    #: Per-dependency acknowledged no-change dependency effects (I12).
+    #: Per-dependency acknowledged no-change dependency effects.
     dependency_effects: dict[str, frozenset[str]] = field(default_factory=dict)
-    #: The runs each node's host-restart retry marker supersedes (#2969).
+    #: The runs each node's host-restart retry marker supersedes.
     superseded_runs_by_item: dict[str, frozenset[str]] = field(default_factory=dict)
 
 
@@ -3872,7 +3871,7 @@ def _continuation_reason_map(
 
     An item whose history the continue selector refuses as ambiguous reads
     :data:`CONTINUATION_AMBIGUOUS_REASON`, which names no command: continue
-    and abandon would both refuse it (#2960). An owned continuation dominates
+    and abandon would both refuse it. An owned continuation dominates
     its item's other rows, whatever their order: continue refuses while
     another caller owns one, so the item reads in progress, with no command.
     """
@@ -3908,7 +3907,7 @@ def _continuation_row_reason(
 ) -> str | None:
     """One continuation row's waiting reason, or None when it sets none.
 
-    *repeated* marks preserved work the host died under twice (#2964): its
+    *repeated* marks preserved work the host died under twice: its
     automatic continuation was spent, so a person continues it."""
     if state == "continuing":
         return "continuation_in_progress — preserved worktree is owned"
@@ -4052,7 +4051,7 @@ def _reconcile_merged_linear(
 
 
 def _review_reservation_kinds(store: RunStore) -> dict[str, str]:
-    """``item_id`` -> run_kind of a LIVE review reservation (Task 10, #977).
+    """``item_id`` -> run_kind of a LIVE review reservation.
 
     The reservation row carries no run_kind, so resolve the run row it points at
     (``resolve_reservation_run``) and read its kind. A reservation with no run
@@ -4096,7 +4095,7 @@ def _review_overlay_for(
         latest_head_sha=latest.head_sha if latest is not None else None,
         current_head_sha=node_facts.head_oid,
         observed_status=observed_status,
-        # The SAME reading as the merge gate (#2151): both the chain event and
+        # The SAME reading as the merge gate: both the chain event and
         # the round's own mark. On the chain event alone the node would read
         # READY here (IN_REVIEW), which the review stage does not drive — so the
         # mark the gate is waiting for would never be retried, and a half-written
@@ -4129,7 +4128,7 @@ def _dependency_effect_grants(
 ) -> dict[str, frozenset[str]]:
     """Per-dependency id: the dependents an acknowledged no-change satisfied.
 
-    This is the ONLY way a zero-diff outcome advances an epic edge (I12). It is
+    This is the ONLY way a zero-diff outcome advances an epic edge. It is
     read from the durable judgment, never from a provider status: nothing was
     written to the provider, so nothing the provider says is evidence that this
     outcome landed.
@@ -4288,7 +4287,7 @@ def _continuation_marker_status(ds: DriverStatus, reason: str) -> DriverStatus:
         DriverStatus.IN_PROGRESS,
         # The continuation is a recovery handle created alongside the
         # completed run.  The run's publication state is authoritative and
-        # must not be downgraded to the recovery verb (#1376).
+        # must not be downgraded to the recovery verb.
         DriverStatus.AWAITING_PUBLICATION,
     ):
         return ds
@@ -4296,7 +4295,7 @@ def _continuation_marker_status(ds: DriverStatus, reason: str) -> DriverStatus:
     # over a stale failure/TODO overlay but not over an actively reserved
     # continuation or a same-tick authoritative merge.
     if reason.startswith(HOST_RESTART_REPEATED_CONTINUATION_REASON):
-        # The host died under this node twice (#2964): it failed, like
+        # The host died under this node twice: it failed, like
         # its clean twin, though its checkout still holds the work.
         return DriverStatus.FAILED
     return DriverStatus.HELD
@@ -4493,7 +4492,7 @@ def _release_moved_head_refusals(
     provider: str,
     store: RunStore,
 ) -> None:
-    """Release each ``admission_refused@<head>`` hold whose PR head has moved (#3193).
+    """Release each ``admission_refused@<head>`` hold whose PR head has moved.
 
     The hold was about that head: a new one is new evidence, so it is eligible
     once — a refusal on it holds again under its own head. The delete is
@@ -4531,11 +4530,11 @@ def _release_moved_head_refusals(
 def _forget_finished_review_checkouts(
     observed: NodeFacts, config: DispatchConfig, store: RunStore
 ) -> None:
-    """Remove the review checkouts of a PR this tick saw merged or closed (#2961).
+    """Remove the review checkouts of a PR this tick saw merged or closed.
 
     Nothing reviews that PR again, so its live checkout and every preserved
     copy are disk with no reader — except, for a PR closed unmerged, the copy
-    each deferred publication of it names (#3186). Best-effort: a
+    each deferred publication of it names. Best-effort: a
     removal that fails is logged and the next sighting tries again; it never
     fails the tick.
     """
@@ -4553,7 +4552,7 @@ def _forget_finished_review_checkouts(
     except Exception as exc:  # noqa: BLE001 — best-effort cleanup, never the tick
         # ``discard_checkout`` runs bounded git subprocesses (one can time out,
         # ``TimeoutExpired``) and retires the checkout identity (which raises
-        # ``RuntimeError``): each is logged like a failed removal (#3186).
+        # ``RuntimeError``): each is logged like a failed removal.
         _logger.warning(
             "could not remove the review checkouts of PR #%s: %s",
             observed.pr_number,
@@ -4569,7 +4568,7 @@ def _forget_finished_review_checkouts(
         )
 
 
-#: The stuck reason for a node whose linked PR closed without merging (#2689).
+#: The stuck reason for a node whose linked PR closed without merging.
 CLOSED_UNMERGED_REASON_PREFIX = "closed-unmerged"
 
 
@@ -4584,15 +4583,15 @@ def _closed_unmerged_stuck(
 ) -> StuckNode | None:
     """A ready node whose linked PR closed unmerged is stuck until restarted.
 
-    The overlay reads such a node TODO (#753), so `kew epic status` listed it
-    ready while the tick's dispatch was refused, silently, by the closed PR's
-    branch still on the remote (#2689). Both read this one rule instead, so
+    The overlay reads such a node TODO, so on that alone `kew epic status`
+    would list it ready while the tick's dispatch is refused, silently, by the
+    closed PR's branch still on the remote. Both read this one rule instead, so
     they agree, and the reason names the PR. ``kew epic retry`` is the restart:
     a retry marker newer than the newest implementation run says the operator
     wants the node started over, and the node re-enters the frontier. Its new
     PR then outranks the closed one (state before number, ``resolve_linked_pr``).
     The runs a host-restart marker binds are dropped before the newest is
-    picked (#2969): a superseded run whose clock reads ahead must not stand in
+    picked: a superseded run whose clock reads ahead must not stand in
     for the replacement whose PR closed, or the host marker would read as the
     operator's restart.
     """
@@ -4716,7 +4715,7 @@ def _build_overlays(
 def _superseded_runs(
     retry_by_item: Mapping[str, EpicRetry],
 ) -> dict[str, frozenset[str]]:
-    """The runs each node's host-restart retry marker is bound to (#2969)."""
+    """The runs each node's host-restart retry marker is bound to."""
     return {
         item_id: retry.superseded_run_ids
         for item_id, retry in retry_by_item.items()
@@ -4726,7 +4725,7 @@ def _superseded_runs(
 
 @dataclass
 class _ReviewRaceOutcome:
-    """What `_handle_review_races` did this tick (F6/F7, #977).
+    """What `_handle_review_races` did this tick.
 
     ``merged_unreviewed`` node ids saw their PR merged out-of-band while a
     reviewer was live → terminal-done (folded into the tick's ``closed``).
@@ -4752,16 +4751,17 @@ def _hold_review_node(
 def _kill_reviewer_reservations(
     store: RunStore, item_id: str, config: DispatchConfig, *, now: datetime
 ) -> None:
-    """Kill + reconcile every LIVE review reservation for *item_id* (F6/F7).
+    """Kill + reconcile every LIVE review reservation for *item_id*.
 
     Writes a terminal ``killed`` run row under each reservation's ``run_id``
-    (run_kind preserved, so the F4 status filter still ignores it) and releases
-    the reservation generation-conditionally (``run_id``-keyed, #972 semantics)
-    so a concurrently re-reserved live generation can't be clobbered. This is the
-    "reviewer killed + reconciled" side of the human-action races; process-level
-    SIGKILL of a contained reviewer hooks here once Group C wires the launcher.
+    (run_kind preserved, so node-status derivation still ignores it) and
+    releases the reservation generation-conditionally (``run_id``-keyed) so a
+    concurrently re-reserved live generation can't be clobbered. This is the
+    "reviewer killed + reconciled" side of the human-action races. It retires
+    the run row and the reservation only: it signals no reviewer process or
+    container.
 
-    A live hand-run ``kew review`` is not the drive's reviewer to kill (#3208):
+    A live hand-run ``kew review`` is not the drive's reviewer to kill:
     it is left to finish and gives its reservation back itself.
     """
     from kew.review_occupancy import hand_run_review_running
@@ -4781,13 +4781,13 @@ def _killed_reviewer_row(
     *,
     now: datetime,
 ) -> RunRecord:
-    """The terminal ``killed`` row for a reviewer cut short mid-review (F6/F7).
+    """The terminal ``killed`` row for a reviewer cut short mid-review.
 
     Overwrites the terminal fields ON the live row when one is keyed to THIS
     reservation, rather than constructing a fresh record: a reviewer killed
     mid-review really did spend tokens, and a fresh record would zero the
     token/cost columns and null ``planned_cost_usd``, dropping the run's spend
-    from the ledger and its cost pair from the planning-accuracy ratio (#1092).
+    from the ledger and its cost pair from the planning-accuracy ratio.
 
     Only the exactly-``run_id``-keyed row is carried forward.
     ``resolve_reservation_run`` may fall back to the newest ``item_id`` row of
@@ -4830,10 +4830,10 @@ def _attest_merged_unreviewed(
     pr_number: int | None,
     head_sha: str | None,
 ) -> None:
-    """Attest an out-of-band merge of a node whose reviewer was still live (F6).
+    """Attest an out-of-band merge of a node whose reviewer was still live.
 
     The chain never goes silent on a bypassed gate — it records it as the
-    canonical ``adversarial_review_verdict`` (Task 13) with verdict
+    canonical ``adversarial_review_verdict`` with verdict
     MERGED_UNREVIEWED and actor out_of_band, carrying the full attested payload
     (policy block, run_records spend, join keys) like every other verdict shape.
     """
@@ -4868,13 +4868,12 @@ def _review_race_for_node(
 
     Keyed on a POSITIVELY-READ PR/issue state — never a state-shape inference,
     and never a failed read. A transient `gh` hiccup must not look like a
-    vanished PR and supersede a live reviewer (#980 Finding 1, the #975
-    concurrent-state-change false-positive class), so both reads fail toward
+    vanished PR and supersede a live reviewer, so both reads fail toward
     "keep the reviewer, retry next tick":
 
     - issue read fails (``fetch_issue_or_none`` → None) → return None (survive);
-    - issue read OK but no linked PR ref → *confirmed* vanished reference (the
-      #753 wedge) → superseded (kill + HELD review_pr_closed);
+    - issue read OK but no linked PR ref → *confirmed* vanished reference →
+      superseded (kill + HELD review_pr_closed);
     - PR read fails (empty ``pr_facts`` / no ``state``) → return None (survive);
     - PR OPEN → reviewer legitimately in flight → return None (survive);
     - PR MERGED → out-of-band merge (kill + attest MERGED_UNREVIEWED);
@@ -4928,7 +4927,7 @@ def _review_race_for_node(
         )
         return "merged"
     # Positively-read CLOSED (the only remaining PR state): superseded + HELD so
-    # a live reviewer's node cannot wedge back to TODO (#753).
+    # a live reviewer's node cannot wedge back to TODO.
     _kill_reviewer_reservations(store, item_id, config, now=now)
     _hold_review_node(store, epic_ref, item_id, "review_pr_closed", provider=provider)
     return "pr_closed"
@@ -4945,7 +4944,7 @@ def _handle_review_races(
     repo: str,
     now: datetime,
 ) -> _ReviewRaceOutcome:
-    """React to human actions taken while a reviewer/remediator is live (F6/F7).
+    """React to human actions taken while a reviewer/remediator is live.
 
     Iterates the epic's nodes that hold a LIVE review reservation — the
     authoritative "reviewer in flight" signal, NOT the derived node status (an
@@ -4954,7 +4953,7 @@ def _handle_review_races(
     """
     from kew.review_occupancy import standalone_reservation
 
-    # A hand-run ``kew review`` is not the drive's reviewer to kill (#3208): it
+    # A hand-run ``kew review`` is not the drive's reviewer to kill: it
     # gives its reservation back itself, or the reconciler proves it dead. Its
     # holder record commits with its reservation, so no reservation is ever
     # read here as a drive reviewer's for want of it.
@@ -5004,7 +5003,7 @@ def _merge_verifier(
     """The serial merge queue's verifier, or None when the epic hasn't opted in.
 
     ``repo_root`` must be the git toplevel for the same reason the review stage
-    passes it: the scratch clone is cut from it (#1002). *keepalive* refreshes
+    passes it: the scratch clone is cut from it. *keepalive* refreshes
     this driver's lock heartbeat while a verification blocks the tick — without it
     a verification longer than ``HEARTBEAT_STALE_SECONDS`` marks a healthy driver
     stale and invites a concurrent second driver of the same epic.
@@ -5059,7 +5058,7 @@ def _run_merge_pass(
     is caught by the gate rather than auto-merged.
 
     ``spent_facts`` are the nodes whose head the review stage's merge-main step
-    just moved (#2149): this tick's facts for them describe the branch BEFORE the
+    just moved: this tick's facts for them describe the branch BEFORE the
     step, so the pass has nothing it can honestly classify them on and skips them
     for this one tick. It re-reads them, fresh, on the next one.
     """
@@ -5072,7 +5071,7 @@ def _run_merge_pass(
         ),
         key=item_id_sort_key,
     )
-    # The sort is what makes the merge queue (#2148) serial *in a defined order*:
+    # The sort is what makes the merge queue serial *in a defined order*:
     # `merge_pass` classifies — and so verifies and merges — in this order, one
     # candidate at a time.
 
@@ -5157,9 +5156,9 @@ def _dispatch_exclusions(
 @dataclass(frozen=True)
 class _DispatchBudget:
     """The tick's new-dispatch budget PLUS the three limiter values that floored
-    it, so an admission-held node can name the constraint that actually bound it
-    (#1041 review): the per-epic worker budget, the fleet worker cap, or this
-    epic's fair share — not always the worker cap."""
+    it, so an admission-held node can name the constraint that actually bound it:
+    the per-epic worker budget, the fleet worker cap, or this epic's fair share —
+    not always the worker cap."""
 
     per_epic: int
     fleet_available: int
@@ -5208,7 +5207,7 @@ def _compute_dispatch_budget(
     per_epic_budget: int,
     liveness: RunLivenessProbe | None = None,
 ) -> _DispatchBudget:
-    """New-dispatch budget for this tick under the fleet-wide worker cap (F4/#864).
+    """New-dispatch budget for this tick under the fleet-wide worker cap.
 
     ``fleet_cap`` is ``[parallel] max_workers`` shared across ALL
     concurrently-driven epics: a node reserved by any epic consumes one slot
@@ -5227,10 +5226,10 @@ def _compute_dispatch_budget(
     The contender count spans every epic holding a live reservation AND every
     registered-but-not-yet-terminal epic (``RunStore.contending_epic_refs`` —
     seeded by ``kew epic plan``). Counting the cold-start siblings is what
-    closes the F4 starvation gap (#864): without them the first epic to tick
+    closes a starvation gap: without them the first epic to tick
     would see itself as the only active epic, take the whole cap, and
     permanently starve a ready sibling that never acquires a reservation to
-    become visible. Both halves are probed with ``liveness`` (#2094) so a
+    become visible. Both halves are probed with ``liveness`` so a
     stale epic's leaked reservation cannot put it back in the denominator the
     contention age-out just took it out of.
 
@@ -5250,7 +5249,7 @@ def _compute_dispatch_budget(
             live_runs=0,
             cap_disabled=True,
         )
-    # Owner-liveness-aware (#1059, #2094): a hard-killed run (breaker
+    # Owner-liveness-aware: a hard-killed run (breaker
     # process-group kill, driver restart, crash) orphans its ``pending`` row and
     # the reservation backing it — the tick reconciler above reaps only THIS
     # epic's, so an epic abandoned mid-drive keeps both forever. Unprobed, that
@@ -5301,14 +5300,14 @@ def _review_concurrency(
     fleet_cap: int,
     liveness: RunLivenessProbe | None = None,
 ) -> int:
-    """How many governed reviews/remediations this tick may run at once (#2110).
+    """How many governed reviews/remediations this tick may run at once.
 
     ``--max-parallel`` bounds the epic and the fleet cap (with its fair share,
     :func:`_compute_dispatch_budget`) bounds the machine, read once on the tick
     thread before any worker starts. The floor is one: a full fleet still lets
     the stage attempt its nodes in turn, where each reviewer's atomic
-    under-cap reservation refuses and retries next tick, as before. A
-    ``max_parallel`` of 0 is admission closed by ``kew drive`` (#2616): no
+    under-cap reservation refuses and retries next tick. A
+    ``max_parallel`` of 0 is admission closed by ``kew drive``: no
     review or remediation starts, and the ones already running are still read.
     """
     if max_parallel <= 0:
@@ -5685,7 +5684,7 @@ def _checkout_preexisting_producer(
     run alone, before anything is counted: an item retried once after a host
     restart carries the first attempt's terminal row on the same branch, and
     counting it too would refuse the second attempt's dirty work on every
-    pass (#2971). The named run is still held to its own recorded checkout
+    pass. The named run is still held to its own recorded checkout
     binding at *candidate* (:func:`_checkout_producer_generation`), so an
     earlier run cannot be passed off as it. Unnamed, exactly one terminal run
     has to stand.
@@ -6099,7 +6098,7 @@ def _reserve_frontier_node(
             ),
         )
     if outcome == "dispatched":
-        # This attempt disproved any earlier refusal of the same node (#2217).
+        # This attempt disproved any earlier refusal of the same node.
         _clear_stale_dispatch_refusal_hold(store, name, nid)
     return outcome, None
 
@@ -6109,9 +6108,9 @@ def _refusal_stuck(nid: str, graph: Graph, category: str, detail: str) -> StuckN
 
     The prefix leads because every reader of a waiting/stuck reason buckets on
     one (``attention.STALL_BUCKETS``, and `kew epic status`'s dominant-cause
-    stall line through it). A bare detail fell through to the unbucketed
-    fallback, so the refusal the frontier had just hit arrived unlabelled while
-    the hold row written from the same refusal carried the prefix (#2217).
+    stall line through it). A bare detail would fall through to the unbucketed
+    fallback, so the refusal the frontier just hit would arrive unlabelled
+    while the hold row written from the same refusal carries the prefix.
     """
     return StuckNode(
         node_id=nid,
@@ -6143,15 +6142,15 @@ def _hold_refused_frontier_node(
 def _clear_stale_dispatch_refusal_hold(
     store: RunStore, epic_ref: str, item_id: str
 ) -> None:
-    """Drop the refusal hold a node that just dispatched is still carrying (#2217).
+    """Drop the refusal hold a node that just dispatched is still carrying.
 
     :func:`_hold_refused_frontier_node` writes a hold the overlay deliberately
     does NOT honor, because leaving the node dispatchable is its recovery path.
     So the very next tick can dispatch the node successfully while the refusal
     row survives it — and that stale row is read as an operator park by every
-    pass that honors a hold. On #2201/#2202 it blocked remediation for two
-    hours after the PRs were open and reviewed. The dispatch that disproves the
-    refusal is what clears it.
+    pass that honors a hold, so it blocks remediation of a node whose PR is
+    open and reviewed. The dispatch that disproves the refusal is what clears
+    it.
 
     ``only_reason_prefixes`` keeps the release to the driver's own two reasons
     AND inside the store's delete transaction: the detached dispatch child this
@@ -6254,7 +6253,7 @@ def _review_brake(
 def _review_pressure(
     store: RunStore, *, config: DispatchConfig, repo: str, now: datetime
 ) -> ReviewPressure:
-    """Read the delivery repository's authoritative human-review pressure (I15).
+    """Read the delivery repository's authoritative human-review pressure.
 
     The system policy is the one `[human_review]` states, bound to the epic's
     own canonical GitHub delivery repository — capacity belongs to a
@@ -6283,18 +6282,18 @@ class _FrontierOutcome:
     stuck: list[StuckNode]
     admission_held: list[str]
     hold_reason: str | None
-    # Ready nodes human-review backpressure withheld this tick (I15). Reported
+    # Ready nodes human-review backpressure withheld this tick. Reported
     # separately from `admission_held` because the constraint is a different
     # one: people, not workers — and it names its own reason.
     review_withheld: list[str]
-    # Why each dispatched node went when it did, in dispatch order (#2575).
+    # Why each dispatched node went when it did, in dispatch order.
     dispatch_ranks: tuple[FrontierRank, ...] = ()
-    # Armed host-restart continuations admission kept waiting this tick
-    # (#2964). A later tick claims them, so they are progress, not a stall.
+    # Armed host-restart continuations admission kept waiting this tick.
+    # A later tick claims them, so they are progress, not a stall.
     continuations_deferred: tuple[str, ...] = ()
 
 
-#: No priority labels read: every node ranks as the default (#2575).
+#: No priority labels read: every node ranks as the default.
 _NO_PRIORITIES: Mapping[str, int] = MappingProxyType({})
 
 
@@ -6313,7 +6312,7 @@ def _dispatch_ranks(
 @dataclass
 class _FrontierWithhold:
     """Whether a ready node waits this tick: the admission budget is spent,
-    or a running local merge verify defers its spawn (#3190). The lease is
+    or a running local merge verify defers its spawn. The lease is
     read at each spawn, so a verify that began after this tick's admission
     defers the launches after it; ``verify`` is the wait it named."""
 
@@ -6374,7 +6373,7 @@ def _dispatch_frontier(
         dependency_effects=dependency_effects,
         priorities=priorities,
     )
-    # Human-review backpressure (I15): while the delivery repository is at (or
+    # Human-review backpressure: while the delivery repository is at (or
     # past) its effective cap, or its remote truth may not be counted from,
     # fresh independent work waits. Everything else in the frontier — nodes
     # this host has already started — passes through untouched.
@@ -6393,12 +6392,12 @@ def _dispatch_frontier(
         per_epic_budget=max_parallel - len(in_flight),
         liveness=liveness,
     )
-    # A runner lane the provider refused for quota (#2643): nothing dispatches
+    # A runner lane the provider refused for quota: nothing dispatches
     # into it until the reset, and the ready nodes say why they wait.
     quota_hold = _runner_quota_hold(store, config)
     budget = dispatch_budget.budget if quota_hold is None else 0
     # A continuation is a dispatch launch too: it yields to a running local
-    # merge verify exactly as a fresh frontier node does (#3190).
+    # merge verify exactly as a fresh frontier node does.
     withhold = _FrontierWithhold(store, config)
     budget, continuations_deferred, retrying, fleet_full_at_admission = (
         _auto_continue_host_restarts(
@@ -6413,10 +6412,10 @@ def _dispatch_frontier(
             withhold=withhold,
         )
     )
-    # Ready frontier nodes we run out of admission budget for (#1041): a node
+    # Ready frontier nodes we run out of admission budget for: a node
     # that IS dispatchable but is skipped because the worker cap is consumed.
     # Surfaced as a "waiting" reason so a tick that dispatches nothing under a
-    # full cap SAYS WHY, instead of silently skipping ready work (#669).
+    # full cap SAYS WHY, instead of silently skipping ready work.
     admission_held: list[str] = list(continuations_deferred)
     for nid in frontier:
         if withhold.withholds(nid, budget):
@@ -6445,7 +6444,7 @@ def _dispatch_frontier(
             continue
         if outcome == REVIEW_SATURATED:
             # The door refused what the split already withheld. Report it
-            # rather than skipping it silently (#669): a ready node that does
+            # rather than skipping it silently: a ready node that does
             # not dispatch has to say which limiter stopped it.
             review_withheld.append(nid)
             continue
@@ -6489,7 +6488,7 @@ def _dispatch_frontier(
     )
 
 
-#: The actor the driver's automatic continuation claims under (#2964), so its
+#: The actor the driver's automatic continuation claims under, so its
 #: claims — and the attempts they spend — are told from an operator's.
 AUTO_CONTINUE_ACTOR = "driver_auto_continue"
 
@@ -6506,12 +6505,12 @@ def _auto_continue_host_restarts(
     in_flight: list[str],
     withhold: _FrontierWithhold,
 ) -> tuple[int, list[str], list[str], bool]:
-    """Continue preserved work the host restarted under, once (#2964).
+    """Continue preserved work the host restarted under, once.
 
     Each continuation is admitted like fresh work: it spends one unit of this
     tick's budget (per-epic, worker cap and fair share), and the claim takes
     its worker slot under the fleet cap; *withhold* defers it, like a fresh
-    node, while a local merge verify runs (#3190). Return the budget left over, the
+    node, while a local merge verify runs. Return the budget left over, the
     armed continuations admission deferred to a later tick — held like a
     ready node the budget ran out for, never dropped — the continuations whose
     spawn failed and that a later tick retries, and whether the fleet cap
@@ -6737,8 +6736,9 @@ def _branch_exists_stuck(nid: str, graph: Graph, branch_prefix: str) -> StuckNod
     """The stuck row for a ready node whose remote branch already exists.
 
     This node holds no reservation, so no driver dispatch owns that branch: it
-    is left over, most often by a PR that closed unmerged (#2689). Skipping it
-    quietly left the node READY in `kew epic status` and absent from every tick.
+    is left over, most often by a PR that closed unmerged. Skipping it
+    quietly would leave the node READY in `kew epic status` and absent from
+    every tick.
     """
     branch = f"{branch_prefix}{branch_slug(nid)}"
     return StuckNode(
@@ -6763,12 +6763,12 @@ def _frontier_hold_reason(
 ) -> str | None:
     """Why ready frontier nodes were withheld this tick, binding limiter first.
 
-    ``closed`` is why ``kew drive`` closed admission (#2616) — a per-epic
+    ``closed`` is why ``kew drive`` closed admission — a per-epic
     budget of 0 — named as such rather than as an exhausted budget. It comes
-    before a runner quota hold (#2878): the drive's hold or the host load it
+    before a runner quota hold: the drive's hold or the host load it
     recorded keeps the node waiting whatever the quota does, so naming only the
     quota would hide an overloaded host. ``verify`` is a running local merge
-    verify's deferral (#3190), named next for the same reason.
+    verify's deferral, named next for the same reason.
     """
     if admission_held and (closed or verify):
         return closed or verify
@@ -6787,7 +6787,7 @@ def _frontier_hold_reason(
 def _drive_held_reason(store: RunStore) -> str | None:
     """What a standing drive hold says: the operator's ``kew drive hold``
     first — work waits for ``kew drive release`` whatever the host does — then
-    the host-load episode the drive recorded (#2813). None when neither stands;
+    the host-load episode the drive recorded. None when neither stands;
     an unreadable row is logged and named as no reason here, never as a calm
     host (the drive itself refuses it)."""
     try:
@@ -6812,9 +6812,9 @@ def _drive_held_reason(store: RunStore) -> str | None:
 def _drive_closed_reason(
     store: RunStore, max_parallel: int, *, operator_stop: bool = False
 ) -> str | None:
-    """Why this tick has a budget of 0: the operator's ``--max-parallel 0``
-    (#3192), else ``kew drive``'s operator hold, else the host-load episode it
-    recorded (#2813), else a ``[drive.load]`` threshold of 0. None while the
+    """Why this tick has a budget of 0: the operator's ``--max-parallel 0``,
+    else ``kew drive``'s operator hold, else the host-load episode it
+    recorded, else a ``[drive.load]`` threshold of 0. None while the
     budget is open."""
     if max_parallel > 0:
         return None
@@ -6833,7 +6833,7 @@ def _drive_held_waiting(
     graph: Graph, frontier: Sequence[str], waiting: Sequence[StuckNode], store: RunStore
 ) -> tuple[StuckNode, ...]:
     """The ready nodes a running ``kew drive`` holds back — for its operator
-    hold or for host load (#2813) — for ``kew epic status``: no live tick to
+    hold or for host load — for ``kew epic status``: no live tick to
     say so, the hold rows do. A row a dead drive left behind is not read as
     standing."""
     if not frontier or read_drive(store).state != DRIVE_RUNNING:
@@ -6865,7 +6865,7 @@ def _verify_deferred_reasons(
     store: RunStore,
     provider: str,
 ) -> dict[str, str]:
-    """Node -> why it waits on the local merge verify running now (#3190), for
+    """Node -> why it waits on the local merge verify running now, for
     ``kew epic status``: no live tick to say so, this verify's
     ``launch_deferred`` events do. A ready node reads as admission-held, as
     the tick reports it; a review-stage node shows the deferral itself; a node
@@ -6920,7 +6920,7 @@ def _runner_quota_hold(
     Every lane the config can route a node to is checked — the default and
     each complexity route — because the tick does not know a node's route
     until the child resolves it. A route that names no valid runner is left to
-    the child to refuse, as before. A hold recorded under another credential
+    the child to refuse. A hold recorded under another credential
     than the one now in the environment does not apply: the next dispatch
     re-probes the provider with the new one.
     """
@@ -6945,15 +6945,15 @@ def _admission_held_waiting(
     *,
     reason: str,
 ) -> tuple[StuckNode, ...]:
-    """Turn ready-but-admission-held frontier nodes into "waiting" entries (#1041).
+    """Turn ready-but-admission-held frontier nodes into "waiting" entries.
 
     A ready node an admission limiter kept from dispatching this tick would
     otherwise vanish from the report entirely (its deps ARE met, so
-    `_waiting_nodes` never prints it) — the exact silent-skip the incident hit.
+    `_waiting_nodes` never prints it).
     ``reason`` (from :meth:`_DispatchBudget.admission_hold_reason`) names the
     BINDING limiter — per-epic budget, fleet worker cap, or fair share — so the
     line reaches stdout and the journal pointing at the real constraint, not
-    always the worker cap (#669 stall-reason precedent)."""
+    always the worker cap."""
     if not admission_held:
         return ()
     return tuple(
@@ -6975,7 +6975,7 @@ class _MergeOutcome:
     deferred_closed: list[str] = field(default_factory=list)
     # The subset of `held` this tick holds only until GitHub answers: they carry
     # no hold row and no stall clock, and their PRs are still open awaiting a
-    # human's merge (#2183). See `is_self_healing_hold` and
+    # human's merge. See `is_self_healing_hold` and
     # `_awaiting_merge_only`.
     held_transient: list[str] = field(default_factory=list)
 
@@ -6992,8 +6992,7 @@ def _classify_held_verdict(
 
     ``self_healing`` marks a hold GitHub clears by itself (see
     `is_self_healing_hold`): no hold row, no stall clock, and the PR under it
-    is still open awaiting a merge, so the signal must keep reading it that way
-    (#2183).
+    is still open awaiting a merge, so the signal must keep reading it that way.
 
     The row — `holds_after`, read back AFTER the pass — is what decides which
     of the two shapes this node is in, never the verdict word alone. A verdict
@@ -7007,11 +7006,11 @@ def _classify_held_verdict(
     """
     if is_queue_contention(verdict.reason):
         # The merge queue's repo-wide lock, or this PR's review checkout, is held
-        # by another live process (#2148): real work in flight elsewhere, which
+        # by another live process: real work in flight elsewhere, which
         # is the same reading `locked_out` gets for a contended epic-driver lock
         # — PROGRESSING, so `kew epic run` sleeps and re-ticks. Read as a stall,
-        # the by-design serialization outcome ended the run with a repair exit
-        # code (#2173 review round 4). No hold row, so no stall clock either: the
+        # the by-design serialization outcome would end the run with a repair
+        # exit code. No hold row, so no stall clock either: the
         # holder releases the flock (or dies) and the next tick wins it.
         return verdict.node_id, None, True, False
     hold = holds_after.get(verdict.node_id)
@@ -7023,7 +7022,7 @@ def _classify_held_verdict(
         # own held reasons (an unverifiable head, a refused containment posture,
         # a gate that could not run) name a broken pipeline an operator must
         # fix, and STALLED is the signal that says so — so they are NOT
-        # self-healing (#2183).
+        # self-healing.
         return (
             verdict.node_id,
             None,
@@ -7035,7 +7034,7 @@ def _classify_held_verdict(
     ):
         blast = tuple(sorted(graph.transitive_dependents(verdict.node_id)))
         # The SAME word `_held_signal` gives `kew epic status` for this row
-        # (`_aged_hold_reason`, #2150): `ci-stalled` for the CI gate, its own
+        # (`_aged_hold_reason`): `ci-stalled` for the CI gate, its own
         # reason for every other honored hold, so the two paths name one state
         # one way.
         return (
@@ -7049,22 +7048,22 @@ def _classify_held_verdict(
 
 def _is_awaiting_merge(verdict: MergeVerdict) -> bool:
     """A merge candidate that is waiting on a human gate, not a broken pipeline —
-    the AWAITING_MERGES signal, distinct from a genuine stall (Node I7).
+    the AWAITING_MERGES signal, distinct from a genuine stall.
 
     Covers a PR with no verified approval yet (``awaiting-approval``) and a
-    candidate the governed-review invariant skipped (N1): a non-READY verdict,
+    candidate the governed-review invariant skipped: a non-READY verdict,
     a post-verdict force-push, or a stale approval all mean the node is awaiting
     re-review or re-approval — an operator-visible waiting state, NOT a stall
-    (`REVIEW_BLOCK_REASONS`, #977). Without this, an invariant-skipped candidate
+    (`REVIEW_BLOCK_REASONS`). Without this, an invariant-skipped candidate
     would read STALLED and misfire the blast-radius alarm.
 
-    A merge-queue refusal (#2148) is the same kind of state: a red combined tree
+    A merge-queue refusal is the same kind of state: a red combined tree
     is now a recorded NEEDS_CHANGES round the review stage remediates next tick
     (which `[epic] merge_queue` requires to exist — see the config validator), and
     a head that moved during verification gets a fresh round on the new head —
     both are awaiting re-review, exactly like `REVIEW_SKIP_NOT_READY`, which is
     the reason the very next tick reports for the same node. A BASE that moved
-    under the verification (#2184) is the same shape: nothing is broken, the
+    under the verification is the same shape: nothing is broken, the
     combined tree the next tick builds is simply a different one. The queue's *held*
     outcomes are deliberately NOT here: an unconfigured verify command, a refused
     containment posture, an unreadable head, or a gate that could not run is a
@@ -7081,7 +7080,7 @@ def _is_awaiting_merge(verdict: MergeVerdict) -> bool:
         or verdict.reason == MERGE_VERIFY_HEAD_MOVED
         or verdict.reason == MERGE_VERIFY_BASE_MOVED
         # An approved CLEAN PR whose tests await `ci-approved`, or whose head
-        # carries no CI evidence, waits for a human too (#2033).
+        # carries no CI evidence, waits for a human too.
         or is_human_ci_gate(verdict.reason)
     )
 
@@ -7186,13 +7185,13 @@ def _stale_review_stuck(
 
     ``self_healing_holds`` carries the nodes THIS tick's merge pass rewrote
     IN_REVIEW -> HELD while GitHub finishes computing mergeability, or while
-    the head's own checks finish (#2183). That rewrite is the tick's own
+    the head's own checks finish. That rewrite is the tick's own
     bookkeeping, not a change of state: the PR under it is the same open PR,
     and its last push is the same last push, so the review stall clock keeps
-    running. Skipping them let a transient hold hide a review already past
-    `stall_days` — `advance` reported AWAITING_MERGES where `summarize`,
-    reading the node as plain IN_REVIEW, reported `review-stalled`, and
-    `kew epic run` polled forever instead of exiting with the repair code.
+    running. Skipping them would let a transient hold hide a review already
+    past `stall_days`: `advance` would report AWAITING_MERGES where
+    `summarize` reports `review-stalled`, and `kew epic run` would poll forever
+    instead of exiting with the repair code.
     """
     out: list[StuckNode] = []
     for nid, ds in statuses.items():
@@ -7211,12 +7210,12 @@ def _stale_review_stuck(
 def _failed_terminal_reason(
     nid: str, store: RunStore, superseded_run_ids: frozenset[str] = frozenset()
 ) -> str:
-    """`failed-terminal (exit N, category)` from the node's newest terminal run
-    (#661) — the exit code + error_category name WHY the node died so the
+    """`failed-terminal (exit N, category)` from the node's newest terminal run:
+    the exit code + error_category name WHY the node died so the
     operator can act without opening the log. Degrades to plain
     `failed-terminal` when the node has no terminal run row. Keyed on the
     durable item id (``nid``), so a non-numeric tracker never crashes here.
-    A run a host-restart marker supersedes is not the reason (#2969)."""
+    A run a host-restart marker supersedes is not the reason."""
     runs = store.list_by_item(nid)
     newest = _newest_run(
         [
@@ -7233,9 +7232,9 @@ def _failed_terminal_reason(
     return f"failed-terminal ({detail})" + _launch_failure_detail(store, newest)
 
 
-#: The categories whose run carries the runtime's own failure words (#2913),
-#: and ``resource``, whose run carries the signal and the runner's last output
-#: (#3191): a node released from its resource-retry hold still says why.
+#: The categories whose run carries the runtime's own failure words,
+#: and ``resource``, whose run carries the signal and the runner's last output:
+#: a node released from its resource-retry hold still says why.
 _LAUNCH_DETAIL_CATEGORIES = frozenset(
     {"container_start_failed", "runtime_timeout", RESOURCE_CATEGORY}
 )
@@ -7266,8 +7265,8 @@ def _failed_node_reason(
     superseded_run_ids: frozenset[str] = frozenset(),
 ) -> str:
     """A FAILED node's stuck reason: its awaiting reason when the host died
-    under its dirty work twice (#2964), else its failed-terminal reason
-    normalized against its continuation history (#2960)."""
+    under its dirty work twice, else its failed-terminal reason
+    normalized against its continuation history."""
     if preserved.startswith(HOST_RESTART_REPEATED_CONTINUATION_REASON):
         return preserved
     return preserved_host_death_reason(
@@ -7289,11 +7288,11 @@ def _terminal_ds_stuck(
     "Failure & surfacing").
 
     A node failed with its work still preserved after a second dirty host
-    death (#2964) names the continuation that recovers it, not a fresh retry.
+    death names the continuation that recovers it, not a fresh retry.
     A node the host died under twice while it kept resumable preserved work
     reads :data:`HOST_RESTART_REPEATED_PRESERVED_REASON`, whose command is
     continue, not retry — or :data:`HOST_RESTART_REPEATED_AMBIGUOUS_REASON`,
-    with no command, when the continue selector would refuse it (#2960)
+    with no command, when the continue selector would refuse it
     (:func:`kew.continuation_recovery.preserved_host_death_reason`)."""
     by_item = histories or {}
     out: list[StuckNode] = []
@@ -7318,7 +7317,7 @@ def _terminal_ds_stuck(
 def _review_heads(
     nid: str, node_facts: dict[str, NodeFacts], store: RunStore
 ) -> tuple[str | None, ReviewRound | None]:
-    """The PR head the facts read, and the newest review round (#2561)."""
+    """The PR head the facts read, and the newest review round."""
     facts = node_facts.get(nid)
     pr_head = facts.head_oid if facts is not None else None
     return pr_head, store.latest_review_round(nid)
@@ -7328,7 +7327,7 @@ def _unreviewed_head(pr_head: str | None, latest: ReviewRound | None) -> str | N
     """The PR head when the newest round reviewed a different one, else None.
 
     Either head can be the newer: a push after a verdict moves the PR head, and
-    a round recorded after the facts were read moves the reviewed one (#2561).
+    a round recorded after the facts were read moves the reviewed one.
     Both are a pairing no verdict covers, so neither may read as merge-ready.
     """
     if not pr_head or latest is None or not latest.head_sha:
@@ -7351,7 +7350,7 @@ def _in_review_reason(
 
 
 def _ci_gate_reasons(verdicts: list[MergeVerdict]) -> dict[str, str]:
-    """The merge pass's head-check human gates, by node (#2033)."""
+    """The merge pass's head-check human gates, by node."""
     return {
         v.node_id: v.reason
         for v in verdicts
@@ -7364,7 +7363,7 @@ def _released_to_review(
 ) -> dict[str, DriverStatus]:
     """A node this tick's merge pass found at a head-check human gate had its
     stale ``ci_pending`` hold released, so it reads IN_REVIEW, not HELD: its
-    line then names the gate like any other in-review PR (#2033)."""
+    line then names the gate like any other in-review PR."""
     return {
         nid: DriverStatus.IN_REVIEW
         if nid in gate_reasons and ds is DriverStatus.HELD
@@ -7376,7 +7375,7 @@ def _released_to_review(
 def _with_ci_gate_reasons(
     waiting: list[StuckNode], gate_reasons: dict[str, str]
 ) -> list[StuckNode]:
-    """Name the head-check human gate on an in-review node's line (#2033):
+    """Name the head-check human gate on an in-review node's line:
     `in_review — awaiting ci-approved: tests did not run (…) (PR #N)`."""
     return [
         StuckNode(
@@ -7408,11 +7407,11 @@ def _with_review_stage_reasons(
     nothing, and left the node's status unchanged — so the status-derived line
     would report the node as quietly in-review and hide the action.
 
-    * a pre-launch sandbox refusal (#2147): the node still reads
+    * a pre-launch sandbox refusal: the node still reads
       ADVERSARIAL_REVIEW and the next tick re-reviews it, but no reviewer is in
       flight, and reporting one hides an infrastructure failure behind a
       healthy-looking line;
-    * a merge-main step (#2149): the node keeps its review status while the
+    * a merge-main step: the node keeps its review status while the
       driver integrates the base, and the next tick reviews the moved head.
 
     The stage's reason replaces the status-derived one.
@@ -7441,7 +7440,7 @@ def _status_ci_gate_reasons(
 ) -> dict[str, str]:
     """`kew epic status` never runs the merge pass, so it reads the head
     checks of each approved, CLEAN in-review PR to show the same human gate
-    the merge pass would (#2033). Reads only."""
+    the merge pass would. Reads only."""
     reasons: dict[str, str] = {}
     for nid, ds in statuses.items():
         nf = node_facts.get(nid)
@@ -7462,7 +7461,7 @@ def _status_ci_gate_reasons(
 #: What a node whose PR merged while its issue stayed open is waiting on:
 #: nobody. The next tick's merge pass closes the issue. Named here because the
 #: journal-backed watch reaches the same state by elimination — a ``held`` node
-#: with no ``epic_holds`` row — and must say it in the same words (#2469).
+#: with no ``epic_holds`` row — and must say it in the same words.
 MERGED_UNCLOSED_WAIT_REASON = (
     "merged_unclosed — the merge pass closes the issue on this tick"
 )
@@ -7486,7 +7485,7 @@ def _unmet_dependencies(
     frontier_status: dict[str, NodeStatus],
     dependency_effects: dict[str, frozenset[str]] | None = None,
 ) -> set[str]:
-    """Which dependencies still owe this node, and by which route (I12): a
+    """Which dependencies still owe this node, and by which route: a
     dependency an acknowledged no-change effect has satisfied for THIS node is
     met, even though it never reads DONE. Includes out-of-epic dependencies,
     which are boundary nodes in the graph like any other."""
@@ -7538,7 +7537,7 @@ def _first_held_path(store: RunStore, run_id: str) -> str:
     Read off the newest ``publication_deferred`` event, whose ``error`` is the
     hold's own ``publication needs human review — <path>: <why>; ...`` text:
     the run row keeps only the category, and a hint naming no path sends the
-    operator looking for one (#2682).
+    operator looking for one.
     """
     try:
         events = store.list_audit_events(1, event="publication_deferred", run_id=run_id)
@@ -7605,7 +7604,7 @@ def _review_identity(
 
     The PR head leads: a force-push after a READY verdict IS a new state, and
     the round number separates two verdicts on one head. When the newest round
-    reviewed a different head than the PR's, both are named (#2561) — a bare
+    reviewed a different head than the PR's, both are named — a bare
     ``head:`` there paired one round's number with another commit. A node with
     neither reads as no identity rather than a fake one.
     """
@@ -7641,7 +7640,7 @@ def _node_identities(
     node_facts: dict[str, NodeFacts],
     store: RunStore,
 ) -> dict[str, str]:
-    """Per-node state identity for the attention stream (#2183).
+    """Per-node state identity for the attention stream.
 
     Only the nodes an event can be about (the waiting and stuck rows) are keyed
     — a read that walked every node would pay a per-node store query for rows
@@ -7672,7 +7671,7 @@ def _waiting_reason(
     dependency_effects: dict[str, frozenset[str]],
 ) -> str | None:
     """Human 'why is this node not progressing' line for a non-terminal node,
-    or None if the node isn't in a waiting state (#661)."""
+    or None if the node isn't in a waiting state."""
     if ds is DriverStatus.IN_REVIEW:
         return _in_review_reason(nid, node_facts, store)
     if ds is DriverStatus.AWAITING_PUBLICATION:
@@ -7704,7 +7703,7 @@ def _waiting_nodes(
 ) -> list[StuckNode]:
     """Non-terminal, non-progressing nodes (IN_REVIEW / HELD / BLOCKED /
     queued/admission-held/blocked/dependency-blocked TODO) with a reason line —
-    the "waiting" half of a STALLED explanation (#661). Nodes already surfaced
+    the "waiting" half of a STALLED explanation. Nodes already surfaced
     as stuck are skipped so
     each node appears once."""
     out: list[StuckNode] = []
@@ -7732,7 +7731,7 @@ def _waiting_nodes(
 def _reconcile_budget_holds(
     name: str, store: RunStore, config: DispatchConfig, *, now: datetime
 ) -> None:
-    """Clear ``budget_preflight`` holds whose cap now admits the node (#661).
+    """Clear ``budget_preflight`` holds whose cap now admits the node.
 
     Runs before overlays so raising ``budget.per_issue_usd`` un-holds the node
     on the very next tick: a hold that still exceeds is left in place; one that
@@ -7744,7 +7743,7 @@ def _reconcile_budget_holds(
         if not hold.reason.startswith("budget_preflight"):
             continue
         try:
-            # Per-item keyed (#809): the budget check reads the node's own spend
+            # Per-item keyed: the budget check reads the node's own spend
             # via ``item_id`` so a non-numeric node isn't gated on the shared
             # ``0`` sentinel bucket — the same currency the clear below uses.
             check_budget(
@@ -7758,7 +7757,7 @@ def _reconcile_budget_holds(
 def _reconcile_review_budget_holds(
     name: str, store: RunStore, config: DispatchConfig, *, now: datetime
 ) -> None:
-    """Clear ``review_budget`` holds whose pool now admits the node (#2153).
+    """Clear ``review_budget`` holds whose pool now admits the node.
 
     The review mirror of :func:`_reconcile_budget_holds`: an exhausted review or
     remediation pool HOLDs the node rather than dropping it, and raising the
@@ -7790,7 +7789,7 @@ def _reconcile_review_budget_holds(
 def _reconcile_window_budget_holds(
     name: str, store: RunStore, config: DispatchConfig, *, now: datetime
 ) -> None:
-    """Clear daily and weekly cap holds once the window admits a launch (#3205).
+    """Clear daily and weekly cap holds once the window admits a launch.
 
     A governed review or remediation the caps refused holds its node under
     ``budget: <daily|weekly> cap ...``. The hold names no launch, so it is
@@ -7841,7 +7840,7 @@ def _reconcile_window_budget_holds(
 def _rewrite_window_budget_hold(
     name: str, store: RunStore, hold: EpicHold, exc: BudgetExceeded
 ) -> None:
-    """Rewrite a cap hold to name the window *exc* says binds now (#3205).
+    """Rewrite a cap hold to name the window *exc* says binds now.
 
     Conditional on the row still carrying the reason this pass read, so a
     hold another writer put there in the meantime is never replaced.
@@ -7866,11 +7865,12 @@ def _rewrite_window_budget_hold(
 
 
 def _log_admission_refusals(store: RunStore, name: str) -> None:
-    """Say out loud, every tick, which nodes a dispatch child refused (#1658).
+    """Say out loud, every tick, which nodes a dispatch child refused.
 
     The child runs detached with all three streams on ``DEVNULL``, so the hold
     it wrote is the ONLY surviving trace of why admission refused the node —
-    and a hold nobody reads is the same silence the exit code used to be. Read
+    and a hold nobody reads says no more than the exit status, which is
+    logged only at debug. Read
     them back here, before the overlays, so the reason reaches the driver log
     within one tick of the refusal. Logged every tick on purpose: the node is
     stuck until an operator acts, and the driver log is where they look.
@@ -7889,17 +7889,17 @@ def _log_admission_refusals(store: RunStore, name: str) -> None:
 def _review_live(
     statuses: dict[str, DriverStatus], launched: Sequence[str] = ()
 ) -> bool:
-    """Is the governed-review stage doing real work right now (#977, #2107)?
+    """Is the governed-review stage doing real work right now?
 
     True when any node sits in the review lifecycle (ADVERSARIAL_REVIEW /
     REMEDIATING) or when this tick just took a review-stage action on one —
     ``launched`` carries the remediations it dispatched and the merge-main
-    steps it ran (#2149), neither of which is visible in the node's status.
+    steps it ran, neither of which is visible in the node's status.
     Both `advance()` and `summarize()` read it, so `epic status` and `epic run`
-    can never disagree about whether a remediating epic is progressing — a
-    read-only snapshot that missed it printed `Signal: stalled` for an epic
-    whose every non-done node was remediating or blocked behind one, and
-    `epic run` exits non-zero on STALLED (#2107).
+    can never disagree about whether a remediating epic is progressing. A
+    snapshot that missed it would print `Signal: stalled` for an epic whose
+    every non-done node is remediating or blocked behind one, and `epic run`
+    exits non-zero on STALLED.
     """
     return bool(launched) or any(
         ds in (DriverStatus.ADVERSARIAL_REVIEW, DriverStatus.REMEDIATING)
@@ -7921,13 +7921,13 @@ def _terminal_signal(
     if dispatched or in_flight or held_live or review_live:
         # A live reviewer/remediator (ADVERSARIAL_REVIEW / REMEDIATING) is real
         # compute in flight — the governed-review stage is progressing, not a
-        # stalled pipeline (#977).
+        # stalled pipeline.
         return TerminalSignal.PROGRESSING
     # Frontier empty, nothing in-flight, no live hold: normally STALLED. But if
     # the only thing keeping the epic from done is PRs awaiting a human merge
     # (and nothing is stuck), that's the benign human-gate state, not a broken
-    # pipeline (Node I7). Both callers decide that with `_awaiting_merge_only`,
-    # so a tick and a read-only snapshot of one epic state agree (#2183).
+    # pipeline. Both callers decide that with `_awaiting_merge_only`,
+    # so a tick and a read-only snapshot of one epic state agree.
     if awaiting_merges:
         return TerminalSignal.AWAITING_MERGES
     return TerminalSignal.STALLED
@@ -7976,7 +7976,7 @@ def _merge_claim_reasons(
     """``merge_claimed`` waits for ``kew epic status``, which runs no stage.
 
     The node whose next push — a merge-main step, a remediation, a ci-fix — an
-    operator's merge claim holds back (#3198) reads exactly as a tick reports
+    operator's merge claim holds back reads exactly as a tick reports
     it, rather than as an idle review or a plain ``ci_pending`` hold.
     """
     from kew.merge_claim import merge_claim_wait_reason
@@ -8079,7 +8079,7 @@ def _write_journal(
     Returns the journal row's id and whether this tick inserted it."""
     tick_ts = datetime.now(UTC).isoformat()
     # The snapshot alone, read tolerantly: a latest row that is not JSON is
-    # no predecessor, not a failed tick on every later tick (#2949).
+    # no predecessor, not a failed tick on every later tick.
     prev_snapshot = store.latest_epic_tick_snapshot(name)
     snapshot = journal.build_snapshot(
         epic_ref=name,
@@ -8087,9 +8087,9 @@ def _write_journal(
         statuses=statuses,
         node_facts=node_facts,
         # Both terminal-stuck and non-progressing "waiting" reasons flow into
-        # the snapshot's per-node stuck map, so the epics API DTO's existing
-        # `stuck` field carries the reason for held/in_review/blocked nodes too
-        # (#661, additive — no schema migration). stuck/waiting are disjoint.
+        # the snapshot's per-node stuck map, so the epics API DTO's `stuck` field
+        # carries the reason for held/in_review/blocked nodes too.
+        # stuck/waiting are disjoint.
         stuck={s.node_id: s.reason for s in (*result.waiting, *result.stuck)},
         frontier=frontier,
         signal=result.signal.value,
@@ -8122,7 +8122,7 @@ def _held_ci_ids(
 
 def _admission_closed(_facts: NodeFacts) -> bool:
     """The ci-fix dispatcher while ``kew drive`` admits nothing: dispatch none,
-    which leaves the node held unchanged (#2616)."""
+    which leaves the node held unchanged."""
     return False
 
 
@@ -8140,7 +8140,7 @@ def _yielding_to_verify(
     config: DispatchConfig,
 ) -> DispatchFixFn:
     """*dispatcher*, deferring each ci-fix launch while a local merge verify
-    runs (#3190): the node stays held on ``ci_pending``, unchanged, and the
+    runs: the node stays held on ``ci_pending``, unchanged, and the
     first tick after the verify dispatches its fix. The deferral names the
     node by its id, as every other launch's does — the pass hands over the
     very facts object it read for that node. A closed admission already
@@ -8174,9 +8174,9 @@ def _run_ci_recovery(
     dispatch_fix: DispatchFixFn | None,
     epic_ref: str | None = None,
 ) -> CiRecoveryOutcome:
-    """Auto-ci-fix / infra-park pass (F5), gated on ``[epic] auto_ci_fix``.
+    """Auto-ci-fix / infra-park pass, gated on ``[epic] auto_ci_fix``.
 
-    With admission closed by ``kew drive`` (#2616) the fix dispatcher is
+    With admission closed by ``kew drive`` the fix dispatcher is
     :func:`_admission_closed`: classification and parking still run, and a
     code-failure node stays held until admission reopens.
 
@@ -8273,7 +8273,7 @@ def _post_action_report(
             now=now,
             stall_days=stall_days,
             # `patched` carries this tick's own IN_REVIEW -> HELD rewrites; the
-            # self-healing ones keep the stall clock they had before it (#2183).
+            # self-healing ones keep the stall clock they had before it.
             self_healing_holds=frozenset(merge_outcome.held_transient),
         ),
         _terminal_ds_stuck(
@@ -8300,7 +8300,7 @@ def _post_action_report(
     waiting = _with_deferred_continuation_reasons(
         waiting, admission_held, continuations_deferred
     )
-    # Fold in ready-but-cap-held nodes (#1041) so a full-cap tick reports WHY it
+    # Fold in ready-but-cap-held nodes so a full-cap tick reports WHY it
     # skipped ready work. Skip any already surfaced as stuck/waiting (no dup).
     waiting_ids = {w.node_id for w in waiting}
     waiting = sorted(
@@ -8329,14 +8329,14 @@ def _post_action_report(
     done, remaining = _done_and_remaining(graph, frontier_status)
     # AWAITING_MERGES only when PRs awaiting a human merge are the sole reason
     # the epic isn't done: a stuck node (failed/cancelled/ci-stalled) still
-    # needs an operator, so it stays STALLED (Node I7), and so does any other
+    # needs an operator, so it stays STALLED, and so does any other
     # waiting row the merge would not clear. `_awaiting_merge_only` is the same
     # reading `summarize` gives this epic — a tick that answered it from the
-    # verdicts alone reported AWAITING_MERGES where `status` reported stalled.
+    # verdicts alone would report AWAITING_MERGES where `status` reports stalled.
     # A self-healing HOLD counts as an awaiting-merge candidate too — GitHub
     # still computing mergeability, or the head's own checks still running: its
     # PR is open and approved, and it is the same node `summarize` sees as
-    # plain IN_REVIEW (#2183).
+    # plain IN_REVIEW.
     awaiting_merges = bool(awaiting_merge or merge_outcome.held_transient) and (
         _awaiting_merge_only(
             waiting,
@@ -8347,12 +8347,12 @@ def _post_action_report(
             dependency_effects=overlays.dependency_effects,
             # `patched` carries this tick's own IN_REVIEW -> HELD rewrites; hand
             # the self-healing ones back so the closure still sees the open PR
-            # under them (#2183).
+            # under them.
             self_healing_holds=frozenset(merge_outcome.held_transient),
         )
     )
     # A merge-main step is review-stage work in progress just as a launched
-    # remediation is (#2149): the node it ran for reads IN_REVIEW, so without
+    # remediation is: the node it ran for reads IN_REVIEW, so without
     # this a tick whose only action was integrating a base reports STALLED and
     # `kew epic run` exits non-zero on an epic that just made progress.
     review_live = _review_live(patched, [*remediating, *integrated])
@@ -8361,7 +8361,7 @@ def _post_action_report(
         # A non-empty post-action frontier means the tick's own merges unblocked
         # work the next tick will dispatch — progress, not a stall (matches
         # `summarize`'s frontier-as-progress reading). An armed continuation
-        # admission deferred is the same: a later tick claims it (#2964).
+        # admission deferred is the same: a later tick claims it.
         dispatched=[*dispatched, *post_frontier, *continuations_deferred],
         in_flight=in_flight,
         held_live=merge_outcome.held_live,
@@ -8390,7 +8390,7 @@ def _with_deferred_continuation_reasons(
     admission_held: tuple[StuckNode, ...],
     deferred: Sequence[str],
 ) -> list[StuckNode]:
-    """Name the limiter an armed continuation waits on this tick (#2964).
+    """Name the limiter an armed continuation waits on this tick.
 
     Its continuation wait stays first — it is the same row ``summarize``
     reports — and the admission reason that deferred the claim follows it.
@@ -8501,7 +8501,7 @@ def _run_tick(
     longer than the lock's staleness window — uses it.
     """
     provider = provider_from_config(config)
-    # One liveness probe for every reservation sweep this tick (#1041): reaps a
+    # One liveness probe for every reservation sweep this tick: reaps a
     # pending run whose owning process/container is provably dead across the
     # driven epic AND the delegation/review pseudo-epics.
     liveness = (
@@ -8512,37 +8512,34 @@ def _run_tick(
     reserved_item_ids = _reconcile_reservations(
         name, store, config, now=now, liveness=liveness
     )
-    # Task 5: also sweep the delegation pseudo-epic. A watcher that crashes
+    # Also sweep the delegation pseudo-epic. A watcher that crashes
     # after dispatch leaves reservations pinned under _DELEGATION_EPIC_REF
     # until it restarts; the driver tick is the catch-all sweep site.
     _reconcile_reservations(
         _DELEGATION_EPIC_REF, store, config, now=now, liveness=liveness
     )
-    # N2 (#977): also sweep the governed-review pseudo-epic. A reviewer or
-    # remediation run parks its reservation under REVIEW_EPIC_REF; if it dies
-    # before its terminal-path release, the reservation would pin a slot until
-    # the next sweep. The returned set is discarded on purpose — review
-    # reservations must NOT enter this epic's reserved_item_ids (they would
-    # corrupt node status via the kind-blind overlay precedence).
+    # Also sweep the governed-review pseudo-epic, where a reviewer or
+    # remediation run that dies before its release leaves its reservation. The
+    # returned set is discarded: in reserved_item_ids it would corrupt node status.
     _reconcile_reservations(REVIEW_EPIC_REF, store, config, now=now, liveness=liveness)
     reconcile_driver_keys(store, now=now, seen=revoked_hashes)
     _attest_continuation_states(store, config, name)
     # Un-hold budget-preflight nodes whose cap now admits them BEFORE overlays,
-    # so a raised cap re-admits the node to the frontier this very tick (#661).
+    # so a raised cap re-admits the node to the frontier this very tick.
     _reconcile_budget_holds(name, store, config, now=now)
-    # Same contract for the review pools (#2153): a node held on an exhausted
+    # Same contract for the review pools: a node held on an exhausted
     # review/remediation pool re-enters the review stage this tick once the
     # operator raises the cap its hold reason names.
     _reconcile_review_budget_holds(name, store, config, now=now)
     _reconcile_window_budget_holds(name, store, config, now=now)
-    # A node whose run ran out of a resource is re-admitted once per head
-    # (#3191), BEFORE overlays so it re-enters this very tick's frontier.
+    # A node whose run ran out of a resource is re-admitted once per head,
+    # BEFORE overlays so it re-enters this very tick's frontier.
     retry_resource_failures(graph, epic_ref=name, store=store, config=config)
-    # Surface a detached child's admission refusal in the driver log (#1658).
+    # Surface a detached child's admission refusal in the driver log.
     # After the budget un-hold above, so a hold the raised cap just cleared is
     # not reported as still-refused.
     _log_admission_refusals(store, name)
-    # I12: record and advance the per-dependent effects an authorized no-change
+    # Record and advance the per-dependent effects an authorized no-change
     # owes, BEFORE the overlays — an effect acknowledged here is a fact this
     # tick's own frontier may consume.
     _reconcile_no_change_effects(graph, store=store, provider=provider, now=now)
@@ -8573,10 +8570,10 @@ def _run_tick(
     if provider == "github":
         _repair_closes_markers(overlays.node_facts, facts=facts, repo=repo)
 
-    # F6/F7 (#977): resolve human actions taken while a reviewer is live BEFORE
+    # Resolve human actions taken while a reviewer is live BEFORE
     # the merge pass — kill+reconcile the reviewer and either attest an
     # out-of-band MERGED_UNREVIEWED, or HELD review_pr_closed so a superseded
-    # node never re-derives to TODO and re-enters the frontier (#753 class).
+    # node never re-derives to TODO and re-enters the frontier.
     review_races = _handle_review_races(
         [n.id for n in graph.nodes.values() if not n.external],
         epic_ref=name,
@@ -8588,16 +8585,14 @@ def _run_tick(
         now=now,
     )
     _apply_review_race_overlays(overlays, review_races)
-    # #2869: the drive's merge pass never reaches an excluded epic, so its READY
+    # The drive's merge pass never reaches an excluded epic, so its READY
     # PR's base conflict is held here — before the review stage resolves it and
     # before this tick journals — not one tick later, after the round.
     _hold_excluded_epic_conflicts(name, overlays, config=config, store=store)
 
-    # #991: the connective tissue — dispatch a fresh-context reviewer for every
-    # review-enabled node due one, collect + parse the sidecar, record the round,
-    # emit the attested verdict, and drive the transitions #988 defined. Runs
-    # BEFORE the merge pass so a node this pass HELDs (round cap / unparseable in
-    # blocking mode) is caught by the merge-pass invariant rather than auto-merged.
+    # The review stage runs BEFORE the merge pass so a node it HELDs (round cap /
+    # unparseable in blocking mode) is caught by the merge-pass invariant rather
+    # than auto-merged.
     review_outcome = drive_review_stage(
         overlays.statuses,
         overlays.node_facts,
@@ -8608,9 +8603,8 @@ def _run_tick(
         # The reviewer worktree is cloned from repo_root, so it MUST be the git
         # toplevel — NOT Path.cwd(), which is the `kew/` package subdir when kew
         # is run from there, making `git clone <cwd>` fail (128) and crash the
-        # tick (#1002). policy.repo_root walks up from the project to the .git
-        # anchor, never from the cwd, so it names the copy `kew prompts` previews
-        # (#3108).
+        # tick. policy.repo_root walks up from the project to the .git
+        # anchor, never from the cwd, so it names the copy `kew prompts` previews.
         repo_root=_git_repo_root(project_root()),
         base=base,
         reviewer_launcher=reviewer_launcher,
@@ -8625,7 +8619,7 @@ def _run_tick(
             liveness=liveness,
         ),
         now=now,
-        # #2459: with a detacher wired, each due node's action runs in a
+        # With a detacher wired, each due node's action runs in a
         # detached child holding its review reservation, so this returns in
         # seconds; the next tick reaps the child and reads what it recorded.
         detacher=review_detacher,
@@ -8652,12 +8646,9 @@ def _run_tick(
             keepalive=lock_keepalive,
         ),
         # A node the merge-main step just integrated is NOT a merge candidate
-        # this tick (#2149): its head moved AFTER `facts` was read. Classified on
-        # the pre-step `DIRTY` fact anyway, the pass re-held it `ci_pending` —
-        # sticky, unreachable by the review stage's due pass, and refused by the
-        # merge gate on the verdict the moved head had just staled, so the node
-        # was never re-reviewed nor merged. A step that conflicted or could not
-        # run leaves the branch as it was, so it stays a candidate.
+        # this tick: its head moved after `facts` was read, so the stale `DIRTY`
+        # fact would re-hold it out of reach of review and merge. A step that
+        # conflicted or could not run leaves the branch as is: still a candidate.
         spent_facts=frozenset(review_outcome.integrated)
         | frozenset(review_outcome.detached),
         observed=overlays.node_facts,
@@ -8741,11 +8732,11 @@ def _run_tick(
         continuations_deferred=frontier_outcome.continuations_deferred,
         ci_gate_reasons=_ci_gate_reasons(verdicts),
         # A ci-fix an operator's merge claim held back reads `merge_claimed`,
-        # not the bare `ci_pending` hold it sits on (#3198).
+        # not the bare `ci_pending` hold it sits on.
         review_refusals={**review_outcome.refused, **recovery.claimed},
         remediating=tuple(review_outcome.remediating),
         # A detached review child is review-stage work in flight exactly as a
-        # merge-main step run in-tick was (#2459): same waiting line, and never
+        # merge-main step run in-tick was: same waiting line, and never
         # a STALLED tick while it runs.
         integrated={**review_outcome.integrated, **review_outcome.detached},
     )
@@ -8778,7 +8769,7 @@ def _tick_gate_skips(
     """Every review-stage node's pre-review gate skip, for the tick line.
 
     A detached review child records its gate's skip in the run store, never
-    on this tick's outcome (#3344), so the store is read for each node at its
+    on this tick's outcome, so the store is read for each node at its
     current head. A node the merge-main step just moved is left out: the head
     the tick read is no longer its head.
     """
@@ -8799,9 +8790,9 @@ def _lock_keepalive(lock_path: Path, holder: str | None) -> Callable[[], None]:
 
     The tick-end refresh alone leaves a tick that legitimately blocks for longer
     than ``HEARTBEAT_STALE_SECONDS`` looking like a hung driver, and a stale
-    heartbeat is stolen automatically (#970) — two live drivers on one epic. A
-    step that can block that long (the merge queue's combined-tree verification,
-    #2148) beats this instead of going silent. ``refresh_lock_heartbeat`` is
+    heartbeat is stolen automatically — two live drivers on one epic. A
+    step that can block that long (the merge queue's combined-tree verification)
+    beats this instead of going silent. ``refresh_lock_heartbeat`` is
     ownership-checked, so this never resurrects a lock genuinely stolen from us.
     """
 
@@ -8818,14 +8809,14 @@ def _lock_keepalive(lock_path: Path, holder: str | None) -> Callable[[], None]:
 def _locked_out_signal(lock_path: Path) -> TerminalSignal:
     """A locked-out tick's signal. Another live driver ticking is progress; a
     live holder that stopped beating its heartbeat is never stolen from, so the
-    epic is STALLED until a person kills it (#3331)."""
+    epic is STALLED until a person kills it."""
     if stalled_holder(lock_path) is not None:
         return TerminalSignal.STALLED
     return TerminalSignal.PROGRESSING
 
 
 def _tick_outcome(result: TickResult) -> str:
-    """What one finished tick DID, as an ``epic_tick_log`` outcome (#2304).
+    """What one finished tick DID, as an ``epic_tick_log`` outcome.
 
     Read in the order an operator cares about rather than by severity: a tick
     that dispatched is the one somebody was waiting for, even if it also merged
@@ -8845,7 +8836,7 @@ def _tick_outcome(result: TickResult) -> str:
 
 
 class _TickLog:
-    """One ``epic_tick_log`` row per tick ATTEMPT, opened on entry (#2304).
+    """One ``epic_tick_log`` row per tick ATTEMPT, opened on entry.
 
     The row is opened before the tick does anything and closed by
     :meth:`record` on every path that produces a result, or by ``__exit__``
@@ -8882,7 +8873,7 @@ class _TickLog:
         return self
 
     def sweep_abandoned(self) -> None:
-        """Close rows this epic's earlier drivers left open (#2304).
+        """Close rows this epic's earlier drivers left open.
 
         Call only while this process HOLDS the epic's single-driver lock: that
         is what makes the inference sound — no other driver can be mid-tick on
@@ -8915,7 +8906,7 @@ class _TickLog:
             )
 
     def reached(self) -> None:
-        """Mark the open row as having reached its tick (#2882).
+        """Mark the open row as having reached its tick.
 
         Call right after ``begin_epic_tick`` commits. The row was opened before
         the lock, the preflight and the graph build, so an open row alone is no
@@ -8944,14 +8935,14 @@ class _TickLog:
 
         *journaled* says whether this tick inserted the journal row
         *journal_tick_id* names; a quiet tick carries the id of the row it
-        matched, and the change strip must not draw it as the change (#2949).
+        matched, and the change strip must not draw it as the change.
         It defaults to False: a row is the change only when its caller says
         its own append inserted it.
 
         ``n_merged`` counts the out-of-band-merged set (``closed``) alongside
         the merges kew performed: the strip's question is "did this tick take a
         node to done", and both answers are yes. The ``actions`` column of the
-        journal row this points at keeps them apart (#2304).
+        journal row this points at keeps them apart.
         """
         self._close(
             outcome=_tick_outcome(result),
@@ -8972,7 +8963,7 @@ class _TickLog:
         #
         # The empty-graph outcome is read back by `list_epic_refs`, which keeps
         # a ref whose attempts all end here OFF the roster — a typo'd name is
-        # not an epic — so writer and reader share the one constant (#2438).
+        # not an epic — so writer and reader share the one constant.
         self._close(
             outcome=(
                 EPIC_TICK_OUTCOME_EMPTY_GRAPH
@@ -8981,7 +8972,7 @@ class _TickLog:
             ),
             error_class=exc_type.__name__,
             # A raised tick closes with no journal id; a row its append did
-            # commit is drawn off the journal itself (#2882).
+            # commit is drawn off the journal itself.
             journaled=False,
         )
 
@@ -9006,7 +8997,7 @@ class _TickLog:
 
 
 def _with_graphql_points(name: str, result: TickResult, *readers: Any) -> TickResult:
-    """Stamp and log the GraphQL points this tick's GitHub reads spent (#2582).
+    """Stamp and log the GraphQL points this tick's GitHub reads spent.
 
     Each reader meters its own queries (``graphql_points``); one that does not
     — a Linear epic's, a test double — contributes nothing, and a tick none of
@@ -9055,7 +9046,7 @@ def advance(
 
     ``operator_stop`` says a ``max_parallel`` of 0 is the operator's own
     ``--max-parallel 0``, so the held frontier names that and not
-    ``kew drive`` (#3192).
+    ``kew drive``.
 
     See the module docstring / spec for the full sequence. Returns a
     `TickResult` with a tri-state `signal`; never raises for anything the
@@ -9064,15 +9055,15 @@ def advance(
     graph: zero nodes means the tracker query matched no work at all (a typo'd
     epic name or a wrong-tracker cwd), so `advance` raises `EmptyEpicGraphError`
     instead of falsely reporting `COMPLETE done=0` — the CLI turns it into an
-    exit-2 diagnostic (#819). `advance` itself is a thin orchestrator: lock ->
+    exit-2 diagnostic. `advance` itself is a thin orchestrator: lock ->
     preflight -> build -> (empty guard) -> heartbeat(1) -> validate ->
     `_run_tick` -> heartbeat(2). Journaling/heartbeat are only engaged AFTER
     the lock is acquired, preflight succeeds, and the graph is non-empty
     (control-flow table, spec Decision 4); a journal-append failure fails the
     tick loudly.
 
-    `_TickLog` is the one writer that deliberately sits OUTSIDE that table
-    (#2304): it opens before the lock and closes on every path out, including
+    `_TickLog` is the one writer that deliberately sits OUTSIDE that table:
+    it opens before the lock and closes on every path out, including
     the lock-out, the empty graph and anything that raises, because those are
     exactly the attempts the journal has never been able to record. Its writes
     are best-effort for the same reason the journal's are not — it is a
@@ -9085,10 +9076,10 @@ def advance(
 
     The lock is per-epic (keyed by `lock_path`), so two epics tick concurrently;
     a `locked_out` result names a *different live* driver of THIS epic, and is
-    STALLED when that driver stopped beating its heartbeat (#3331). A lock
+    STALLED when that driver stopped beating its heartbeat. A lock
     left behind by a *stale* holder (dead PID or heartbeat past the staleness
     threshold) is reclaimed automatically; `takeover=True` also reclaims an
-    indeterminate legacy lock (#861/F2, #970).
+    indeterminate legacy lock.
     """
     reap_dispatch_children(dispatch_sink)
     with (
@@ -9103,12 +9094,12 @@ def advance(
             tick_log.record(locked, journal_tick_id=None, journaled=False)
             return locked
         # We hold the lock, so no other driver is mid-tick on this epic: any
-        # row of it still open was left by one that died mid-tick (#2304).
+        # row of it still open was left by one that died mid-tick.
         tick_log.sweep_abandoned()
         # Credential reconciliation (issuance recovery, revocation retries, the
         # issuer orphan sweep) belongs to the driver that HOLDS this epic's
-        # lock; entering it beside the lock ran it in the locked-out process
-        # too (governed review round 3, 2026-09-21).
+        # lock; entered beside the lock it would also run in the locked-out
+        # process.
         revoked_hashes = driver_scope.enter_context(driver_key_cleanup(store))
 
         preflight_tools()
@@ -9121,13 +9112,13 @@ def advance(
         if not graph.nodes:
             # Zero nodes = no work exists. Raise BEFORE `begin_epic_tick` so no
             # tick is journaled: a `COMPLETE done=0 remaining=0` row here would
-            # falsely record success for an epic that never had any work (#819).
+            # falsely record success for an epic that never had any work.
             raise EmptyEpicGraphError(name)
 
         started = datetime.now(UTC)
         store.begin_epic_tick(name, started.isoformat())
         tick_log.reached()
-        # Durably record the tracker this epic is driven under (#927/N3). The
+        # Durably record the tracker this epic is driven under. The
         # active tracker is ground truth — we only reach here having built a
         # graph from it — so `epic run --all` classification reads this instead
         # of guessing from item-id shape (a numeric Linear twin reads GitHub).
@@ -9177,7 +9168,7 @@ def advance(
         if not refresh_lock_heartbeat(lock_path, holder):
             # We no longer own the lock — a stealer reclaimed it mid-tick. The
             # refresh already logged loudly; the next tick's acquire will see the
-            # thief's fresh lock and correctly fall to observer mode (#970).
+            # thief's fresh lock and correctly fall to observer mode.
             _logger.warning(
                 "epic %s: lost driver lock during tick — another driver holds it",
                 name,
@@ -9222,12 +9213,12 @@ def _aged_hold_reason(reason: str) -> str:
 
     The CI gate is the only hold that ages into a diagnosis of its own —
     `ci-stalled`. Every other honored hold keeps its own reason: an aged
-    `sandbox_containment` hold relabelled `ci-stalled` sent the operator to a
-    PR that was never the problem, and cost the attention stream the hold's own
-    kind and action — so the node stopped naming anybody at all (#2150).
+    `sandbox_containment` hold relabelled `ci-stalled` would send the operator
+    to a PR that is not the problem, and cost the attention stream the hold's
+    own kind and action, so the node would name nobody at all.
 
     Shared with `_classify_held_verdict`, which ages the same rows on the
-    `advance` path (#2183): one vocabulary, so `status` and `advance` cannot
+    `advance` path: one vocabulary, so `status` and `advance` cannot
     name one expired hold two ways.
     """
     return "ci-stalled" if is_ci_pending_hold(reason) else reason
@@ -9271,7 +9262,7 @@ def _hold_is_a_live_wait(hold: EpicHold | None) -> bool:
     Normally yes, and `held_live` is what says so: CI is running, an operator
     is reading a budget refusal, a self-healing merge hold re-polls next tick.
 
-    A dispatch-refusal row is the exception (#2217). It is the driver's OWN
+    A dispatch-refusal row is the exception. It is the driver's OWN
     superseded bookkeeping — written by a frontier refusal, cleared by the
     dispatch that disproves it (`_clear_stale_dispatch_refusal_hold`) — so a
     node still HELD on one is held by a row no further pass will clear: the
@@ -9279,9 +9270,8 @@ def _hold_is_a_live_wait(hold: EpicHold | None) -> bool:
     exactly because nothing can advance it. Nobody is waiting on anything, so
     it must not buy the epic a PROGRESSING signal, which `TerminalSignal`
     reserves for something that moved or a `ci_pending` gate inside its clock.
-    That reading is the second #2217 symptom: #2201/#2202 read
-    `signal=progressing` for two hours, and would have gone on reading it for
-    `epic.stall_days` before the clock above re-reported them. The node keeps
+    Read as progress, such an epic would report `signal=progressing` for up to
+    `epic.stall_days` before the stall clock re-reported it. The node keeps
     its place in `held`/`waiting` (so `kew epic status` and the attention
     stream still name the reason, unchanged); only the signal stops calling it
     progress.
@@ -9309,8 +9299,8 @@ def _merge_pending_rows(
 
     Normally that is exactly the IN_REVIEW rows. ``self_healing_holds`` carries
     the nodes THIS tick's merge pass rewrote IN_REVIEW -> HELD while GitHub
-    finishes computing mergeability, or while the head's own check runs finish
-    (#2183): the PR under them is still open and still awaiting the same merge,
+    finishes computing mergeability, or while the head's own check runs finish:
+    the PR under them is still open and still awaiting the same merge,
     so they belong here too. `summarize` never runs the merge pass and so sees
     those nodes as plain IN_REVIEW — passing the rewrite back in is what keeps
     one epic state from getting two readings.
@@ -9377,7 +9367,7 @@ def _awaiting_merge_only(
     dependency_effects: dict[str, frozenset[str]],
     self_healing_holds: AbstractSet[str] = frozenset(),
 ) -> bool:
-    """Whether open PRs awaiting a human merge are the ONLY thing left (#2183).
+    """Whether open PRs awaiting a human merge are the ONLY thing left.
 
     One derivation for both callers, so `kew epic status` and `kew epic advance`
     can never read one epic state two ways: `_run_tick` gates it on the merge
@@ -9390,12 +9380,12 @@ def _awaiting_merge_only(
     merge pass rewrote under them, so `_run_tick` passes those back in through
     ``self_healing_holds``: a self-healing HOLD (`is_self_healing_hold`) reads
     IN_REVIEW to `summarize` and HELD here, and reading it off the rewrite alone
-    flipped an epic whose only other work was a PR awaiting a human merge to
-    STALLED — `kew epic run` then exited with the repair code instead of polling
-    (#2183).
+    would flip an epic whose only other work is a PR awaiting a human merge to
+    STALLED, and `kew epic run` would exit with the repair code instead of
+    polling.
 
-    A stuck node still needs an operator, so it keeps the reading STALLED (Node
-    I7), and so does any waiting row a merge would not free, because ONLY is the
+    A stuck node still needs an operator, so it keeps the reading STALLED, and
+    so does any waiting row a merge would not free, because ONLY is the
     whole claim: an epic one `kew epic publish` away from moving, or one whose
     last node waits on an issue outside the epic, is not waiting on anyone's
     merge — and `kew epic run` sleeps and polls on AWAITING_MERGES forever
@@ -9566,7 +9556,7 @@ def summarize(
     # there IS a path to progress (the next real `advance()` tick would
     # dispatch it) — the same thing `_run_tick` means by "something moved".
     # An armed host-restart continuation is that too: the next tick claims it
-    # once admission lets it (#2964).
+    # once admission lets it.
     signal = _terminal_signal(
         remaining=remaining,
         dispatched=[*frontier, *_armed_continuations(store, overlays.statuses, name)],

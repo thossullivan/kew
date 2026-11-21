@@ -31,7 +31,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support.fake_gcloud import fake_gcloud_on_path, launchable
+from support.attachment_network import (
+    INTERNAL_BRIDGE,
+    PLAIN_BRIDGE,
+    attachment_network,
+)
+from support.fake_gcloud import (
+    fake_gcloud_on_path,
+    internal_network_probe,
+    launchable,
+)
 from support.fake_gcloud import recorded_calls as _calls
 from support.fake_gcloud import write_state as _write_state
 from support.image_resolution import instance_image_probe
@@ -66,6 +75,7 @@ from kew.run_store import (
 )
 from kew.sandbox import (
     REFUSAL_PLACEMENT_UNAVAILABLE,
+    SandboxRuntimeUnavailable,
     _expected_packaged_image_pin,
     packaged_agent_image_context,
 )
@@ -224,6 +234,7 @@ def _responses(base_sha: str, **agent: Any) -> list[dict[str, Any]]:
         instance_image_probe(IMAGE, INSTANCE_IMAGE_ID),
         {"match": "id -u", "output": SITE_ANSWER, "exit": 0},
         {"match": f"--name kew-{SLUG}", "output": EVENT_LINES, "exit": 0, **agent},
+        internal_network_probe(),
     ]
 
 
@@ -524,6 +535,126 @@ class TestALocalPlacementIsTodaysPath:
         assert not (tmp_path / "unused-scratch").exists()
 
 
+def _placed_refusal_result() -> DispatchResult:
+    """What a placement refused on the instance's open network hands collect."""
+    result = _result()
+    result.run_id = "r-1"
+    result.exit_code = 1
+    result.error_category = "containment_refused"
+    result.containment_refusal = "open_egress_unacknowledged"
+    result.stop_reason = (
+        "gcp/agent-1: [open_egress_unacknowledged] refusing to place a run on "
+        "instance agent-1: Sandbox: network 'allowlist' is open"
+    )
+    return result
+
+
+def _collect_placed_refusal(
+    tmp_path: Path,
+    store: Any,
+    *,
+    epic_ref: str | None,
+    terminal_failure: Any = None,
+) -> Any:
+    """Collect one placed egress refusal as dispatch's result phase does."""
+    from unittest.mock import MagicMock
+
+    from kew import dispatch_core
+
+    ctx = MagicMock(spec=dispatch_core._DispatchContext)
+    ctx.checkout_generation = ""
+    ctx.config = _config(tmp_path, placement="gcp")
+    ctx.epic_ref = epic_ref
+    ctx.provider = "github"
+    ctx.issue_num = 2526
+    ctx.item_id = "2526"
+    ctx.run_id = "r-1"
+    ctx.store = store
+    ctx.root_checkout_before = None
+    ctx.terminal_failure = terminal_failure
+    return dispatch_core._collect_result(
+        ctx,
+        result=_placed_refusal_result(),
+        worktree_dir=tmp_path / "wt",
+        run_sandboxed_path=True,
+    )
+
+
+@pytest.fixture
+def forge(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Every ``gh`` kew shells out to, answered and recorded at the boundary."""
+    from support.gh_fakes import FakeGh, GhProcessBoundary
+
+    fake = FakeGh()
+    monkeypatch.setitem(subprocess_utils.TOOL_PATHS, "gh", "/usr/bin/gh")
+    monkeypatch.setattr(
+        subprocess_utils,
+        "subprocess",
+        GhProcessBoundary(fake, tool_paths=subprocess_utils.TOOL_PATHS),
+    )
+    return fake
+
+
+def _label_edits(fake: Any) -> list[list[str]]:
+    return [call for call in fake.calls if call[:3] == ["gh", "issue", "edit"]]
+
+
+def test_a_placed_egress_refusal_holds_the_epic_node_on_its_cause(
+    tmp_path: Path, store: Any, forge: Any
+) -> None:
+    """The hold names the token, so its hint is the egress fix.
+
+    The epic driver's reservation owns the claim, so collect makes no label
+    write; the hold is what keeps the node out of the frontier until unheld.
+    """
+    from kew.waits import cause_hint
+
+    outcome = _collect_placed_refusal(tmp_path, store, epic_ref="epic:egress")
+
+    assert outcome.exit_code != 0
+    assert outcome.category == "containment_refused"
+    [hold] = store.list_epic_holds("epic:egress")
+    assert hold.reason.startswith("sandbox_containment: [open_egress_unacknowledged]")
+    assert "acknowledge_open_egress" in (cause_hint(hold.reason) or "")
+    assert _label_edits(forge) == []
+
+
+def test_a_placed_egress_refusal_fails_a_classic_queue_issue(
+    tmp_path: Path, store: Any, forge: Any
+) -> None:
+    """Back to ready, a drain loop would re-place and re-refuse it every pass."""
+    outcome = _collect_placed_refusal(tmp_path, store, epic_ref=None)
+
+    edits = _label_edits(forge)
+    added = [
+        call[call.index("--add-label") + 1] for call in edits if "--add-label" in call
+    ]
+    assert outcome.exit_code != 0
+    assert outcome.category == "containment_refused"
+    assert "agent-failed" in added
+    assert "ready" not in added
+
+
+def test_a_placed_egress_refusal_publishes_a_non_github_terminal_failure(
+    tmp_path: Path, store: Any, forge: Any
+) -> None:
+    """An item outside GitHub fails through its tracker's own terminal writer."""
+    published: list[tuple[str, str]] = []
+
+    outcome = _collect_placed_refusal(
+        tmp_path,
+        store,
+        epic_ref=None,
+        terminal_failure=lambda category, reason: published.append((category, reason)),
+    )
+
+    assert outcome.category == "containment_refused"
+    [(category, reason)] = published
+    assert category == "containment_refused"
+    assert "[open_egress_unacknowledged]" in reason
+    assert _label_edits(forge) == []
+
+
 class TestARemotePlacementRunsOnItsInstance:
     """The whole wire, through the fake ``gcloud``: decision to publishable tree."""
 
@@ -591,6 +722,49 @@ class TestARemotePlacementRunsOnItsInstance:
         # And the work is now on THIS machine, in the run's own checkout —
         # which is what leaves publication exactly where it already was.
         assert (checkout / "notes.md").read_bytes() == REMOTE_WORK
+
+    def test_an_open_instance_network_is_a_containment_refusal_not_a_host_failure(
+        self,
+        tmp_path: Path,
+        store: Any,
+        checkout: Path,
+        fake_gcloud: Path,
+    ) -> None:
+        """The refusal keeps its cause token, so the hold names the right fix."""
+        config = _config(tmp_path, placement="gcp")
+        plain = {
+            "match": "network inspect",
+            "output": json.dumps([dict(PLAIN_BRIDGE)]),
+            "exit": 0,
+        }
+        _write_state(fake_gcloud, job_responses=[plain, *_responses(_head(checkout))])
+        store.save(_pending("r-1", 2526))
+        result = _result()
+
+        exit_code = self._place(config, store, checkout, tmp_path, result)
+
+        from functools import partial
+
+        from kew.dispatch_sandbox import (
+            _finalize_sandbox_with_pricing,
+            _sandbox_refuses_publication,
+        )
+
+        assert exit_code == 1
+        assert result.error_category == "containment_refused"
+        assert result.containment_refusal == "open_egress_unacknowledged"
+        assert "[open_egress_unacknowledged]" in result.stop_reason
+        assert TOKEN not in result.stop_reason
+        # The contained launcher finalizes the row this way: refused, not failed.
+        finalize = partial(
+            _finalize_sandbox_with_pricing, store, "r-1", "claude-opus-5", None
+        )
+        assert _sandbox_refuses_publication(
+            exit_code, result, tmp_path / "run.log", finalize
+        )
+        row = store.get("r-1")
+        assert row.status == "refused"
+        assert row.error_category == "containment_refused"
 
     def test_the_operator_side_still_has_a_tree_to_publish(
         self,
@@ -1828,6 +2002,35 @@ class TestAnInstanceAnotherJobHolds:
 
         assert placement.site == LOCAL_SITE
         assert "held by another kew job" in placement.reason
+
+    @pytest.mark.parametrize(
+        ("shape", "refused"),
+        [(PLAIN_BRIDGE, True), (INTERNAL_BRIDGE, False)],
+        ids=["plain-bridge", "internal"],
+    )
+    def test_a_preference_run_here_answers_to_this_machines_network(
+        self, tmp_path: Path, store: Any, shape: Any, refused: bool
+    ) -> None:
+        """Admission left the network to the placement; here it is this one."""
+        from kew.dispatch_sandbox import _held_placement
+
+        config = _config(tmp_path, placement="prefer-gcp")
+        held = _held_placement(
+            config,
+            store,
+            checkout_dir=tmp_path,
+            runner=RUNNER,
+            run_kind=DISPATCH_RUN_KIND,
+            transport=None,
+        )
+        with self._hold(config, "agent-1"), attachment_network(shape):
+            if refused:
+                with pytest.raises(SandboxRuntimeUnavailable) as refusal, held:
+                    pass
+                assert refusal.value.reason == "open_egress_unacknowledged"
+                return
+            with held as (placed, _base):
+                assert placed.placement.site == LOCAL_SITE
 
     def test_the_next_instance_in_the_pool_takes_it(
         self, tmp_path: Path, store: Any

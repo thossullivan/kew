@@ -239,8 +239,9 @@ coderabbit --prompt-only --base origin/{{ base_branch }}
 
 **Issue:** #{{ issue_num }} — [the issue title, without its fence tokens]
 **Complexity:** {{ complexity }}
-PR title: [required: one plain sentence saying what the product now does once this merges; kew titles the PR and its commit on main with it. Not the issue title, no file names, no markdown]
-
+{% if pr_title_style == "conventional" %}PR title: [required: <type>(<scope>): <summary> — this repo checks for conventional-commit titles; <type> is one of feat, fix, docs, refactor, test, chore, perf, build, ci, style, revert, the scope is optional and the summary says what the product now does once this merges; kew titles the PR and its commit on main with it. Not the issue title, no file names, no markdown]
+{% else %}PR title: [required: one plain sentence saying what the product now does once this merges; kew titles the PR and its commit on main with it. Not the issue title, no file names, no markdown]
+{% endif %}
 ### What was done
 - [List each task/change implemented]
 

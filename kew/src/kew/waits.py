@@ -712,6 +712,11 @@ _CONTAINMENT_HINTS: dict[str, str | None] = {
         "fix the proxy variable the reason names, or set [sandbox] "
         'proxy_environment = "none", then kew epic unhold'
     ),
+    "open_egress_unacknowledged": (
+        "route inference through the Switchyard sidecar, attach an internal "
+        "network, or set [sandbox] acknowledge_open_egress = true, then kew "
+        "epic unhold"
+    ),
     "host_free_space": "free disk space on the host, then kew epic unhold",
     "checkout_over_quota": (
         "shrink the checkout below the quota the reason names, then kew epic unhold"

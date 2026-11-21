@@ -34,6 +34,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from support.attachment_network import close_attachment_network
 from support.image_resolution import built_by_kew
 from support.review_stream import reviewer_stream
 
@@ -807,6 +808,7 @@ def test_the_docker_reviewer_records_the_unverified_posture_it_really_has(
     config = _config(tmp_path, runtime="docker")
     container = FakeReviewerContainer(reviewer_stream(_READY, HEAD))
     stream = draining_stream()
+    close_attachment_network(monkeypatch)
     with (
         patch.object(dispatch_core, "_launch_container", return_value=container),
         patch.object(dispatch_core, "_stream_sandbox_log", side_effect=stream),

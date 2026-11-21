@@ -13,6 +13,11 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from dispatch_owner_fixture import admission_owner as admission_owner
 from support.agent_report import quoted
+from support.attachment_network import (
+    INTERNAL_BRIDGE,
+    PLAIN_BRIDGE,
+    attachment_network,
+)
 from support.checkout_generations import (
     fixture_checkout_generation,
     fixture_claim_evidence,
@@ -7996,36 +8001,16 @@ class TestSandboxedDispatch:
     def test_auto_with_runtime_takes_sandboxed_path_and_records_posture(
         self, tmp_path, capsys
     ):
-        """auto + runtime present: sandboxed path taken, sandboxed posture logged."""
+        """auto + runtime present: sandboxed path taken, sandboxed posture logged.
+
+        Runtime alone does not suffice: the posture also needs an agent
+        credential in the env, and a network shown closed.
+        """
         from kew.config import SandboxConfig
-        from kew.dispatch_core import execute_dispatch
-        from kew.run_store import SqliteRunStore
 
-        config = DispatchConfig(sandbox=SandboxConfig(enabled="auto"))
-        store = SqliteRunStore(str(tmp_path / "runs.db"))
-
-        with (
-            patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
-            # Runtime alone no longer suffices (#732): sandboxed posture also
-            # requires an agent credential in the env.
-            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}),
-            patch("kew.sandbox.allowlist_network_exists", return_value=True),
-            patch(f"{_P}.resolve_runner") as mock_resolve_runner,
-            patch(f"{_P}._materialize_checkout", return_value=tmp_path / "co"),
-            patch(f"{_P}.build_prompt", return_value="prompt"),
-            patch(f"{_P}._run_sandboxed", return_value=_ok_result()) as mock_sb,
-            patch(f"{_P}.check_pr_exists", return_value=99),
-            patch(f"{_P}.update_pr_labels", return_value=True),
-            patch(f"{_P}.mark_completed"),
-            patch(f"{_P}._get_changed_files", return_value=[]),
-            patch(f"{_P}._cleanup_dispatch_dir"),
-            patch(f"{_P}._check_github_connectivity", return_value=True),
-        ):
-            mock_resolve_runner.return_value.runner.name = "claude-code"
-            mock_resolve_runner.return_value.model = "claude-sonnet-4-6"
-            rc = execute_dispatch(
-                allow_unrecorded=True, issue=_make_issue(), config=config, store=store
-            )
+        rc, mock_sb, events, _inspected = _contained_dispatch(
+            tmp_path, SandboxConfig(enabled="auto"), INTERNAL_BRIDGE
+        )
 
         assert rc.exit_code == 0
         mock_sb.assert_called_once()
@@ -8033,7 +8018,6 @@ class TestSandboxedDispatch:
         # config.sandbox.image happens to say (#1144).
         assert mock_sb.call_args.kwargs["image"] == SANDBOX_IMAGE
 
-        events = store.list_audit_events(event="sandbox_resolved")
         assert len(events) == 1
         assert events[0].payload["posture"] == "sandboxed"
         # Bare allowlisted name in the attested payload, never the which()
@@ -8184,26 +8168,57 @@ class TestSandboxedDispatch:
         assert events[0].payload["runtime"] == "docker"
         assert events[0].payload["filesystem_boundary"] == "not-applicable"
 
-    def test_open_egress_warning_fires_without_a_resolved_image(self, tmp_path, capsys):
-        """#935's credential-exfiltration warning is keyed on containment, not
-        on the image.
+    @pytest.mark.parametrize(
+        ("network", "network_document", "network_name"),
+        [
+            pytest.param("open", [], "open", id="open"),
+            pytest.param(
+                "allowlist",
+                [{"Driver": "bridge", "Internal": False}],
+                "kew-allowlist",
+                id="plain-bridge",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "acknowledged",
+        [False, True],
+        ids=["unacknowledged", "acknowledged"],
+    )
+    def test_open_egress_warning_fires_without_a_resolved_image(
+        self,
+        tmp_path,
+        capsys,
+        monkeypatch,
+        network,
+        network_document,
+        network_name,
+        acknowledged,
+    ):
+        """Credential-exfiltration admission is keyed on containment.
 
-        The warning says "you opted into open egress with a credential in the
-        env" — an image fact has nothing to do with it, so a sandboxed decision
-        that (for any reason) carries no image must still emit it. Folding the
-        warning behind the image made a security warning silently optional.
+        An image fact has nothing to do with open egress. A sandboxed decision
+        that carries no image must still enforce acknowledgement and warn.
         """
+        from kew import subprocess_utils
         from kew.config import SandboxConfig
         from kew.dispatch_core import _DispatchContext, _resolve_and_apply_sandbox
-        from kew.sandbox import SandboxDecision
+        from kew.sandbox import SandboxDecision, SandboxRuntimeUnavailable
 
-        config = DispatchConfig(sandbox=SandboxConfig(enabled="auto", network="open"))
+        config = DispatchConfig(
+            sandbox=SandboxConfig(
+                enabled="auto",
+                network=network,
+                acknowledge_open_egress=acknowledged,
+            )
+        )
         ctx = MagicMock(spec=_DispatchContext)
         ctx.checkout_generation = ""
         ctx.config = config
         ctx.store = None
         ctx.issue_num = 42
         ctx.item_id = "42"
+        monkeypatch.setitem(subprocess_utils.TOOL_PATHS, "docker", "/usr/bin/docker")
 
         with (
             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}),
@@ -8217,9 +8232,34 @@ class TestSandboxedDispatch:
                     image=None,
                 ),
             ),
+            patch.object(
+                subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    ["docker", "network", "inspect", network_name],
+                    0,
+                    json.dumps(network_document),
+                    "",
+                ),
+            ),
+            patch(f"{_P}.check_runtime_memory_capacity"),
+            patch(f"{_P}._check_initial_host_capacity"),
         ):
-            _resolve_and_apply_sandbox(ctx, "claude-code")
+            if acknowledged:
+                decision = _resolve_and_apply_sandbox(
+                    ctx,
+                    "claude-code",
+                    defer_attestation=True,
+                )
+            else:
+                with pytest.raises(SandboxRuntimeUnavailable) as refused:
+                    _resolve_and_apply_sandbox(ctx, "claude-code")
 
+        if acknowledged:
+            assert decision.sandboxed
+        else:
+            assert refused.value.reason == "open_egress_unacknowledged"
+            assert network_name in str(refused.value)
         assert "egress" in capsys.readouterr().err.lower()
 
 
@@ -8573,6 +8613,7 @@ class TestContainmentRefusalReleasesTheSlot:
         with (
             patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}),
+            attachment_network(),
             patch(f"{_P}.resolve_runner") as resolve,
             patch(f"{_P}.check_runtime_memory_capacity"),
             patch(f"{_P}._materialize_checkout", return_value=checkout) as materialize,
@@ -8892,7 +8933,10 @@ class TestBuildPromptSkillsPointer:
 
         config = DispatchConfig(sandbox=SandboxConfig(enabled=True))
         # Sandboxed posture also requires an env credential (#732).
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}),
+            attachment_network(),
+        ):
             rc = execute_dispatch(
                 allow_unrecorded=True, issue=_make_issue(), config=config
             )
@@ -15077,11 +15121,15 @@ def _sidecar_packet_evidence():
 
 
 @pytest.mark.parametrize(
-    ("mode", "host_credential", "admitted"),
+    ("mode", "host_credential", "admitted", "open_egress"),
     [
-        ("sidecar", False, True),
-        ("direct", False, False),
-        ("direct", True, True),
+        ("sidecar", False, True, False),
+        ("direct", False, False, False),
+        ("direct", True, True, False),
+        # The sidecar worker sits on its own per-run internal network, so the
+        # open direct network does not refuse it; the direct route it does.
+        ("sidecar", True, True, True),
+        ("direct", True, False, True),
     ],
 )
 def test_sandbox_admission_uses_the_selected_authentication_path(
@@ -15089,6 +15137,7 @@ def test_sandbox_admission_uses_the_selected_authentication_path(
     mode: str,
     host_credential: bool,
     admitted: bool,
+    open_egress: bool,
 ) -> None:
     from kew.dispatch_core import (
         _DispatchContext,
@@ -15098,7 +15147,13 @@ def test_sandbox_admission_uses_the_selected_authentication_path(
     from kew.runners import get_runner
     from kew.sandbox import SandboxRuntimeUnavailable
 
-    config = DispatchConfig(sandbox=SandboxConfig(enabled=True, runtime="docker"))
+    config = DispatchConfig(
+        sandbox=SandboxConfig(
+            enabled=True,
+            runtime="docker",
+            network="open" if open_egress else "allowlist",
+        )
+    )
     if mode == "sidecar":
         route_config = tmp_path / "synthetic-routes.toml"
         route_config.write_text("[routes]\n", encoding="utf-8")
@@ -15136,18 +15191,22 @@ def test_sandbox_admission_uses_the_selected_authentication_path(
     with (
         patch.dict(os.environ, environment, clear=True),
         patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
+        attachment_network(PLAIN_BRIDGE if open_egress else INTERNAL_BRIDGE),
         patch(f"{_P}.check_runtime_memory_capacity"),
         patch(f"{_P}._check_initial_host_capacity"),
         patch(f"{_P}.check_agent_image_staleness", return_value=None),
     ):
         if not admitted:
-            with pytest.raises(SandboxRuntimeUnavailable):
+            with pytest.raises(SandboxRuntimeUnavailable) as refused:
                 _resolve_and_apply_sandbox(
                     ctx,
                     "claude-code",
                     inference_transport=selected,
                     defer_attestation=True,
                 )
+            assert (refused.value.reason == "open_egress_unacknowledged") is (
+                open_egress
+            )
             return
         decision = _resolve_and_apply_sandbox(
             ctx,
@@ -15157,6 +15216,85 @@ def test_sandbox_admission_uses_the_selected_authentication_path(
         )
 
     assert decision.sandboxed is True
+
+
+def _contained_dispatch(
+    tmp_path: Path, sandbox: SandboxConfig, shape: Any = PLAIN_BRIDGE
+) -> tuple[Any, MagicMock, list[Any], list[list[str]]]:
+    """Dispatch one issue through the contained path on a network of *shape*."""
+    from kew.dispatch_core import execute_dispatch
+    from kew.run_store import SqliteRunStore
+
+    store = SqliteRunStore(str(tmp_path / "runs.db"))
+    with (
+        patch("kew.sandbox.detect_runtime_cached", return_value="/usr/bin/docker"),
+        patch.dict(os.environ, {"ANTHROPIC_API_KEY": "credential-never-printed"}),
+        patch("kew.sandbox.allowlist_network_exists", return_value=True),
+        attachment_network(shape) as inspected,
+        patch(f"{_P}.resolve_runner") as resolve,
+        patch(f"{_P}._materialize_checkout", return_value=tmp_path / "co"),
+        patch(f"{_P}.build_prompt", return_value="prompt"),
+        patch(f"{_P}._run_sandboxed", return_value=_ok_result()) as run_sandboxed,
+        patch(f"{_P}.check_pr_exists", return_value=99),
+        patch(f"{_P}.update_pr_labels", return_value=True),
+        patch(f"{_P}.mark_completed"),
+        patch(f"{_P}.mark_failed"),
+        patch(f"{_P}._get_changed_files", return_value=[]),
+        patch(f"{_P}._cleanup_dispatch_dir"),
+        patch(f"{_P}._check_github_connectivity", return_value=True),
+    ):
+        resolve.return_value.runner.name = "claude-code"
+        resolve.return_value.model = "claude-sonnet-4-6"
+        result = execute_dispatch(
+            allow_unrecorded=True,
+            issue=_make_issue(),
+            config=DispatchConfig(sandbox=sandbox),
+            store=store,
+        )
+    events = store.list_audit_events(event="sandbox_resolved")
+    return result, run_sandboxed, events, inspected
+
+
+@pytest.mark.parametrize("network", ["allowlist", "operator-net"])
+def test_open_egress_refusal_is_on_the_audit_chain(
+    tmp_path: Path, network: str
+) -> None:
+    """A plain bridge, default or custom, refuses the dispatch and attests why."""
+    result, run_sandboxed, events, inspected = _contained_dispatch(
+        tmp_path, SandboxConfig(enabled="auto", network=network)
+    )
+
+    attached = "kew-allowlist" if network == "allowlist" else network
+    assert result.exit_code != 0
+    run_sandboxed.assert_not_called()
+    assert [event.payload["posture"] for event in events] == ["refused"]
+    assert events[0].payload["reason"] == "open_egress_unacknowledged"
+    assert attached in result.reason
+    assert "credential-never-printed" not in result.reason
+    assert any(argv[-1] == attached for argv in inspected)
+
+
+def test_acknowledged_open_egress_dispatch_runs(tmp_path: Path) -> None:
+    result, run_sandboxed, events, _inspected = _contained_dispatch(
+        tmp_path, SandboxConfig(enabled="auto", acknowledge_open_egress=True)
+    )
+
+    assert result.exit_code == 0
+    run_sandboxed.assert_called_once()
+    assert [event.payload["posture"] for event in events] == ["sandboxed"]
+
+
+def test_a_dispatch_placed_off_this_machine_does_not_read_its_network(
+    tmp_path: Path,
+) -> None:
+    """The instance's network decides a gcp-pinned run, so ours cannot refuse it."""
+    result, run_sandboxed, events, _inspected = _contained_dispatch(
+        tmp_path, SandboxConfig(enabled="auto", hosts={"dispatch": "gcp"})
+    )
+
+    assert result.exit_code == 0
+    run_sandboxed.assert_called_once()
+    assert [event.payload["posture"] for event in events] == ["sandboxed"]
 
 
 def test_sidecar_worker_omits_reusable_provider_credentials(

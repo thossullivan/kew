@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from kew.inference_transport import direct_route
 from kew.openshell_launch import is_openshell
+from kew.progress import _warn
 from kew.sandbox import (
     CONTAINED_POSTURES,
     POSTURE_SANDBOXED,
@@ -44,6 +45,7 @@ from kew.sandbox import (
     detect_runtime_cached,
     emit_resolved_posture,
     require_certified_boundary,
+    require_open_egress_acknowledgement,
     resolve_effective_sandbox,
     resolve_runner_image,
     resolve_transport_sandbox,
@@ -100,7 +102,34 @@ def resolve_remediation_containment(
 
     ``store`` is keyword-only and has no default on purpose — see the module
     docstring. Pass ``None`` only where there genuinely is no ledger.
+
+    Every arm that contains the run in a container answers to the open-egress
+    rule, which raises its refusal the same way.
     """
+    containment = _resolve_remediation_route(
+        config, runner=runner, store=store, inference_transport=inference_transport
+    )
+    if containment.posture == POSTURE_SANDBOXED:
+        warning = require_open_egress_acknowledgement(
+            config.sandbox,
+            runner=runner,
+            runtime=config.sandbox.runtime,
+            sidecar=inference_transport is not None and inference_transport.sidecar,
+            image=containment.image,
+        )
+        if warning:
+            _warn(warning)
+    return containment
+
+
+def _resolve_remediation_route(
+    config: DispatchConfig,
+    *,
+    runner: str,
+    store: object | None,
+    inference_transport: ResolvedInferenceTransport | None,
+) -> RemediationContainment:
+    """The containment arm this remediation run resolves to, before egress."""
     if inference_transport is not None and inference_transport.sidecar:
         decision = resolve_transport_sandbox(
             config.sandbox,

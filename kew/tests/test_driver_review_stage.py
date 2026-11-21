@@ -25,6 +25,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
+from support.attachment_network import close_attachment_network
 from support.gate_path_repo import add_pr_commit, make_pr_repo
 from support.gh_fakes import FakeGh, GhProcessBoundary
 from support.review_stream import (
@@ -325,6 +326,7 @@ def test_runtime_install_and_unhold_repairs_running_driver(
         "kew.remediation_containment.detect_runtime_cached", detect_runtime_cached
     )
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-credential")
+    close_attachment_network(monkeypatch)
     remediator = sandbox_remediator(scene.config, scene.store, epic_ref=EPIC)
     with patch("kew.sandbox.detect_runtime", return_value=None) as detector:
         first = _drive_retry_scene(scene, tmp_path, remediator=remediator)
@@ -2333,6 +2335,47 @@ def test_the_pre_launch_refusal_hold_names_the_build_command(tmp_path: Path) -> 
         assert "kew sandbox build --runner claude-code" in hold.reason
         assert len(hold.reason) <= HOLD_REASON_MAX_CHARS
         assert safe_hold_reason(hold.reason) == hold.reason
+
+
+def _egress_refused_launcher(ctx: ReviewerLaunchContext) -> CollectedSidecar:
+    """The reviewer refused before launch on unacknowledged open egress."""
+    from kew.review_contract import infrastructure_failure_sidecar
+
+    return infrastructure_failure_sidecar(
+        ctx.log_dir,
+        ctx.run_id,
+        failure_layer="network",
+        error_category="sandbox_refused",
+        reason="network 'allowlist' is a non-internal bridge network with open egress",
+    )
+
+
+def test_an_open_egress_hold_names_the_fix_that_keeps_the_reviewer_working(
+    tmp_path: Path,
+) -> None:
+    """The reviewer is on the direct route: an internal network would block it."""
+    repo, head = _make_repo(tmp_path)
+    config = _config(tmp_path, blocking=True)
+
+    with SqliteRunStore(str(tmp_path / "d.db")) as store:
+        for _ in range(3):  # the bounded retry is spent, then it holds
+            out = drive_review_stage(
+                {ITEM: DriverStatus.ADVERSARIAL_REVIEW},
+                {ITEM: _facts(head)},
+                epic_ref=EPIC,
+                config=config,
+                store=store,
+                repo="o/r",
+                repo_root=repo,
+                base="main",
+                reviewer_launcher=_egress_refused_launcher,
+                now=NOW,
+            )
+
+        assert out.held == [ITEM]
+        (hold,) = store.list_epic_holds(EPIC)
+        assert "acknowledge_open_egress = true" in hold.reason
+        assert "internal network blocks" in hold.reason
 
 
 def test_a_deferred_refusal_keeps_the_node_due_for_re_review(tmp_path: Path) -> None:

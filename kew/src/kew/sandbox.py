@@ -1,7 +1,7 @@
-"""Container-launch helpers for sandboxed dispatch (Nodes S2 and S3).
+"""Container-launch helpers for sandboxed dispatch.
 
-Node S2: pure argv construction and runtime detection — no process is spawned.
-Node S3: ContainerHandle and launch_container for running argv and streaming stdout.
+Pure argv construction and runtime detection, which spawn no process, and
+ContainerHandle and launch_container, which run argv and stream stdout.
 
 Container entrypoint contract
 ----------------------------
@@ -12,8 +12,8 @@ the host half of that contract, not a second copy of it. The constants below and
 ``docker/agent-entrypoint.sh`` are asserted against the page by
 ``tests/test_docs_truthfulness.py``.
 
-The one thing worth repeating here, because it is the reason this module exists
-(#695): the prompt travels in a **mounted file**, never in argv and never on a
+The one thing worth repeating here, because it is the reason this module exists:
+the prompt travels in a **mounted file**, never in argv and never on a
 host-piped stdin.
 """
 
@@ -113,9 +113,9 @@ from kew.credential_surface import (
     _SERIALIZED_KEY_ESCAPE_RE as _SERIALIZED_KEY_ESCAPE_RE,
 )
 
-# Re-exported for callers that predate the split (governed review round 6 of
-# PR #1941, 2026-09-22): the redaction surface moved to a leaf module so the
-# progress display can redact without importing the launch stack.
+# Re-exported for callers that import them from here: the redaction surface
+# lives in a leaf module so the progress display can redact without
+# importing the launch stack.
 from kew.credential_surface import (
     MAX_REDACTED_FIELD_CHARS as MAX_REDACTED_FIELD_CHARS,
 )
@@ -308,14 +308,15 @@ if TYPE_CHECKING:
     from kew.openshell_broker import ProviderAdmission
 
 #: The per-container process/thread ceiling: a fork bomb's bound, and a HARD
-#: cap like the S3 ones below — no config key, env var or flag reads into it.
-#: Docker counts THREADS toward it, so 256 was a ceiling an ordinary frontend
-#: run reached: ``npm run ui-check`` (vite plus headless chrome) beside the
-#: agent CLI and a second dev server hit 256 and the runner died with exit 134
-#: (#2927). 1024 fits that workload; memory (swap off) still bounds the bomb.
+#: cap like the ones below — no config key, env var or flag reads into it.
+#: Docker counts THREADS toward it, and an ordinary frontend run reaches 256
+#: (the runner then dies with exit 134):
+#: ``npm run ui-check`` (vite plus headless chrome) beside the agent CLI and a
+#: second dev server. 1024 fits that workload; memory (swap off) still bounds
+#: the bomb.
 _PIDS_LIMIT: Final = 1024
 
-#: Permanent acceptance of operator-asserted direct egress (#1945).
+#: Permanent acceptance of operator-asserted direct egress.
 DIRECT_ROUTE_EGRESS_VERIFICATION: Final = "operator-managed-unverified"
 
 #: What a dispatch on ``[sandbox] runtime = "openshell"`` records once a fresh
@@ -349,7 +350,7 @@ OPENSHELL_EGRESS_ROUTE: Final = OPENSHELL_RUNTIME
 #: duplicate cannot become a second answer.
 OPENSHELL_DISPATCH_FLOW: Final = "dispatch"
 
-# ── Hard resource limits (S3, #1431) ─────────────────────────────────────────
+# ── Hard resource limits ─────────────────────────────────────────────────────
 # ``--pids-limit`` alone bounds ONE exhaustion primitive. A container that can
 # still allocate every page of host RAM, spin every core, fill the bind-mounted
 # checkout, or stream output forever is contained but not isolated: the agent
@@ -357,10 +358,10 @@ OPENSHELL_DISPATCH_FLOW: Final = "dispatch"
 #
 # Every value below is a HARD cap, deliberately not an operator knob: a knob is
 # a way to set the cap back to "none", and the caps exist because "none" is the
-# state this node removes. They are pinned by tests/test_sandbox.py.
+# state they remove. They are pinned by tests/test_sandbox.py.
 #
 # Two of them — memory and CPU — carry a LOWER-ONLY seam (``[sandbox]
-# max_memory`` / ``max_cpus``, #2360) so an operator whose container VM is
+# max_memory`` / ``max_cpus``) so an operator whose container VM is
 # smaller than max_workers x 8 GiB can fit the caps to the VM. Lowering a cap
 # is not the knob the rule above forbids: the values here remain the ceilings,
 # nothing raises or removes them, and ``kew.sandbox_caps`` refuses an
@@ -388,7 +389,7 @@ _DAEMON_CPU_COUNT_TEMPLATES: dict[str, str] = {
 #: which means no container at all.
 _CPU_LIMIT_UNKNOWN_DAEMON = "1"
 
-#: Test-runner pool sizes, set to the container's ``--cpus`` value (#2887).
+#: Test-runner pool sizes, set to the container's ``--cpus`` value.
 #: ``--cpus`` is a CFS quota, not a CPU set: ``nproc`` inside the container
 #: still prints the HOST's count, so ``pytest -n auto`` and vitest size their
 #: worker pools to the host and run a 3-CPU container out of memory.
@@ -431,17 +432,17 @@ _TMP_TMPFS_MEMORY_SHARE = 4
 _SCRATCH_TMPFS_SIZE = "64m"
 #: Paths inside ``[sandbox] check_image`` that a check writes beside the
 #: image's own files, each mounted as a small tmpfs while the root stays
-#: ``--read-only`` (#3495). kew's check image links ``kew-check-frontend``'s
+#: ``--read-only``. kew's check image links ``kew-check-frontend``'s
 #: ``frontend/node_modules`` to the image's, and Vite bundles
 #: ``vite.config.ts`` into the nearest ``node_modules/.vite-temp``: without a
 #: writable one there, every frontend check fails with ENOENT on any tree.
 CHECK_IMAGE_SCRATCH_PATHS = ("/opt/kew-check/frontend/node_modules/.vite-temp",)
-#: The temp directory a verification container's ``TMPDIR`` names (#3595): a
-#: tmpfs mounted ``exec``, because ``/tmp`` keeps Docker's default ``noexec``.
-#: pytest puts ``tmp_path`` under ``TMPDIR``, and a test that writes a stub tool
-#: there and runs it failed on every tree, so the pre-review gate saw a red base
-#: and checked no PR. Same size cap as ``/tmp``, uid-pinned, gone with the
-#: container — the agent's ``HOME`` is ``exec`` on the same terms (#762).
+#: The temp directory a verification container's ``TMPDIR`` names: a tmpfs
+#: mounted ``exec``, because ``/tmp`` keeps Docker's default ``noexec``.
+#: pytest puts ``tmp_path`` under ``TMPDIR``, and a test that writes a stub
+#: tool there and runs it fails under ``noexec``. Same size cap as ``/tmp``,
+#: uid-pinned, gone with the container — the agent's ``HOME`` is ``exec`` on
+#: the same terms.
 EXEC_TMPDIR = "/var/tmp"  # nosec B108 - in-container tmpfs, not a host temp path
 
 # Per-process rlimits, enforced by the kernel rather than by a watchdog.
@@ -526,7 +527,7 @@ class ResourceCapObservation:
 RESOURCE_CAP_EVENT = "kew_resource_cap"
 
 # The agent user baked into docker/agent.Dockerfile (`useradd -u 1001 agent`).
-# Its HOME is tmpfs-mounted writable per container (#742) — the read-only
+# Its HOME is tmpfs-mounted writable per container — the read-only
 # root otherwise breaks Claude Code's Bash tool at shell-init (EROFS on
 # ~/.claude). Keep in sync with the Dockerfile.
 AGENT_HOME = "/home/agent"
@@ -534,15 +535,15 @@ _AGENT_UID = 1001
 
 # The runner whose image the legacy ``sandbox.image`` field names: the stock
 # kew-agent image ships only the claude CLI, so a committed ``image`` has only
-# ever meant "the claude-code image" (#1144).
+# ever meant "the claude-code image".
 DEFAULT_IMAGE_RUNNER = "claude-code"
 
 # Actionable "how do I get one" guidance per credential env var, appended to the
-# provider-specific "not logged in" preflight message (#1146). A tuple of pairs
+# provider-specific "not logged in" preflight message. A tuple of pairs
 # rather than a dict because bandit reads a dict key ending in `_TOKEN` as a
 # hardcoded password (B105) — these are NAMES and hints, never values.
 # The API key leads: subscription OAuth is for interactive use, and
-# docs/authentication.md warns against it for autonomous dispatch (F24).
+# docs/authentication.md warns against it for autonomous dispatch.
 _CREDENTIAL_MINT_HINTS: tuple[tuple[str, str], ...] = (
     ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY is issued at console.anthropic.com"),
     (
@@ -575,7 +576,7 @@ EXTRACT_MOUNT_PATH = "/artifact"
 # on the host child env; a container never inherits that env, so
 # build_run_argv sets it again as the container path of the mount. Without
 # it the guard's agent-only rules (the .claude Write/Edit block and the
-# cross-checkout ref rule) are inert inside containment (#1691).
+# cross-checkout ref rule) are inert inside containment.
 AGENT_MARKER_ENV = "AGENT_ASSIGNED_WORKTREE"
 WORK_MOUNT_PATH = "/work"
 EXTRACT_ENTRYPOINT = "/usr/local/bin/kew-extract-artifact"
@@ -596,7 +597,7 @@ _SWITCHYARD_ENDPOINT_ENV_VARS: tuple[tuple[str, str], ...] = (
 
 
 def runner_credential_env_vars(runner: str) -> tuple[str, ...]:
-    """The container env allowlist for ``runner`` — SECURITY SURFACE (#1146).
+    """The container env allowlist for ``runner`` — SECURITY SURFACE.
 
     The names :func:`build_run_argv` forwards (by name only) for a contained
     ``runner`` dispatch, and the names the credential preflight checks. Derived
@@ -608,8 +609,8 @@ def runner_credential_env_vars(runner: str) -> tuple[str, ...]:
 
     ``()`` means the runner declares no in-container credential (or is unknown),
     which is un-containable: see :class:`SandboxCredentialUndeclared`. There is
-    deliberately no fallback to another runner's names — that guess is the #1104
-    incident with an exfiltration surface attached.
+    deliberately no fallback to another runner's names: a guessed name would
+    forward another provider's credential into this container.
 
     Imported lazily: ``kew.runners.registry`` pulls in the runner modules, which
     are the heavy half of the import graph, and dispatch reaches this on the
@@ -860,11 +861,9 @@ def _attested_proxy_variables(
     * a posture that launched no container at all, and
     * the OpenShell runtime, whose agent environment is the exec allowlist
       :data:`kew.openshell.SANDBOX_EXEC_ENV_NAMES` and carries no proxy name
-      under either policy. ``proxy_environment = "inherit"`` used to be
-      recorded here as ten inherited variables — and in ``credential_names``
-      as ten more exposed names — for an exec that forwarded none of them (PR
-      #2401 review). The setting it asks for is a docker-argv setting; what the
-      operator is told about it is
+      under either policy, so recording ``proxy_environment = "inherit"``
+      here would claim names the exec never forwarded. The setting it asks
+      for is a docker-argv setting; what the operator is told about it is
       :func:`openshell_ignored_argv_settings_warning`, not a ledger entry
       claiming it took effect.
     """
@@ -919,9 +918,8 @@ def _posture_credential_names(
     ``proxy_variables`` (:func:`_attested_proxy_variables`), handed in rather
     than re-derived from ``proxy_environment``: an inherited proxy URL can
     carry userinfo, so it belongs in the credential surface, and deriving "did
-    they cross?" twice is how the two fields came to disagree. On the OpenShell
-    runtime they did not cross and the list is empty, so the surface no longer
-    names variables the exec never forwarded (PR #2401 review).
+    they cross?" twice would let the two fields disagree. On the OpenShell
+    runtime the list is empty: the exec forwards no proxy variable.
     """
     if posture == "refused":
         return []
@@ -1029,12 +1027,9 @@ def posture_record_fields(
     }
 
 
-# Flows that run an agent on the host because kew has not built a contained
-# path for them yet — NOT because anyone chose the host. Distinct from
-# `dangerously_skip_containment`, which is an operator decision, and from
-# `uncontainable_reason`, which is a property of a runner. This is a gap on
-# kew's side, and it is named here so it appears in the ledger as itself
-# (W1.1 / D2, node 3d).
+# A flow kew runs on the host because it has no contained path for it yet: a
+# gap on kew's side, distinct from `dangerously_skip_containment` (an operator
+# decision) and `uncontainable_reason` (a runner property).
 POSTURE_UNCONTAINABLE_FLOW = "uncontained_flow"
 
 # The two postures that mean "the agent is not running loose on this machine":
@@ -1088,16 +1083,10 @@ def attest_flow_posture(
 ) -> str:
     """Record — and return — the containment posture of a non-dispatch flow.
 
-    Review remediation and resolve once consulted no posture at all: an operator
-    with ``[sandbox] enabled = true`` got fail-closed containment on dispatch and
-    silent host execution here, with nothing on the ledger to say so. The config
-    claimed one thing and two flows did another.
-
-    The posture is now DECIDED by the caller and merely recorded here. It used to
-    be derived, with the reason hardcoded to "has no contained path" — true when
-    written, and a falsehood the moment those flows gained one. An attestation
-    function that computes its own subject will eventually attest something that
-    is no longer so.
+    The posture is DECIDED by the caller and only recorded here, so the ledger
+    shows what a non-dispatch flow actually ran under. An attestation function
+    that computed its own subject could attest a reason that is no longer
+    true.
     """
     from kew.inference_transport import direct_route
 
@@ -1105,11 +1094,9 @@ def attest_flow_posture(
         _warn_uncontained_flow(flow, config, reason, posture=posture)
     sidecar = inference_transport is not None and inference_transport.sidecar
     runtime = config.runtime if posture == POSTURE_SANDBOXED else None
-    # Derived here rather than at four call sites, because the fact is the
+    # Derived here rather than at each call site, because the fact is the
     # same one at all of them: the flow reached a sandboxed OpenShell posture,
-    # which the egress gate is the only way past. Before #2389's review the
-    # remediation flows genuinely could not say this — they resolved without a
-    # ledger — so every such container was attested `openshell-uncertified`.
+    # which the egress gate is the only way past.
     certified = certified or openshell_boundary_certified(
         config, posture=posture, sidecar=sidecar
     )
@@ -1148,12 +1135,10 @@ def contained_egress_route(
 
     One function because two writers answer this question — dispatch, from its
     :class:`SandboxDecision`, and :func:`attest_flow_posture`, from the config
-    the flow resolved against — and a route derived two ways is how one of them
-    records another route's verification value for the boundary it actually
-    ran. That is exactly what happened before #2389's review: this derivation
-    lived inline in :func:`attest_flow_posture` as "sidecar or direct", so a
-    sandboxed OpenShell flow was attested with the direct route's permanent
-    ``operator-managed-unverified``.
+    the flow resolved against — and a route derived two ways can record
+    another route's verification value for the boundary it actually ran,
+    such as a sandboxed OpenShell flow attested with the direct route's
+    permanent ``operator-managed-unverified``.
 
     The sidecar is a transport choice and wins when it is in play: the worker's
     packets leave through the proxy whatever the container runtime is. The
@@ -1183,11 +1168,10 @@ def _route_verification_basis(
     uncertified OpenShell boundary before any posture is written, so a dispatch
     reaching here is always certified; the remediation flows resolve
     containment without a ledger, so a flow reaching here may not be, and
-    :data:`OPENSHELL_UNCERTIFIED_VERIFICATION_BASIS` says which happened. This
-    used to raise on the uncertified case instead, on the premise that it was
-    unreachable — it is not, and raising out of an attestation writer would
-    abort a flow that is already running rather than refuse it before it
-    started.
+    :data:`OPENSHELL_UNCERTIFIED_VERIFICATION_BASIS` says which happened. The
+    uncertified case does not raise: it is reachable, and raising out of an
+    attestation writer would abort a flow that is already running rather than
+    refuse it before it started.
     """
     if posture != POSTURE_SANDBOXED:
         return {}
@@ -1249,7 +1233,7 @@ def _attested_openshell_provider(
 
 
 def _attested_caps(posture: str, config: SandboxConfig) -> dict[str, object]:
-    """The EFFECTIVE per-container caps this dispatch ran under (#2360).
+    """The EFFECTIVE per-container caps this dispatch ran under.
 
     So a run report answers "what did it run under?" from the ledger rather
     than from whatever the config says today. Both keys are present on every
@@ -1274,8 +1258,8 @@ def _attested_caps(posture: str, config: SandboxConfig) -> dict[str, object]:
     sandbox_create`, whose verified v0.1.2 argv surface carries an image,
     providers, a policy and labels — and no memory or CPU flag. So kew sets no
     cgroup limit there, whatever ``[sandbox] max_memory`` says, and attesting a
-    concrete ``8g`` would have claimed a cap that never existed on the only
-    runtime where it is not kew that enforces one (PR #2401 review). An
+    concrete ``8g`` would claim a cap that never existed on the only
+    runtime where it is not kew that enforces one. An
     operator who configured a cap hears that it does not apply from
     :func:`openshell_ignored_argv_settings_warning`.
     """
@@ -1452,8 +1436,8 @@ def resolve_flow_containment(
     ``store`` is both the ledger this attests onto AND the one the OpenShell
     egress gate reads its certification from, so it is threaded into the
     resolution as well as the attestation: a flow that resolved without it
-    refused every OpenShell launch on "no ledger to check" while the proof sat
-    on that exact store (#2389 review).
+    would refuse every OpenShell launch on "no ledger to check" while the
+    proof sat on that exact store.
     """
     try:
         decision = resolve_transport_sandbox(
@@ -1462,6 +1446,9 @@ def resolve_flow_containment(
             inference_transport=inference_transport,
             gateway_launch=gateway_launch,
             store=store,
+        )
+        egress_warning = contained_egress_warning(
+            config, runner=runner, decision=decision, transport=inference_transport
         )
     except SandboxRuntimeUnavailable as exc:
         emit_resolved_posture(
@@ -1493,6 +1480,10 @@ def resolve_flow_containment(
         item_id=item_id,
         inference_transport=inference_transport,
     )
+    if egress_warning:
+        from kew.progress import _warn
+
+        _warn(egress_warning)
     return decision
 
 
@@ -1552,7 +1543,7 @@ def _any_env_set(names: tuple[str, ...]) -> bool:
     """True if any of ``names`` is set (non-empty) in the environment.
 
     Presence only — the VALUE is never read past this truthiness check, so no
-    credential can leak into a message, a run row, or the audit ledger (#1146).
+    credential can leak into a message, a run row, or the audit ledger.
     """
     return any(os.environ.get(name) for name in names)
 
@@ -1567,11 +1558,10 @@ def _injected_credentials(names: tuple[str, ...]) -> tuple[str, ...]:
     """The declared names this launch will hand the container, names only.
 
     A bounded OpenRouter key is minted for the run rather than inherited, so it
-    is absent from the host environment and still reaches the container. Reading
-    the environment alone recorded an empty credential exposure and silenced the
-    open-egress warning on a provisioning-only host, which is the configuration
-    a direct OpenRouter route now requires (governed review round 4,
-    2026-09-21).
+    is absent from the host environment and still reaches the container.
+    Reading the environment alone would record an empty credential exposure
+    and silence the open-egress warning on a provisioning-only host, which is
+    the configuration a direct OpenRouter route requires.
     """
     from kew.credential_issuer import has_provisioning_key
 
@@ -1585,7 +1575,7 @@ def _injected_credentials(names: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def credential_missing_message(runner: str, names: tuple[str, ...]) -> str:
-    """Provider-specific "not logged in" guidance for ``runner`` (#1146).
+    """Provider-specific "not logged in" guidance for ``runner``.
 
     One sentence naming the env var(s) this runner authenticates with plus how
     to obtain one — claude points at ``claude setup-token``, an OpenRouter-backed
@@ -1600,35 +1590,177 @@ def credential_missing_message(runner: str, names: tuple[str, ...]) -> str:
     return f"Export {joined}{suffix}"
 
 
-def open_egress_warning(network: str, *, runner: str) -> str | None:
-    """Loud warning string when egress is fully open AND a credential is injected.
+#: What clears an open-egress refusal. A host filter is not on the list: kew
+#: cannot read one, so it still needs the acknowledgement.
+OPEN_EGRESS_REMEDY = (
+    "Route inference through the Switchyard sidecar, whose egress kew verifies; "
+    "attach an internal network, only where inference does not need the direct "
+    "route; or set [sandbox] acknowledge_open_egress = true. A host firewall is "
+    "invisible to kew and still needs the acknowledgement."
+)
 
-    ``network="open"`` omits ``--network`` (full Docker-bridge egress). With an
-    agent credential forwarded into the container, a single outbound request from
-    in-container code can exfiltrate the key — and it contradicts
-    ``docs/threat-model.md``'s stated egress-restriction posture (egress
-    restricted to inference + GitHub). The default ``"allowlist"`` avoids this;
-    the warning fires only when an operator explicitly opts into ``"open"``.
 
-    Keyed on ``runner`` (#1146): it names the credential THIS container will
-    actually be handed — by name, never by value — so the operator can see which
-    key is at risk instead of a generic "a credential". A runner whose own
-    credentials are all absent has nothing to exfiltrate and does not warn; a
-    bounded key this host can mint counts as handed over, because it is.
+class NetworkShapeUnreadable(Exception):
+    """The runtime gave no readable answer about an attachment network."""
 
-    Returns a one-line warning to surface at dispatch, or ``None`` when egress is
-    restricted or no credential is present.
+
+def local_network_document(runtime: str | None) -> Callable[[str], str]:
+    """Read one network's inspect document from this machine's runtime."""
+
+    def inspect(name: str) -> str:
+        if runtime is None:
+            raise NetworkShapeUnreadable("no container runtime to ask")
+        try:
+            result = subprocess_utils.run(
+                [runtime, "network", "inspect", name],
+                check=False,
+                timeout=_NETWORK_INSPECT_TIMEOUT_SECONDS,
+            )
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            raise NetworkShapeUnreadable(exception_text(exc)) from exc
+        if result.returncode != 0:
+            said = (result.stderr or "").strip()[:200]
+            raise NetworkShapeUnreadable(
+                f"{runtime} network inspect exited {result.returncode}"
+                + (f": {said}" if said else "")
+            )
+        return result.stdout or ""
+
+    return inspect
+
+
+def attachment_egress_problem(
+    network: str, inspect: Callable[[str], str]
+) -> str | None:
+    """Why ``[sandbox] network`` is not shown closed, or ``None`` when it is.
+
+    Closed means proven closed: the attached network reports ``Internal`` true
+    or has the ``null``/``none`` driver, or the setting is ``none``. Every other
+    shape, including one kew cannot read, counts as open.
     """
-    if network != "open":
+    if network == "open":
+        return "network='open' omits --network and gives the container open egress"
+    if network == "none":
         return None
-    injected = _injected_credentials(runner_credential_env_vars(runner))
+    if network.startswith("container:"):
+        return (
+            f"network={network!r} shares another container's network namespace, "
+            "whose egress kew cannot see"
+        )
+    name = effective_network_name(network) or network
+    try:
+        driver, internal = network_attributes(inspect(name))
+    except NetworkShapeUnreadable as exc:
+        return (
+            f"kew could not read network {name!r} ({exc}), so its egress is not "
+            "shown closed"
+        )
+    if internal is True or driver in ("null", "none"):
+        return None
+    if NETWORK_ATTRIBUTE_UNKNOWN in (driver, internal):
+        return (
+            f"kew could not read network {name!r} (its inspect output gives no "
+            "driver or Internal flag), so its egress is not shown closed"
+        )
+    attached = repr(name) if name == network else f"{network!r}, attached as {name!r},"
+    return f"network {attached} is a non-internal {driver} network with open egress"
+
+
+def open_egress_warning(
+    network: str,
+    *,
+    runner: str,
+    runtime: str | None = None,
+    sidecar: bool = False,
+    inspect: Callable[[str], str] | None = None,
+    credentials: Sequence[str] | None = None,
+) -> str | None:
+    """Warning text when a credentialed container's egress is not shown closed.
+
+    The default ``"allowlist"`` attaches ``kew-allowlist``. When that is a plain
+    bridge, as ``kew sandbox network`` creates it, egress is open unless the host
+    filters it. A sidecar worker sits on its own per-run internal network.
+
+    Names the credentials this runner is handed, never their values: the
+    ``credentials`` given, else those this host's environment supplies. With
+    none there is nothing to exfiltrate, and the answer is ``None``.
+    ``inspect`` reads the network where the container runs; the default asks
+    this machine's ``runtime``.
+    """
+    if sidecar:
+        return None
+    injected = (
+        tuple(credentials)
+        if credentials is not None
+        else _injected_credentials(runner_credential_env_vars(runner))
+    )
     if not injected:
         return None
+    problem = attachment_egress_problem(
+        network, inspect or local_network_document(runtime)
+    )
+    if problem is None:
+        return None
     return (
-        f"Sandbox: network='open' ships FULL container egress while {runner}'s "
-        f"{' and '.join(injected)} is injected — one outbound request can "
-        "exfiltrate it, contradicting the threat model's egress restriction. "
-        "Set sandbox.network = 'allowlist' (the default) to restrict egress."
+        f"Sandbox: {problem} while {runner}'s {' and '.join(injected)} is "
+        "injected: one outbound request can exfiltrate it."
+    )
+
+
+def require_open_egress_acknowledgement(
+    config: SandboxConfig,
+    *,
+    runner: str,
+    runtime: str | None,
+    sidecar: bool = False,
+    image: str | None = None,
+    inspect: Callable[[str], str] | None = None,
+    credentials: Sequence[str] | None = None,
+) -> str | None:
+    """Return the open-egress warning, or refuse an unacknowledged route.
+
+    The one admission rule for every credentialed container launch. ``None`` on
+    the OpenShell runtime: the gateway attaches no Docker network, and its own
+    policy governs egress.
+    """
+    if runtime == OPENSHELL_RUNTIME:
+        return None
+    warning = open_egress_warning(
+        config.network,
+        runner=runner,
+        runtime=runtime,
+        sidecar=sidecar,
+        inspect=inspect,
+        credentials=credentials,
+    )
+    if warning is None:
+        return None
+    if config.acknowledge_open_egress:
+        return f"{warning} Admitted by [sandbox] acknowledge_open_egress = true."
+    raise SandboxRuntimeUnavailable(
+        f"{warning} Refused. {OPEN_EGRESS_REMEDY}",
+        reason=REFUSAL_OPEN_EGRESS_UNACKNOWLEDGED,
+        runtime=runtime,
+        image=image,
+    )
+
+
+def contained_egress_warning(
+    config: SandboxConfig,
+    *,
+    runner: str,
+    decision: SandboxDecision,
+    transport: ResolvedInferenceTransport | None,
+) -> str | None:
+    """Apply :func:`require_open_egress_acknowledgement` to a resolved launch."""
+    if not decision.sandboxed:
+        return None
+    return require_open_egress_acknowledgement(
+        config,
+        runner=runner,
+        runtime=decision.runtime,
+        sidecar=transport is not None and transport.sidecar,
+        image=decision.image,
     )
 
 
@@ -1682,10 +1814,10 @@ PROMPT_MOUNT_PATH = "/work/.kew-prompt.txt"
 
 # There is no reviewer verdict file: the code under review can write anything
 # under /work, so the verdict travels in the reviewer's own typed result event
-# (kew.review_stream, #2021).
+# (kew.review_stream).
 
 #: Ledger-stable tokens naming WHY containment was refused, carried on the
-#: exception and attested in the ``sandbox_resolved`` payload (#1144). The
+#: exception and attested in the ``sandbox_resolved`` payload. The
 #: message is for humans and free to be reworded; these are what the audit
 #: ledger is queried on, so a refusal's cause survives a message edit and the
 #: several distinct causes are never byte-identical on the chain.
@@ -1697,8 +1829,9 @@ REFUSAL_CREDENTIAL_MISSING = "credential_missing"
 REFUSAL_HOST_FREE_SPACE = "host_free_space"
 REFUSAL_CHECKOUT_OVER_QUOTA = "checkout_over_quota"
 REFUSAL_PROXY_UNPARSEABLE = "proxy_unparseable"
-#: ``[sandbox] placement`` names a host this dispatch cannot be put on now
-#: (#2526) — every instance is at ``max_runs``, or the run is one no instance
+REFUSAL_OPEN_EGRESS_UNACKNOWLEDGED = "open_egress_unacknowledged"
+#: ``[sandbox] placement`` names a host this dispatch cannot be put on now —
+#: every instance is at ``max_runs``, or the run is one no instance
 #: can carry (a sidecar transport, or a model credential this machine does not
 #: hold). Its own token: the boundary is not missing and this host is not out
 #: of disk — the run has nowhere to go *yet*, and the fix is to wait, free an
@@ -1707,9 +1840,9 @@ REFUSAL_PLACEMENT_UNAVAILABLE = "placement_unavailable"
 #: A validated ``[sandbox] runtime`` name kew cannot launch into. Its own
 #: token, not ``runtime_unavailable``: the host is not missing a runtime, kew
 #: is missing the boundary it was told to use, and the two need different
-#: fixes. ``openshell`` carried this token until epic node N6 gave it a launch
-#: path (:mod:`kew.openshell_launch`); it remains the refusal for any name
-#: ``kew.config`` starts accepting before this build can launch into it.
+#: fixes. It is the refusal for any name ``kew.config`` accepts before this
+#: build can launch into it, and on ``openshell`` for a dispatch shape or
+#: runner the gateway path cannot serve.
 REFUSAL_OPENSHELL_UNAVAILABLE = "openshell-runtime-unavailable"
 #: No fresh passing egress certification matches the OpenShell boundary this
 #: dispatch would launch. Its own token, distinct from the two refusals it
@@ -1723,9 +1856,8 @@ REFUSAL_OPENSHELL_UNCERTIFIED = "openshell-egress-uncertified"
 #: ``kew sandbox certify`` to probe and nothing it could ever prove. Its own
 #: token because the remedy is the opposite one: every other uncertified cause
 #: is cleared by running that command, and this one is cleared only by kew
-#: packaging a policy — ``pi`` and ``hermes`` used to be refused as
-#: ``openshell-egress-uncertified`` and told to run a command that cannot
-#: succeed for them (#2435).
+#: packaging a policy, so it must not send the operator to a command that
+#: cannot succeed.
 REFUSAL_OPENSHELL_POLICY_UNPACKAGED = "openshell-policy-unpackaged"
 
 #: On the OpenShell runtime a credential lives in a gateway PROVIDER, not in
@@ -1736,16 +1868,14 @@ REFUSAL_OPENSHELL_POLICY_UNPACKAGED = "openshell-policy-unpackaged"
 REFUSAL_BROKER_PROVIDER_MISSING = "broker_provider_missing"
 
 #: Ledger posture for a run the operator deliberately took outside containment
-#: (``dangerously_skip_containment``). Distinct from the old ``"guard-only"``
-#: and ``"disabled"`` tokens ON PURPOSE: those recorded the same host execution
-#: as a downgrade or a config state, so the chain could not distinguish a
-#: machine that quietly lacked Docker from an operator who chose the risk. A
-#: query for "which runs had no container boundary" now has one answer.
+#: (``dangerously_skip_containment``). Its own token ON PURPOSE: host
+#: execution is never recorded as a downgrade or a config state, so the chain
+#: tells a host that lacked Docker apart from an operator who chose the risk.
 POSTURE_UNCONTAINED = "uncontained"
 
 #: Banner for every uncontained dispatch. Deliberately not a one-line notice:
-#: the previous downgrade printed one line among many and was routinely missed,
-#: which is how operators ended up uncontained without knowing.
+#: one line among many is easily missed, and no operator may run uncontained
+#: without knowing.
 UNCONTAINED_BANNER = "\n".join(
     (
         "=" * 72,
@@ -1765,19 +1895,19 @@ UNCONTAINED_BANNER = "\n".join(
 
 class SandboxRuntimeUnavailable(RuntimeError):
     """Raised when a fail-closed sandbox posture cannot be satisfied — the
-    runtime is missing, or no agent credential is in the environment (#732).
+    runtime is missing, or no agent credential is in the environment.
 
-    Subclasses RuntimeError so callers with the old ``except RuntimeError``
-    fail-closed handling keep working.
+    Subclasses RuntimeError so callers' ``except RuntimeError`` fail-closed
+    handling catches it.
 
     Carries the machine-readable ``reason`` (one of the ``REFUSAL_*`` tokens)
     plus whatever containment facts WERE resolved before the refusal:
     ``runtime`` is the detected runtime (present for every cause except a
     missing runtime) and ``image`` the runner's mapped image (present once
-    resolution got that far). Both default to ``None`` so the pre-#1144 raise
-    sites keep working, and both exist so a refusal attests what it actually
+    resolution got that far). Both default to ``None`` for raise sites that
+    resolved neither, and both exist so a refusal attests what it actually
     saw — a refusal that happened *because* a runtime was present must not be
-    recorded as runtime-null (#1144 review).
+    recorded as runtime-null.
     """
 
     #: Cause attested when a raise site does not name one. Each subclass has
@@ -1800,13 +1930,13 @@ class SandboxRuntimeUnavailable(RuntimeError):
 
 class SandboxImageUnmapped(SandboxRuntimeUnavailable):
     """Raised when a dispatch must be contained but its resolved runner has no
-    container image mapped (#1144).
+    container image mapped.
 
     Subclasses :class:`SandboxRuntimeUnavailable` so every existing fail-closed
     handler covers it — an unmapped runner is a reason not to launch, exactly
     like a missing runtime. It is NEVER a reason to fall back to the claude
-    image: that fallback is the #1104 incident (an opencode node handed an
-    OpenRouter model string to the claude CLI, 404 in 1.3s).
+    image: that fallback hands the claude CLI a model string meant for another
+    runner's provider.
     """
 
     _DEFAULT_REASON = REFUSAL_IMAGE_UNMAPPED
@@ -1815,10 +1945,10 @@ class SandboxImageUnmapped(SandboxRuntimeUnavailable):
 class SandboxCredentialUndeclared(SandboxRuntimeUnavailable):
     """Raised when a runner has a mapped image but declares no in-container
     credential (an empty ``required_credentials``), so nothing it can
-    authenticate with would be forwarded into the container (#1144).
+    authenticate with would be forwarded into the container.
 
     Mapping an image is not enough to contain a runner: ``build_run_argv``
-    forwards exactly the runner's OWN declared names (#1146), so a runner that
+    forwards exactly the runner's OWN declared names, so a runner that
     declares none — lemonade, whose endpoint is host-local, or a runner kew does
     not know — would start with no provider credential and fail to authenticate.
     Refusing is the fail-closed answer; borrowing another runner's credential is
@@ -1832,7 +1962,7 @@ class SandboxProxyUnparseable(SandboxRuntimeUnavailable):
     """An inherited proxy URL does not parse, so its userinfo cannot be redacted.
 
     Only the complete value is recognized in agent output then, and a password
-    the agent prints on its own survives redaction (re-audit F10, 2026-09-22).
+    the agent prints on its own survives redaction.
     The launch is refused; the message names the variable, never its value.
     """
 
@@ -1924,8 +2054,9 @@ def resolve_runner_image(config: SandboxConfig, runner: str) -> str:
     Resolution order:
     1. ``[sandbox] images.<runner>`` — the explicit per-runner mapping.
     2. ``[sandbox] image`` — but only for :data:`DEFAULT_IMAGE_RUNNER`, since
-       the stock kew-agent image ships only the claude CLI. This is the
-       back-compat path for the committed configs that predate the map.
+       the stock kew-agent image ships only the claude CLI. This is how
+       claude-code gets an image when ``images`` has no entry for it: the
+       configured ``image``, or its built-in default.
     3. Otherwise raise :class:`SandboxImageUnmapped`.
 
     Shared by dispatch and the reviewer launcher so the two cannot diverge on
@@ -1953,8 +2084,7 @@ class SandboxDecision:
     ``posture`` is the ledger token: ``"sandboxed"`` (container-contained),
     ``"native"`` (contained by the runner itself), or ``"uncontained"`` (host
     execution explicitly admitted with ``dangerously_skip_containment``; see
-    :data:`POSTURE_UNCONTAINED` for why the old ``"guard-only"`` and
-    ``"disabled"`` tokens are gone).
+    :data:`POSTURE_UNCONTAINED` for why it is a token of its own).
 
     ``image`` is the container image resolved for THIS dispatch's runner, and
     is the only image a caller may launch (``None`` when not contained). Both
@@ -2043,22 +2173,21 @@ def _runtime_label(resolved: str, config: SandboxConfig) -> str:
 def _require_containable_runner(
     config: SandboxConfig, runner: str, *, runtime: str | None
 ) -> str:
-    """Return ``runner``'s image, or refuse to contain it (#1144).
+    """Return ``runner``'s image, or refuse to contain it.
 
     ``runtime`` is the runtime label already detected by the caller; it rides on
     whichever refusal is raised so the audit ledger attests that a runtime WAS
     present — a refusal recorded as runtime-null is indistinguishable from the
-    no-runtime refusal it is the opposite of (#1144 review).
+    no-runtime refusal it is the opposite of.
 
     Both refusals raise even under ``enabled="auto"``, and deliberately so. The
     runtime is present, so this host CAN contain, and ``auto`` means "contain
     when the host can" — not "contain the runners kew happens to know about".
     Downgrading a containment-capable host to an uncontained run because of a
     gap on *kew's* side — an unmapped image, an undeclared credential — is a
-    posture drop no operator asked for, riding a warning line in a driver log
-    (#1089: guard-only non-claude was 3-for-3 on root-checkout residue). The
-    refusal is still per-dispatch: sibling claude nodes in the same epic keep
-    dispatching contained, so this is not the old all-or-nothing posture.
+    posture drop no operator asked for, riding a warning line in a driver log.
+    The refusal is per-dispatch: sibling claude nodes in the same epic keep
+    dispatching contained.
 
     The credential refusal is asked only where the credential travels in the
     agent's ENVIRONMENT. On the brokered runtime it does not: the gateway holds
@@ -2066,7 +2195,7 @@ def _require_containable_runner(
     and the sandbox is handed placeholders. An empty ``required_credentials``
     is therefore not a gap there but the accurate declaration — ``codex``
     authenticates through the ChatGPT-mode ``auth.json`` the in-sandbox
-    launcher writes, with no env name to forward (epic node N10) — and whether
+    launcher writes, with no env name to forward — and whether
     anything can authenticate the launch is answered by
     :func:`~kew.openshell_broker.brokered_admission` a few lines above the
     caller's own credential check, which refuses as ``broker_provider_missing``
@@ -2098,12 +2227,9 @@ def _require_containable_runner(
 def _uncontained_decision(because: str) -> SandboxDecision:
     """The one shape every uncontained outcome takes.
 
-    Single constructor on purpose. Uncontained execution used to be reachable
-    from three places — ``enabled = false``, no runtime, no credential — each
-    building its own decision with its own posture token and its own one-line
-    notice. Three spellings of "the agent is on your host" meant no single
-    place to attach the banner, and no single ledger token to query. Anything
-    that skips the boundary comes through here or it does not happen.
+    Single constructor on purpose: one place to attach the banner and one
+    ledger token to query. Anything that skips the boundary comes through here
+    or it does not happen.
     """
     return SandboxDecision(
         sandboxed=False,
@@ -2152,11 +2278,11 @@ def _credential_missing_outcome(
     brokered: ProviderAdmission | None = None,
 ) -> SandboxDecision:
     """Refuse — or, if explicitly opted out, go uncontained — when ``runner``'s
-    own credential is absent (#1146).
+    own credential is absent.
 
     The runtime is present and the runner is containable, but none of the names
     it authenticates with is in the environment — so the container would come up
-    "Not logged in" and burn the dispatch at $0 (#721). The message is
+    "Not logged in" and burn the dispatch at $0. The message is
     provider-specific (:func:`credential_missing_message`): claude is told about
     ``claude setup-token``, an OpenRouter-backed runner about
     ``OPENROUTER_API_KEY``, rather than every runner being told about claude's.
@@ -2195,7 +2321,7 @@ def resolve_effective_sandbox(
     """Resolve containment using only the runner's own host credentials.
 
     ``store`` is the ledger the OpenShell egress gate reads its certification
-    from; without one an OpenShell resolution is refused (#2319).
+    from; without one an OpenShell resolution is refused.
 
     ``direct`` is ``transport.mode == "direct"``
     (:func:`kew.inference_transport.direct_route`), and defaults to the answer
@@ -2309,15 +2435,15 @@ def require_certified_boundary(
     does, so it is checked.
 
     Public because the remediation flows resolve containment through their own
-    decision module and have to apply the SAME rule: before the #2389 review
-    they returned a sandboxed OpenShell posture with this gate never consulted.
+    decision module and have to apply the SAME rule, or they would return a
+    sandboxed OpenShell posture this gate never consulted.
 
     ``flow`` names which boundary on this runtime is being claimed. It defaults
     to the dispatch one because that is what every caller but the adversarial
     reviewer resolves; the reviewer passes
     :data:`~kew.openshell_egress.REVIEW_FLOW`, so the proof it demands is bound
     to the reviewer's own policy digest and a dispatch certification cannot
-    satisfy it (epic node N12).
+    satisfy it.
     """
     if config.runtime == OPENSHELL_RUNTIME:
         require_openshell_egress_certification(
@@ -2333,11 +2459,10 @@ def _require_packaged_openshell_policy(
     Asked first, and before the ledger: whether kew packages a policy for a
     runner is a fact about the build, and no ledger, image mapping or
     certification run changes the answer. Reached through the egress gate
-    because it is the same question one step earlier — ``pi`` and ``hermes``
-    have images an operator can map and credentials kew declares, so they got
-    all the way to the certification match, failed it on the absent policy
-    file, and were refused as ``openshell-egress-uncertified`` with a
-    ``kew sandbox certify`` that cannot succeed for them (#2435).
+    because it is the same question one step earlier: a runner with a mappable
+    image and declared credentials but no policy would otherwise fail the
+    certification match and be sent to a ``kew sandbox certify`` that cannot
+    succeed for it.
 
     The message names the missing policy and deliberately names no command:
     there is nothing the operator can run to produce one.
@@ -2373,7 +2498,7 @@ def require_openshell_egress_certification(
 ) -> None:
     """Refuse an OpenShell dispatch whose boundary has no fresh passing proof.
 
-    Admission must not claim a boundary it has not seen hold (#2319). The proof
+    Admission must not claim a boundary it has not seen hold. The proof
     is the certification ``kew sandbox certify`` appends, matched on the exact
     tuple a dispatch would launch — this runner's immutable image ID, the byte
     digest of the policy it runs under, the gateway version that enforces it,
@@ -2393,7 +2518,7 @@ def require_openshell_egress_certification(
     ``flow`` selects the policy whose digest the proof must be bound to, and so
     WHICH boundary is being proven. The remedy names the same flow, because a
     reviewer refused for want of a review certification must not be sent to run
-    the dispatch certify it may already have (epic node N12).
+    the dispatch certify it may already have.
     """
     from kew.audit import EgressCertificationUnavailable
     from kew.egress_certification import file_digest
@@ -2461,7 +2586,7 @@ def require_openshell_boundary_match(
     and by the launch itself (:mod:`kew.openshell_launch`): the gateway's
     version and identity are read from the SAME client the caller is about to
     use, so a proof taken against one gateway cannot clear a sandbox created on
-    another (#2624). Raises
+    another. Raises
     :class:`~kew.audit.EgressCertificationUnavailable` or the gateway's own
     error; the caller decides which refusal it becomes.
     """
@@ -2585,10 +2710,9 @@ def _require_launchable_boundary(
     questions. ``openshell`` admits the runtime through
     :func:`require_launchable_runtime`, but a launch there also needs a
     dispatch shape and a runner the gateway path can serve
-    (:func:`_refuse_unlaunchable_openshell`) — and each of those used to
-    resolve ``sandboxed`` here, record that posture on the chain, and only then
-    be refused at the gateway seam. Asked here so the refusal arrives before
-    any sandboxed posture is attested, with the runtime's own cause.
+    (:func:`_refuse_unlaunchable_openshell`). Asked here so the refusal arrives
+    before any sandboxed posture is attested, with the runtime's own cause,
+    rather than at the gateway seam after ``sandboxed`` is on the chain.
 
     The skip flag is not consulted, for the reason the runtime check does not
     consult it either: naming a runtime is asking for containment, and
@@ -2634,12 +2758,12 @@ def _offered_runtime(
     The question :meth:`~kew.runners.protocol.AgentRunner.containment_posture`
     is asked with, and it is NOT the configured runtime name. A runner may
     decline its own posture in favour of kew's boundary on a runtime
-    (``codex`` under ``openshell``, epic node N10), and handing it a name kew
+    (``codex`` under ``openshell``), and handing it a name kew
     is not going to launch into turns that deferral into a refusal of a run
     the runner contains perfectly well: the remediation flows
     (``kew review``, ``kew resolve``, ``kew ci-fix``, an epic's plan run) and
     every sidecar topology reach this resolver with ``openshell`` configured
-    and no launch path on it (PR #2461 review round 2).
+    and no launch path on it.
 
     ``None`` — kew is offering nothing — on each way that can be true:
 
@@ -2650,9 +2774,9 @@ def _offered_runtime(
       very checkout the operator asked to keep, which is why
       :func:`kew.dispatch_core._ensure_host_only_sandbox_posture` refuses a
       sandboxed decision there. Without this arm a ``codex`` continuation on
-      this runtime resolved ``sandboxed`` and was then refused
-      ``continuation_host_only``, where the same continuation on docker ran
-      ``native`` (PR #2461 review round 3).
+      this runtime would resolve ``sandboxed`` and then be refused
+      ``continuation_host_only``, where the same continuation on docker runs
+      ``native``.
     - a runtime this build cannot launch an agent into at all.
     - on the gateway runtime, a dispatch SHAPE with no launch path
       (:func:`~kew.openshell_launch.gateway_launch_refusal`) or a runner with
@@ -2667,7 +2791,7 @@ def _offered_runtime(
       opt-in the configured name is answered as configured: the operator asked
       for containment by naming the runtime, so ``codex`` under ``openshell``
       on a host with no gateway CLI falls through to the refusal naming the
-      missing runtime instead of quietly running ``native`` (#2623). Probed
+      missing runtime instead of quietly running ``native``. Probed
       LAST, after the facts that cost nothing, so detection happens only on a
       dispatch kew was otherwise about to contain.
 
@@ -2745,13 +2869,12 @@ def _resolve_effective_sandbox(
     """Resolve the effective sandbox posture for ``runner``'s dispatch.
 
     ``runner`` is the ALREADY-RESOLVED runner name (``resolve_runner()`` runs
-    first at the dispatch call site). It is required, not defaulted: the
-    decision keying off runtime+credential alone is what let the #1104 opencode
-    node be contained in the claude-only image because a sibling claude node's
-    token happened to be in the driver env.
+    first at the dispatch call site). It is required, not defaulted: a
+    decision keyed off runtime+credential alone would contain one runner in
+    another's image whenever a sibling node's token is in the driver env.
 
     Nothing here reaches host execution unless ``dangerously_skip_containment``
-    is set. Every branch that once downgraded now raises instead, and the
+    is set. Every branch that would downgrade raises instead, and the
     operator opts in by name or not at all.
 
     - runner declares native containment FOR THIS RUNTIME: use its hardened
@@ -2761,7 +2884,7 @@ def _resolve_effective_sandbox(
       never asked for the skip flag. The declaration is asked with the runtime
       kew would actually launch THIS dispatch into (:func:`_offered_runtime`),
       so a runner that contains itself on one runtime and defers to kew's
-      boundary on another (``codex`` under ``openshell``, epic node N10) falls
+      boundary on another (``codex`` under ``openshell``) falls
       through to the container branches below — but only where that boundary
       is really on offer for this dispatch.
     - ``enabled=False``: uncontained by request. Requires
@@ -2777,7 +2900,7 @@ def _resolve_effective_sandbox(
       to the claude image.
     - runtime found, runner declares a credential, but it is NOT in the
       environment and no selected sidecar supplies that credential: containers
-      cannot inherit CLI login (#721). Raise, naming how to provision it — the
+      cannot inherit CLI login. Raise, naming how to provision it — the
       machine *can* contain, so leaving containment over a fixable credential
       gap trades a solvable problem for an unsolvable one.
       ``dangerously_skip_containment`` still takes the host path if that is
@@ -2856,15 +2979,9 @@ def _resolve_effective_sandbox(
             )
         return _uncontained_decision("[sandbox] enabled = false")
 
-    # Checked before the launch-path gate and before the probe this resolution
-    # acts on, and deliberately in that order: the certification is a statement
-    # about the BOUNDARY, which exists on this host whether or not this build
-    # can launch THIS dispatch into it, and it is the OpenShell refusal an
-    # operator can clear with a shipped command. A dispatch that got past this
-    # gate and then hit a launch-path refusal (a runner, topology or flow the
-    # gateway path cannot serve) has been told two true things in the order it
-    # can act on them; the reverse order would hide the egress gate behind a
-    # build limitation and leave it untested on those shapes (#2319).
+    # Before the launch-path gate and the probe this resolution acts on:
+    # certification is a fact about the BOUNDARY, clearable with a shipped
+    # command, and the reverse order would hide this gate behind a build limit.
     #
     # `_offered_runtime` above does consult `detect_runtime_cached` — a cached
     # `shutil.which`, which refuses nothing and attests nothing — and that is
@@ -2883,10 +3000,10 @@ def _resolve_effective_sandbox(
     #
     # `require_launchable_runtime`, NOT `require_backed_runtime`: on
     # `openshell` kew owns the gateway client and the sandbox it creates for
-    # the length of one dispatch (`kew.openshell_launch`, epic node N6) while
+    # the length of one dispatch (`kew.openshell_launch`) while
     # still being unable to answer, from a sweep holding only a run row,
     # whether that sandbox is running. Gating admission on the second fact
-    # refused a boundary kew really can hold. The rest of the same question is
+    # would refuse a boundary kew really can hold. The rest of the same question is
     # asked there too — this dispatch's SHAPE (a sidecar topology, a flow that
     # launches its agent as a container argv, or a Switchyard transport whose
     # endpoint the gateway exec cannot deliver) and this RUNNER's program and
@@ -2905,11 +3022,9 @@ def _resolve_effective_sandbox(
         # describe the same host in the same currency.
         image = _require_containable_runner(config, runner, runtime=config.runtime)
         required = runner_credential_env_vars(runner)
-        # Asked ONCE, and only on the brokered runtime (``None`` elsewhere). The
-        # refusal below explains this same answer rather than putting a second
-        # question to the gateway, whose reply can disagree with the one that
-        # refused — a provider created between the two calls used to produce a
-        # refusal saying the gateway holds the provider it was refusing over.
+        # Asked ONCE, and only on the brokered runtime (``None`` elsewhere): the
+        # refusal below explains this answer, because a second gateway query
+        # can disagree with it if a provider is created in between.
         brokered = brokered_admission(
             config,
             runner,
@@ -2923,7 +3038,7 @@ def _resolve_effective_sandbox(
                 config, runner, required, image=image, brokered=brokered
             )
         # Refuse here, before any sandboxed posture is recorded, so the
-        # refusal is attested with its own cause (PR #1984 review round 4).
+        # refusal is attested with its own cause.
         _require_parseable_inherited_proxies(
             _proxy_variable_actions(config.proxy_environment)["inherited"],
             runtime=config.runtime,
@@ -2941,10 +3056,8 @@ def _resolve_effective_sandbox(
             image=image,
         )
 
-    # Runtime missing. This is the branch that used to downgrade in silence:
-    # `auto` on a machine without Docker ran the agent on the host and said so
-    # in one line. Naming the two ways forward is the whole point — an operator
-    # who wants the host path can have it, by asking for it.
+    # Runtime missing: refuse, naming the two ways forward — an operator who
+    # wants the host path can have it, by asking for it.
     if not config.dangerously_skip_containment:
         install = (
             "Install the OpenShell CLI (`openshell` on PATH)"
@@ -3048,7 +3161,7 @@ def resource_caps(config: SandboxConfig | None = None) -> ResourceCaps:
 def resource_limit_args(
     runtime: str = "docker", caps: ResourceCaps | None = None
 ) -> list[str]:
-    """The hard resource caps every kew container carries (S3, #1431).
+    """The hard resource caps every kew container carries.
 
     One list, shared by the agent and extraction argvs, because a cap that
     exists on only one of them is a cap an attacker picks the other container
@@ -3200,7 +3313,7 @@ def check_runtime_memory_capacity(
     measure (:func:`_attested_caps`) and no daemon to ask for a total, so the
     preflight could only run ``openshell info`` — a subcommand the CLI does not
     have — and print a "docker info did not return MemTotal" line about a cap
-    that was never going to be set (PR #2401 review).
+    that was never going to be set.
     """
     if runtime == OPENSHELL_RUNTIME:
         return
@@ -3322,16 +3435,16 @@ def build_run_argv(
 
     Only mounts checkout_dir, plus any ``read_only_mounts`` the caller names
     (``(host_dir, container_path)``, bound ``:ro`` beneath the checkout — the
-    reviewer's host-built frontend dependencies, #2559). No host credential
+    reviewer's host-built frontend dependencies). No host credential
     FILES, ~/.claude, or dispatch.db. Agent credentials are passed by name
     only — values inherited from the caller's env; an unset name stays unset
     in the container.
 
-    ``runner`` keys the credential env allowlist (#1146) and is REQUIRED, with
+    ``runner`` keys the credential env allowlist and is REQUIRED, with
     no default: the injected names are exactly
     ``runner_credential_env_vars(runner)``, so a contained run sees its own
     provider's credentials and no other runner's. A default here would silently
-    re-create the claude-only injection this replaced — an opencode container
+    hand one runner's credentials to another's container — an opencode container
     handed ``CLAUDE_CODE_OAUTH_TOKEN`` can spend the operator's Anthropic
     subscription, which is exactly the surface the allowlist exists to close.
     Widening a runner's declaration must not widen HOW credentials travel: the
@@ -3358,11 +3471,11 @@ def build_run_argv(
     charset.
 
     Resource caps come from :func:`resource_limit_args`, and the two tmpfs
-    mounts carry explicit sizes (#1431). Containment without them stops the
+    mounts carry explicit sizes. Containment without them stops the
     agent leaving the box but not taking the host down from inside it.
 
     ``caps`` is the effective cap set (:func:`resource_caps` of the operator's
-    ``[sandbox]`` block, #2360), which may be LOWER than this module's
+    ``[sandbox]`` block), which may be LOWER than this module's
     ceilings and is never higher. Omitted, it is the ceilings — so a caller
     that forgets it gets today's argv rather than an uncapped container.
 
@@ -3435,22 +3548,18 @@ def build_run_argv(
         "--security-opt",
         "no-new-privileges",
         "--read-only",
-        # `size=` is the cap (#1431): a tmpfs is host RAM, so an unsized one is
+        # `size=` is the cap: a tmpfs is host RAM, so an unsized one is
         # an unmetered second route to the exhaustion --memory closes. No
         # `exec` option — /tmp keeps Docker's default noexec.
         "--tmpfs",
         f"/tmp:size={effective.tmp_tmpfs}",  # nosec B108 - in-container mount point, not a host temp path
-        # Writable ephemeral HOME for the agent user (#742): the read-only
-        # root made Claude Code's Bash tool fail shell-init (EROFS mkdir
-        # ~/.claude) on every invocation — the agent could not run git or
-        # tests. uid/gid/mode pin it to the image's `agent` user (uid 1001,
-        # docker/agent.Dockerfile); contents die with the container.
+        # Writable ephemeral HOME for the agent user: on the read-only root
+        # Claude Code's Bash tool fails shell-init (EROFS on ~/.claude). Pinned
+        # to the image's `agent` user (uid 1001); contents die with the container.
         #
-        # `exec` overrides Docker's default `noexec` for this tmpfs (#762): so
-        # tooling an agent installs into HOME (uv-managed binaries, npm globals)
-        # is runnable there, instead of being forced into the bind-mounted /work
-        # where it litters the checkout. /tmp keeps the default noexec — only
-        # HOME opts in. Still ephemeral, still uid-pinned; containment holds.
+        # `exec` overrides Docker's default `noexec` here, so tooling installed
+        # into HOME (uv binaries, npm globals) runs without littering /work.
+        # /tmp keeps noexec; only HOME opts in.
         "--tmpfs",
         (
             f"{AGENT_HOME}:exec,size={effective.home_tmpfs},"
@@ -3459,26 +3568,21 @@ def build_run_argv(
         *limit_args,
         *entrypoint_args,
         "-v",
-        # Anchored to an absolute path: the docker CLI expands a dot-prefixed
-        # relative bind source (`./x`, `.wt/x`) against its own cwd before
-        # the daemon sees it, and the launcher runs the CLI with
-        # cwd=checkout_dir, so a relative checkout (the review clone at
-        # `.worktrees/review/pr-N`) mounted a fresh empty directory nested
-        # inside itself — the container saw no prompt file and the
-        # entrypoint refused with exit 64 (#1663).
+        # Absolute: the docker CLI expands a dot-prefixed relative bind source
+        # against its own cwd (checkout_dir here), so a relative checkout would
+        # mount an empty directory nested in itself and the entrypoint exits 64.
         f"{Path(checkout_dir).absolute()}:{WORK_MOUNT_PATH}",
         *extra_mount_args,
         "-w",
         WORK_MOUNT_PATH,
-        # Not a credential: the guard's agent marker, as the container path
-        # (#1691). Set for every runner, before the credential surface, so
-        # the guard scopes its agent-only rules to this checkout in-container
-        # exactly as it does on the host.
+        # Not a credential: the guard's agent marker as the container path, for
+        # every runner and before the credential surface, so the guard scopes
+        # its agent-only rules to this checkout in-container as on the host.
         "-e",
         f"{AGENT_MARKER_ENV}={WORK_MOUNT_PATH}",
         "-e",
         f"{STARTUP_NONCE_ENV}={uuid.uuid4().hex}",
-        # Not a credential: test pools sized to --cpus, not the host (#2887).
+        # Not a credential: test pools sized to --cpus, not the host.
         *worker_pool_environment_args(limit_args),
         # Reusable credential values never reach argv. Sidecar workers receive
         # one fresh synthetic client value and their verified endpoint here.
@@ -3515,7 +3619,7 @@ def build_extract_argv(
     uid: int,
     gid: int,
 ) -> list[str]:
-    """The container-run argv for ONE extraction (W1.1 D3, contract element 6).
+    """The container-run argv for ONE extraction (contract element 6).
 
     A second container over the finished checkout, not a change to the agent
     entrypoint: extraction is additive, can fail without touching the run, and
@@ -3527,8 +3631,8 @@ def build_extract_argv(
     * ``--network none``. The agent needs egress; extraction needs none at all,
       so it gets none rather than the allowlist.
     * **No runner credential environment.** Nothing here reads a model.
-      Proxy variables follow the explicitly supplied dispatch policy, including
-      proxy userinfo when the operator selects ``inherit``.
+      Proxy variables are blanked: :func:`build_checkout_program_argv` passes
+      ``none`` whatever the dispatch's proxy policy.
     * **The checkout is mounted read-only.** Extraction reads committed objects
       and writes only to ``/artifact``.
     * ``kew-extract-<slug>``, not ``kew-<slug>``: a name collision with the
@@ -3540,7 +3644,7 @@ def build_extract_argv(
     equal to ``build_run_argv``'s by test rather than factored into a common
     helper, because that function's argv is contractually byte-stable and a
     refactor to share five flags is not worth reordering it. The resource caps
-    (#1431) are the exception: they come from :func:`resource_limit_args` in
+    are the exception: they come from :func:`resource_limit_args` in
     both, because a cap present on only one container is a cap an attacker
     avoids by choosing the other one.
 
@@ -3548,8 +3652,7 @@ def build_extract_argv(
     read, so writing it as anyone else means either a dir the host cannot read
     or one loosened until it can. Matching uid also settles git's dubious-
     ownership check on the mounted checkout instead of working around it.
-    ``runtime`` stays the BARE name from config for the subprocess allowlist —
-    the same #1017 invariant ``build_run_argv`` documents.
+    ``runtime`` stays the BARE name from config for the subprocess allowlist.
     """
     if not _FULL_OID.fullmatch(base_sha):
         # argv is a list, so there is no shell to inject into — but the producer
@@ -3593,8 +3696,7 @@ def build_checkout_program_argv(
     These launches take no proxy policy.
     Every proxy variable receives an empty assignment: they carry
     ``--network none``, so a forwarded proxy value can never be used and only
-    puts its embedded credentials inside the container (governed review round
-    4, 2026-09-21).
+    puts its embedded credentials inside the container.
     """
     if not program:
         raise ValueError("checkout program must not be empty")
@@ -3804,7 +3906,7 @@ class _StreamGuard:
         )
 
 
-# ── cgroup OOM identification (#1767) ────────────────────────────────────────
+# ── cgroup OOM identification ────────────────────────────────────────────────
 # A container the kernel OOM-kills exits 137 — the same code as the wall-clock
 # ``timeout -k``, as the watchdog's own ``docker kill``, and as an in-container
 # SIGKILL. ``docker inspect`` would settle it (``State.OOMKilled``), but every
@@ -3876,10 +3978,9 @@ def oom_cap_reason(limit: str | None = None) -> str:
     """The cap reason a confirmed OOM event names, under the current limit.
 
     *limit* is read off the launch argv by the caller, because the cap an
-    operator lowered (#2360) is the cap the kernel enforced: naming this
+    operator lowered is the cap the kernel enforced: naming this
     module's ceiling instead would tell the operator their 3 GiB container
-    died at 8 GiB. Falls back to the ceiling when the argv is unavailable —
-    the same value this reported before there was anything to lower.
+    died at 8 GiB. Falls back to the ceiling when the argv is unavailable.
     """
     return OOM_CAP_REASON_TEMPLATE.format(limit=limit or _MEMORY_LIMIT)
 
@@ -4017,7 +4118,7 @@ def is_startup_ack(line: str) -> bool:
     The WHOLE line must be an acknowledgement: the prefix and one nonce-shaped
     token. A prefix match would also drop a line the reviewed code began with
     the prefix and left without a newline, together with whatever the agent
-    wrote next, which could be the reviewer's result event (#2021).
+    wrote next, which could be the reviewer's result event.
     """
     return _STARTUP_ACK_LINE.fullmatch(line) is not None
 
@@ -4151,23 +4252,23 @@ hold the stream consumer forever.
 
 
 class ContainerStderrDrain:
-    """The container's stderr on its OWN pipe, off the verdict path (#2053).
+    """The container's stderr on its OWN pipe, off the verdict path.
 
     The runtime client merges the container's stderr into the pipe carrying its
     stdout unless it is given a second one. For a governed review that merge is
     a correctness bug: the verdict is the reviewer's typed terminal event as the
-    host reads the stream (#2021), and any line that is not a typed event fails
-    the round (#2047) — so one stray runtime warning from the reviewed code
-    failed an otherwise genuine round. With a second pipe only the agent's own
-    stdout reaches the review capture.
+    host reads the stream, and any line that is not a typed event fails the
+    round — so one stray runtime warning from the reviewed code would fail an
+    otherwise genuine round. With a second pipe only the agent's own stdout
+    reaches the review capture.
 
     A second pipe must be READ: an undrained one blocks the container as soon as
     the kernel buffer fills, so the lines are pulled off by a thread. Nothing
     here is verdict-bearing evidence — the text is counted and dropped, exactly
     as the sanitized operational log already dropped it, so a flood on stderr
-    grows no host memory (it also no longer trips the transcript cap, which
+    grows no host memory (nor does it count toward the transcript cap, which
     bounds what the host reads AS the agent's stream). The two RUNTIME facts
-    the merged stream used to carry are handed to *observer* (the handle that
+    stderr carries are handed to *observer* (the handle that
     already derives them): the daemon's CPU-cap refusal and the entrypoint's
     pre-acknowledgement diagnostic.
     """
@@ -4238,7 +4339,7 @@ class ContainerHandle:
     wait() for the exit code, and kill() that issues `docker kill <id>`.
 
     Iteration also ENFORCES the three resource caps that have no Docker flag
-    (#1431) — wall clock, transcript bytes, and the bind-mounted checkout's
+    — wall clock, transcript bytes, and the bind-mounted checkout's
     quota. On a breach it kills the container, yields one
     :data:`RESOURCE_CAP_EVENT` line naming the reason, and stops. *checkout_dir*
     is normally derived from the launch argv's ``/work`` bind mount, so callers
@@ -4324,8 +4425,7 @@ class ContainerHandle:
         self._reaper_thread: threading.Thread | None = None
         self._diagnostic_tail = DiagnosticTail()
         # A separated stderr pipe is drained from the moment the client is
-        # spawned; the iterable below yields the container's stdout alone
-        # (#2053).
+        # spawned; the iterable below yields the container's stdout alone.
         self._stderr_drain = (
             ContainerStderrDrain(self.observe_client_diagnostic)
             if separate_stderr
@@ -4345,7 +4445,7 @@ class ContainerHandle:
 
     @property
     def diagnostic_lines(self) -> list[str]:
-        """The separated stderr pipe's last lines, redacted (#2887)."""
+        """The separated stderr pipe's last lines, redacted."""
         self._settle_stderr_drain()
         return self._diagnostic_tail.lines()
 
@@ -4361,7 +4461,7 @@ class ContainerHandle:
         deliberately derives less than :meth:`observe_workload_output`: a
         startup acknowledgement and an agent event are the agent's own stdout,
         so stderr can neither start a workload nor be an agent event. What it
-        keeps is what the merged pipe used to give the host — the daemon's
+        keeps is what stderr carries for the host — the daemon's
         CPU-cap maximum, which drives the one relaunch, and the entrypoint's
         pre-acknowledgement diagnostic.
         """
@@ -4515,7 +4615,7 @@ class ContainerHandle:
 
         A handle given neither a cidfile nor an id can never record one, so no
         kill could ever be sent: the reaper stops at once rather than polling a
-        client forever (#3375). The interval is an :class:`threading.Event`
+        client forever. The interval is an :class:`threading.Event`
         wait, which no patched ``time.sleep`` can turn into a spin.
         """
         interval = threading.Event()
@@ -4701,7 +4801,7 @@ class ContainerHandle:
         governed review counts any unparsed line against the round. When no
         retry launches, the line is yielded as the launch's failure.
 
-        A launch that separated stderr (#2053) never carries the refusal in this
+        A launch that separated stderr never carries the refusal in this
         stream at all: the drain observes it, reports it to the operator, and
         the retry decision below reads it from there.
 
@@ -4718,8 +4818,8 @@ class ContainerHandle:
                     held = line
                 else:
                     yield line
-            # A separated stderr pipe carries the refusal instead of the stream
-            # (#2053): its drain must be settled before the retry decision, and
+            # A separated stderr pipe carries the refusal instead of the
+            # stream: its drain must be settled before the retry decision, and
             # it is cleared by the relaunch, not by this loop, so a refusal seen
             # before the first read is not discarded.
             self._settle_stderr_drain()
@@ -4758,7 +4858,7 @@ class ContainerHandle:
         """
         exit_code = self._proc.wait(timeout=timeout)
         # Both pipes close with the client, so the drain is at EOF by now:
-        # settle it before the startup facts below are read off it (#2053).
+        # settle it before the startup facts below are read off it.
         self._settle_stderr_drain()
         self.finish_startup_observation()
         self._cache_container_id()
@@ -4780,7 +4880,7 @@ class ContainerHandle:
         # container or exec that merely started proves the wrapper ran, never
         # the agent. tests/test_entrypoint_contract.py pins that argv shape, so
         # an exec that skipped the entrypoint would fail there rather than run
-        # without startup evidence (governed review round 2, 2026-09-21).
+        # without startup evidence.
         self._cache_container_id()
         return False
 
@@ -5044,7 +5144,7 @@ class ContainerHandle:
         """This launch's recorded container id, or None with the reason logged.
 
         A name is never a target: it is host-wide, and the container under it
-        may be another launch's (#1963). Without a recorded id nothing is sent.
+        may be another launch's. Without a recorded id nothing is sent.
         """
         identity, diagnostic = self._container_identity()
         if identity is None and action not in self._unrecorded_reported:
@@ -5068,7 +5168,7 @@ class ContainerHandle:
         """Try one bounded runtime kill and report accepted, refused, or unknown.
 
         Only the recorded id is killed: unknown, and nothing sent, while this
-        launch has recorded none, never the name (#1963).
+        launch has recorded none, never the name.
         """
         # Use the same runtime that launched the container (docker / OrbStack /
         # podman), not a hardcoded "docker".
@@ -5177,7 +5277,7 @@ class ContainerHandle:
         return KillStatus.REFUSED
 
     def remove_if_never_started(self) -> bool:
-        """Remove this launch's container when its start never happened (#2973).
+        """Remove this launch's container when its start never happened.
 
         A refused ``start`` leaves the container ``created`` under the item's
         name. Only this handle's own full id is read and removed, never a name,
@@ -5193,7 +5293,7 @@ class ContainerHandle:
         """Remove the owned container even when it never reached Running.
 
         Only the id this launch recorded is removed, never the name: under
-        load another launch's container can hold ``kew-<item>`` by then (#1963).
+        load another launch's container can hold ``kew-<item>`` by then.
         """
         target = self._recorded_target("removal")
         if target is None:
@@ -5358,7 +5458,7 @@ def write_prompt_handoff(checkout_dir: Path, prompt: str) -> Path:
 
 
 def remove_prompt_handoff(checkout_dir: Path) -> None:
-    """Remove the prompt handoff file (#725).
+    """Remove the prompt handoff file.
 
     Safe by construction where the write is not: ``unlink`` operates on the link
     itself, so a planted symlink is removed and its target left alone.
@@ -5918,10 +6018,10 @@ CONTAINER_START_FAILED = stop_recovery.CONTAINER_START_FAILED
 
 
 class ContainerStartFailed(RuntimeError):
-    """kew could not create or start the container it named (#2973).
+    """kew could not create or start the container it named.
 
-    The name is the operator's lead: a refusal here costs no tokens, so read
-    as a bare exception it looked like a rate limit rather than a container.
+    The name is the operator's lead: a refusal here costs no tokens, so as a
+    bare exception it would read like a rate limit rather than a container.
     """
 
     category = CONTAINER_START_FAILED
@@ -5932,7 +6032,7 @@ class ContainerStartFailed(RuntimeError):
         self.name_conflict = name_conflict
 
 
-#: A ``create`` the runtime did not answer in time, on every attempt (#3103).
+#: A ``create`` the runtime did not answer in time, on every attempt.
 #: The host was too slow, not the run wrong: no agent ever started.
 RUNTIME_TIMEOUT = "runtime_timeout"
 
@@ -5958,11 +6058,11 @@ class ContainerCreateTimedOut(ContainerStartFailed):
 
 # Every registered container carries the ledger and run that created it, so a
 # leftover holding a host-wide ``kew-<item>`` name can be traced to its owner
-# before anything removes it (#2973). The store's reaper reads them too.
+# before anything removes it. The store's reaper reads them too.
 KEW_LEDGER_LABEL = stop_recovery.KEW_LEDGER_LABEL
 KEW_RUN_LABEL = stop_recovery.KEW_RUN_LABEL
 
-#: How much of a failed ``create``'s stderr reaches the run's reason (#2913).
+#: How much of a failed ``create``'s stderr reaches the run's reason.
 CREATE_STDERR_MAX_CHARS = 300
 
 
@@ -6133,7 +6233,7 @@ def remove_unstarted_start(
 
 
 def settle_never_started_start(handle: object, result: DispatchResult) -> None:
-    """A start that never ran its container fails as a container start (#2973).
+    """A start that never ran its container fails as a container start.
 
     The client can exit (``docker start`` refusing with 1) while the container
     it was to start stays ``created`` under the item's name. Removing it is
@@ -6232,7 +6332,7 @@ def _launch_container_client(
 
     *stderr* is the client's stderr disposition, which every retry inherits with
     the launcher: merged into the stdout pipe by default, or ``PIPE`` for a run
-    whose stream must carry the container's stdout alone (#2053).
+    whose stream must carry the container's stdout alone.
     """
     if on_spawn is None:
         return subprocess_utils.popen(
@@ -6278,7 +6378,7 @@ def launch_container(
     the checkout the quota applies to is the argv's ``/work`` bind source.
 
     With *separate_stderr* the client gets a SECOND pipe and the returned
-    handle's iterable is the container's stdout alone (#2053). The stderr pipe
+    handle's iterable is the container's stdout alone. The stderr pipe
     is drained by the handle, because an unread one blocks the container; the
     caller that needs the merged operator view keeps the default.
     """
@@ -6367,7 +6467,7 @@ class ContainedExecution:
     ``docker run`` client does not stop the container, so a budget, breaker or
     pause kill has to reach it by name (``docker kill kew-<slug>``). A caller
     that passed only the argv would launch a contained run the watchdogs could
-    not stop — which is the state #1462 describes.
+    not stop.
 
     Handed to :func:`kew.orchestrator.run_agent` in place of building a host
     command. Everything around execution — retry, budget, breaker, pause,
@@ -6423,20 +6523,20 @@ class ContainedExecution:
         )
 
 
-# ── kew sandbox smoke (#691) ─────────────────────────────────────────────────
+# ── kew sandbox smoke ────────────────────────────────────────────────────────
 # A one-shot preflight that launches ONE real container through kew's own
 # build_run_argv/launch_container and names the failure layer. It proves the
 # live path the mock suite cannot: runtime resolution, image presence (building
 # locally if absent), container launch, and the prompt-file handoff — WITHOUT
 # needing an API key (the container just echoes the mounted prompt file back).
 # A final env-only "auth" layer then checks the credential a real dispatch
-# needs (#721) — no API call is made.
+# needs — no API call is made.
 
 _SMOKE_TOKEN = "kew-sandbox-smoke-ok"  # nosec B105 - marker echoed by the smoke container, not a secret
 
-# Emitted only after the container proves the agent HOME is writable — the
-# layer the original smoke was blind to (#742: read-only root broke Claude
-# Code's Bash tool at shell-init, EROFS on ~/.claude).
+# Emitted only after the container proves the agent HOME is writable: a
+# read-only HOME breaks Claude Code's Bash tool at shell-init (EROFS on
+# ~/.claude).
 _SMOKE_HOME_TOKEN = "kew-sandbox-home-writable"  # nosec B105 - marker, not a secret
 
 # The smoke's in-container script: echo the mounted prompt file (mount/handoff
@@ -6452,7 +6552,7 @@ _SMOKE_SCRIPT = (
 # Ordered failure layers, most-upstream first (used for docs + tests). "auth"
 # is last: the container plumbing is proven credential-free (the smoke echoes
 # the prompt file, never invokes claude), then the env credential a REAL
-# dispatch needs is checked — the layer the original smoke was blind to (#721).
+# dispatch needs is checked.
 SMOKE_LAYERS = ("runtime", "image", "launch", "execution", "auth")
 
 
@@ -6847,7 +6947,7 @@ def classify_egress_verification(
     route: Literal["direct", "sidecar", "openshell"],
     certified: bool = False,
 ) -> str:
-    """Classify contained egress with permanent direct-route acceptance (#1945).
+    """Classify contained egress with permanent direct-route acceptance.
 
     Direct egress is operator-asserted and unverifiable by kew.
     Docker exposes no destination rules through its network API.
@@ -7405,7 +7505,7 @@ def network_attributes(inspected: str) -> tuple[str, bool | str]:
 
     Docker capitalizes both keys; Podman's native libpod endpoint names them
     in lowercase. Podman is a supported runtime, so its own output has to read
-    as evidence rather than as an unreadable daemon (#2313).
+    as evidence rather than as an unreadable daemon.
     """
     try:
         [network, *_] = json.loads(inspected)
@@ -7425,10 +7525,10 @@ def inspect_attachment_network(
     """Report *name*'s driver and ``Internal`` flag as kew can observe them.
 
     The direct route attaches containers to a network kew never creates and
-    whose destination rules it cannot read (#1945), so the label stays
+    whose destination rules it cannot read, so the label stays
     ``operator-managed-unverified``. The network's *shape* is readable, and a
     plain bridge with ``Internal=false`` has open egress, so the posture
-    records that much rather than nothing (#2313).
+    records that much rather than nothing.
 
     ``name=None`` is ``network = "open"``: no kew-named network is attached, so
     there is nothing to read. Reading some *other* network's shape there would
@@ -7452,7 +7552,7 @@ def inspect_attachment_network(
 
 
 def allowlist_network_exists(runtime: str, name: str = ALLOWLIST_NETWORK) -> bool:
-    """Prove existence only; this check verifies no destination rules (#1945)."""
+    """Prove existence only; this check verifies no destination rules."""
     try:
         inspected = subprocess_utils.run(
             [runtime, "network", "inspect", name],
@@ -7475,7 +7575,7 @@ def allowlist_network_create_command(runtime: str) -> list[str]:
 
     It is what the doctor's ``allowlist-network`` check looks for, and no
     more: kew installs no firewall rules on it, so egress stays open until
-    the operator restricts it (#1945).
+    the operator restricts it.
     """
     return [runtime, "network", "create", "--driver", "bridge", ALLOWLIST_NETWORK]
 
@@ -7740,8 +7840,8 @@ def run_smoke(
     ``runner`` names WHICH containment is being proven. The image comes from
     :func:`resolve_runner_image` — the same resolver dispatch uses — so the
     operator's only pre-dispatch containment proof is against the image
-    dispatch will actually launch, and a non-claude runner can be smoked at all
-    (#1144). Reading ``config.image`` here instead would build and prove the
+    dispatch will actually launch, and a non-claude runner can be smoked at
+    all. Reading ``config.image`` here instead would build and prove the
     claude image while dispatch runs a mapped one, or refuses.
     """
     with proxy_redaction_scope(config.proxy_environment):
@@ -7823,7 +7923,7 @@ def run_smoke(
 class ContainedImageUnresolvedError(RuntimeError):
     """A contained attempt's image tag would not resolve to an immutable ID.
 
-    Fail-closed by contract (#1550 review F1): an attempt whose containment
+    Fail-closed by contract: an attempt whose containment
     boundary cannot be identified is refused before any provider charge —
     a mutable tag alone is never evidence of what ran.
     """
@@ -7835,7 +7935,7 @@ class AgentImageInputsMismatchError(ContainedImageUnresolvedError):
     The tag is only a name (``docker tag`` points it anywhere); the inputs
     label is what kew wrote into the image when it built it. A pinned tag
     whose label is absent or names other inputs is refused before a container
-    is created (#3160). This catches a STALE image — one built before the
+    is created. This catches a STALE image — one built before the
     label existed, from other inputs, or retagged by mistake. It is not a
     defence against tampering: anyone who can run ``docker`` can build an
     image with any label.
@@ -7929,12 +8029,9 @@ def _read_inspected_id(stdout: str) -> ImageResolution:
         return ImageResolution(
             ImageIdStatus.UNAVAILABLE, detail="image inspect returned no Id"
         )
-    # An "immutable ID" that is a tag, a prefix, or a non-hex string is not one.
-    # Every non-empty string used to be accepted here, so a runtime returning
-    # `kew-agent:latest` or `sha256:a` had that value recorded on the route
-    # profile and launched as though it were content-addressed. The same
-    # validation is applied to `docker build --iidfile` in
-    # scripts/scan-agent-image.sh; it belongs on both sides of the boundary.
+    # A tag, a prefix or a non-hex string is not an immutable ID, and would be
+    # recorded on the route profile as content-addressed. The same check runs
+    # on `docker build --iidfile` in scripts/scan-agent-image.sh.
     match = _FULL_IMAGE_ID.fullmatch(image_id)
     if match is None:
         return ImageResolution(
@@ -7966,13 +8063,10 @@ def inspect_image_id(runtime: str, image: str) -> ImageResolution:
     tag to, which is what the attempt actually ran. Never pulls — ``image
     inspect`` is local-only, matching the ``--pull=never`` launch.
     """
-    # ``detect_runtime`` returns a which()-resolved ABSOLUTE path, which is not
-    # a TOOL_PATHS key (keys are bare names registered by preflight) — so this
-    # call refused for the entire life of the feature and every caller
-    # silently recorded an unresolved boundary. An absolute path that came
-    # from shutil.which is already the resolution the allowlist exists to
-    # provide, so register it under itself rather than depending on preflight
-    # ordering in whichever process this runs in (#1513 incident).
+    # ``detect_runtime`` returns an absolute shutil.which path, not a bare-name
+    # TOOL_PATHS key, so the inspect would be refused. That path is already the
+    # allowlist's resolution, so it is registered under itself rather than
+    # depending on preflight ordering in whichever process this runs in.
     if os.path.isabs(runtime):
         subprocess_utils.TOOL_PATHS.setdefault(runtime, runtime)
     try:
@@ -8175,12 +8269,6 @@ _PACKAGED_AGENT_IMAGE_MANIFEST = {
     # changes what an image contains, and a staleness check blind to one calls
     # a stale image fresh — which is the whole failure this exists to prevent.
     #
-    # The list was long incomplete: it named the claude Dockerfile and its
-    # entrypoint only, so a change to `extract-artifact.sh` — which BOTH images
-    # copy, and whose last change is exactly why the images were rebuilt in
-    # 2026-08 — marked neither image stale. Nor did anything in the opencode
-    # image (#1793 review).
-    #
     # Deliberately the UNION across every image rather than a per-image list.
     # An image TAG carries no record of which Dockerfile produced it, so there
     # is nothing to key a per-image lookup on; and this check only ever warns,
@@ -8210,7 +8298,7 @@ _PACKAGED_AGENT_IMAGE_MANIFEST = {
     "docker/openshell/policy-codex.yaml": False,
     "docker/openshell/policy-opencode.yaml": False,
     # The adversarial reviewer and its environment provisioning are separate
-    # boundaries from a dispatch on the same image (epic node N12): the
+    # boundaries from a dispatch on the same image: the
     # reviewer executes the reviewed PR's tests, so its egress is certified on
     # its own digest and the provisioning install runs under a package-index
     # policy in a sandbox of its own.
@@ -8402,7 +8490,7 @@ def check_agent_image_staleness(
 
 
 # Smoke's auth layer reads the environment only; kew mints a direct OpenRouter
-# route's run key at dispatch, after this check (#1985).
+# route's run key at dispatch, after this check.
 _SMOKE_MINTED_KEY_NOTE = (
     " With OPENROUTER_PROVISIONING_KEY set, a direct OpenRouter route receives "
     "its OPENROUTER_API_KEY at dispatch, which this environment-only check "
@@ -8415,8 +8503,8 @@ def _smoke_auth_layer(runner: str) -> SmokeResult | None:
     authenticate in-container, else the failing ``SmokeResult``.
 
     Keyed on the runner's own declared vars rather than claude's, so the smoke
-    answers the question dispatch will ask of the same runner (#1144), with the
-    same provider-specific guidance the dispatch refusal gives (#1146). A runner
+    answers the question dispatch will ask of the same runner, with the
+    same provider-specific guidance the dispatch refusal gives. A runner
     that declares no credential is an auth failure here for the same reason it
     is a dispatch refusal: nothing it can authenticate with is forwarded.
     """

@@ -536,8 +536,8 @@ def resolve_review_mode(
     )
 
 
-# A launcher seam so the orchestration is testable without a container: the
-# default wiring lands in the driver-integration wave (Group C).
+# A launcher seam so the orchestration is testable without a container. The
+# production launcher is ``sandbox_reviewer_launcher``, wired in ``cli/epic.py``.
 ReviewerLauncher = Callable[["ReviewerLaunchContext"], CollectedSidecar]
 
 
@@ -1075,7 +1075,7 @@ def dispatch_reviewer(
     )
     worktree = _materialize_or_attest(repo_root, head_sha, base_commit, provenance)
 
-    # 4. Fresh-context launch (seam; real container wiring lands in Group C).
+    # 4. Fresh-context launch through the launcher seam.
     #    A launcher raise must not leak the materialized checkout — remove it and
     #    re-raise. The happy path returns the live worktree (cleaned post-verdict).
     #    The delta/full decision (#2111) needs both heads in the checkout, so it

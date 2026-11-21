@@ -1003,6 +1003,7 @@ def _require_dispatch_row(
 def _failed_placement(result: DispatchResult, site: RunSite, exc: Exception) -> int:
     """Record a placement that reached no verdict, as a failed execution."""
     result.error_category = getattr(exc, "error_category", "") or "remote_host_failed"
+    result.containment_refusal = getattr(exc, "containment_refusal", "")
     result.stop_reason = f"{site.label()}: {exc}"[:_REASON_CHARS]
     result.exit_code = 1
     logger.warning("the dispatch placed on %s did not finish: %s", site.label(), exc)

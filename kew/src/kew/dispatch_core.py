@@ -92,6 +92,7 @@ from kew.evidence import (
     import_runner_evidence,
 )
 from kew.exit_signal import RESOURCE_CATEGORY
+from kew.fleet_placement import placed_here
 from kew.human_review import policy_from_config
 from kew.ids import (
     GITHUB_CLOSES_RE,
@@ -155,8 +156,10 @@ from kew.overlap import CLAIM_ROLLBACK_FAILED, DispatchOutcome
 from kew.pr_text import (
     ZERO_WIDTH_SPACE,
     PrBodyTooLong,
+    PrTitleStyle,
     agent_pr_body,
     agent_pr_title,
+    conventional_title,
     unsendable,
 )
 from kew.pricing import (
@@ -269,7 +272,7 @@ from kew.sandbox import (
     check_agent_image_staleness,
     check_host_capacity,
     check_runtime_memory_capacity,
-    open_egress_warning,
+    contained_egress_warning,
     openshell_ignored_argv_settings_warning,
     redact_container_observations,
     redact_credentials,
@@ -280,11 +283,9 @@ from kew.sandbox import (
     ContainedImageUnresolvedError as ContainedImageUnresolvedError,
 )
 
-# Sandbox-runtime shims kept here purely as patch targets: the sandbox
-# execution now lives in dispatch_sandbox (Task 5), which reaches these back
-# through the kew.dispatch_core module at call time, so the dispatch/sandbox
-# suites' patches at kew.dispatch_core.* still land. Unused in this module's own
-# code now — noqa keeps ruff from pruning the re-exported names.
+# Patch targets: dispatch_sandbox reaches these through the kew.dispatch_core
+# module at call time, so patches at kew.dispatch_core.* land. noqa keeps ruff
+# from pruning the re-exported names.
 from kew.sandbox import build_run_argv as _build_sandbox_argv  # noqa: F401
 from kew.sandbox import detect_runtime_cached as _detect_sandbox_runtime  # noqa: F401
 from kew.sandbox import launch_container as _launch_container  # noqa: F401
@@ -330,17 +331,9 @@ if TYPE_CHECKING:
     from kew.breaker import RunBaseline
     from kew.run_store import EpicReservation, RunRecord, RunStatus, RunStore
 
-# Re-exported from dispatch_sandbox (Task 5 extraction) so callers importing
-# these names from dispatch_core keep working unchanged — in particular the
-# review launcher (#992), which imports _stream_sandbox_log / _finalize_sandbox_run
-# from here, and the dispatch/sandbox suites, which patch and import these names
-# at kew.dispatch_core.*. The extracted module reaches back at call time through
-# the kew.dispatch_core module object, so these patches still take effect. The
-# `as`-alias form marks them as explicit re-exports for ruff.
-# Re-exported from dispatch_broker (Task 5 extraction): the host-brokered PR
-# path (#518). Callers and the dispatch suites keep importing/patching these at
-# kew.dispatch_core.*; the extracted module reaches its collaborators back
-# through the kew.dispatch_core module object at call time.
+# Re-exported (the `as` form) from dispatch_sandbox and dispatch_broker, the
+# host-brokered PR path: the review launcher and the suites import or patch these
+# at kew.dispatch_core.*, and both modules reach back through it at call time.
 from kew.dispatch_broker import (
     _broker_agent_work as _broker_agent_work,
 )
@@ -351,12 +344,9 @@ from kew.dispatch_broker import (
     _finalize_brokered_pr as _finalize_brokered_pr,
 )
 
-# Re-exported from dispatch_preflight (Task 5 extraction): the budget-refusal
-# helpers (#661/#891). The admission gates below call _refuse_budget, the
-# delegate claim/run paths import _record_budget_refusal_row from here, and the
-# suites import/patch these at kew.dispatch_core.*. The extracted module reaches
-# mark_failed / _emit_early_exit / the refusal-status constants back through the
-# kew.dispatch_core module object at call time.
+# Re-exported from dispatch_preflight, the budget-refusal helpers: the admission
+# gates call _refuse_budget, delegate/claim.py imports _record_budget_refusal_row
+# from here, and dispatch_preflight reaches back through this module at call time.
 from kew.dispatch_preflight import (
     _BUDGET_HOLD_PREFIX as _BUDGET_HOLD_PREFIX,
 )
@@ -371,6 +361,9 @@ from kew.dispatch_preflight import (
 )
 from kew.dispatch_preflight import (
     _budget_refusal_message as _budget_refusal_message,
+)
+from kew.dispatch_preflight import (
+    _containment_hold_reason,
 )
 from kew.dispatch_preflight import (
     _record_budget_refusal_row as _record_budget_refusal_row,
@@ -429,13 +422,13 @@ from kew.dispatch_sandbox import (
 _logger = logging.getLogger(__name__)
 
 # Fraction of the effective runtime cap at which the cost-aware retry guard
-# treats a failed attempt as budget-stopped rather than retrying it (#642).
+# treats a failed attempt as budget-stopped rather than retrying it.
 _BUDGET_GUARD_FRACTION = 0.9
 WORKER_CAP_REACHED_MESSAGE = "Worker cap reached — cannot start another run."
 
 
 class WorkerCapReached(Exception):
-    """The fleet-wide worker cap was hit at the atomic slot insert (#745).
+    """The fleet-wide worker cap was hit at the atomic slot insert.
 
     Raised when ``try_admit_run`` refuses a dispatch that passed the cheap
     preflight but lost the count+insert race to concurrent dispatchers. The
@@ -488,26 +481,18 @@ def _accumulated_cost_usd(
 
 
 # Categories that mean "the run stopped because it hit a budget cap" — these get
-# the budget-tailored reason + next-step block (CS-8 / Group 4).
+# the budget-tailored reason + next-step block.
 _BUDGET_CATEGORIES = frozenset({"budget_stopped", "budget_stop", "budget_exceeded"})
 
-# Terminal status/category for a clean budget-preflight refusal (#891 / O2).
-# Deliberately DISTINCT from "failure" and from the driver's
-# "dispatch_child_died" diagnostic: an epic node the child refuses before any
-# agent spawn writes THIS row (keyed to the driver's reservation) so the tick
-# reconciles the reservation from the row instead of grace-timing it out as a
-# dead corpse. "refused" is intentionally NOT in the overlay's
-# `_TERMINAL_FAILURE_STATUSES`, so once the cap is raised and the hold clears
-# the node returns to the dispatch frontier (TODO) rather than latching FAILED.
+# A clean budget-preflight refusal, distinct from "failure": the tick reconciles
+# the reservation from this row, and "refused" is not in the overlay's
+# _TERMINAL_FAILURE_STATUSES, so a cleared hold returns the node to TODO.
 _REFUSAL_STATUS: RunStatus = "refused"
 _BUDGET_REFUSAL_CATEGORY = "budget_refused"
 
-# The same shape for a containment refusal (#1144): the runner could not be
-# contained on a host that CAN contain, so no agent spawned. It shares
-# ``_REFUSAL_STATUS`` — a clean refusal, re-admittable once the operator maps
-# an image — but carries its own category so the budget-keyed delegate paths
-# never mistake one for the other, and so `kew report` can count containment
-# refusals separately from budget ones.
+# A containment refusal: a host that CAN contain could not contain the runner, so
+# no agent spawned. Same re-admittable status, but its own category so budget-keyed
+# delegate paths and `kew report` never mistake it for a budget refusal.
 _CONTAINMENT_REFUSAL_CATEGORY = "containment_refused"
 
 
@@ -521,7 +506,7 @@ def _warn_if_cap_conflict(
 
     The preflight gate only sees *historical* spend, so a run under a low
     per-issue cap sails through on its first dispatch (prior spend $0). Surface
-    the mismatch before the run starts (CS-7, #649).
+    the mismatch before the run starts.
 
     Only fires when the per-issue cap was *explicitly configured* — the shipped
     default (per-issue $15 vs kill cap $25) is expected, not a misconfiguration,
@@ -551,7 +536,7 @@ def _note_if_over_per_issue(
 
     Call *after* the run record is saved so the spend total includes this run.
     The note tells the operator the next dispatch for this issue will be blocked
-    at the budget preflight (CS-7, #649).
+    at the budget preflight.
 
     Best-effort: a completion note must never break the terminal path, so any
     store hiccup is swallowed.
@@ -599,7 +584,7 @@ def _failure_reason(
 def _breaker_reason(
     rule: str, cost_usd: float | None, threshold_usd: float | None
 ) -> str:
-    """Name the breaker rule that stopped a run, its cost and its bar (#1798)."""
+    """Name the breaker rule that stopped a run, its cost and its bar."""
     name = rule or "cost_anomaly"
     cost = f"${cost_usd:.2f}" if cost_usd else "cost unknown"
     if threshold_usd is None:
@@ -688,7 +673,7 @@ def _terminal_outcome(
     category: str = "",
     detail: str = "",
 ) -> DispatchOutcome:
-    """A nonzero worker outcome that keeps the runner's error category (#1832).
+    """A nonzero worker outcome that keeps the runner's error category.
 
     The scheduler prints ``category — reason`` for every finished child, so a
     killed, timed-out, or needs-human run must name itself instead of the
@@ -771,7 +756,7 @@ def _emit_early_exit(
         "runner": runner,
         "model": model,
         "item_id": item_id,
-        # No run/result on this path -> nothing reported (#251). Key kept
+        # No run/result on this path -> nothing reported. Key kept
         # present-as-None so every dispatch_completed payload has a uniform
         # schema and consumers never KeyError.
         "reported_model": None,
@@ -899,7 +884,7 @@ def check_pr_exists(branch: str, config: DispatchConfig) -> int | None:
 
     ``gh pr list`` uses GraphQL. Publication is deliberately kept on REST so
     an exhausted GraphQL budget cannot turn a completed implementation into a
-    failed PR lookup (#1265/#1267).
+    failed PR lookup.
     """
     repo = _project_repo_slug(config)
     if not repo:
@@ -985,8 +970,8 @@ def revoke_ci_approval(branch: str, config: DispatchConfig) -> tuple[int, ...]:
     """Remove the human CI approval label from every open PR on *branch*.
 
     The host calls this, as a publication's ``before_push`` hook, once it
-    knows it has a new head to push to a branch that may already have a PR
-    (#2033). A no-change publication never calls it. Private-repository CI
+    knows it has a new head to push to a branch that may already have a PR.
+    A no-change publication never calls it. Private-repository CI
     runs an agent PR on the self-hosted runner only while
     ``labels.ci_approved`` is present, so
     clearing it first means the ``synchronize`` event for the new head is
@@ -1067,7 +1052,7 @@ def resolve_issue_number(
     *,
     store: RunStore | None = None,
 ) -> int | None:
-    """Resolve a PR back to its issue number, store-first (A6).
+    """Resolve a PR back to its issue number, store-first.
 
     The run store is the canonical PR<->item join: ``find_run_by_branch``
     maps the PR's head branch to the run that opened it, which carries the
@@ -1081,8 +1066,8 @@ def resolve_issue_number(
     fallback like an unmatched branch would.
 
     ``graph/driver/facts.py`` stays GitHub-native and does NOT route through
-    here — its ``closedByPullRequestsReferences`` linkage is exempt (L2
-    replaces facts wholesale for Linear).
+    here — its ``closedByPullRequestsReferences`` linkage is exempt. Linear
+    nodes read their facts through ``graph/adapters/linear_facts.py``.
     """
     if store is not None and branch_name:
         record = store.find_run_by_branch(branch_name)
@@ -1126,34 +1111,34 @@ class _TrackedRun:
     dispatch_start: float
     transport: AdmittedInferenceTransport
     transport_health_check: Callable[[], bool] | None = None
-    # Set when this run executes in a container: the image to run it in (#1462
-    # / W1.1 node 3d). None means host execution. The argv is rebuilt per
+    # Set when this run executes in a container: the image to run it in. None
+    # means host execution. The argv is rebuilt per
     # attempt rather than stored, because a retry re-derives the container name
     # and the runner flags from the state at that moment.
     contained_image: str | None = None
     # The immutable image ID captured by THIS attempt's profile; the container
-    # argv launches by this ID, never the tag (#1550 review F1). Set by
+    # argv launches by this ID, never the tag. Set by
     # _launch_boundary each time an attempt's boundary is resolved.
     resolved_image_id: str | None = None
     # The resolved SandboxDecision posture for a host-side launch ("native",
     # "uncontained", "host", ...). A codex run that contains itself and an
     # operator's dangerously-uncontained run are different facts from plain
-    # host execution, and the realized profile must not flatten them (#1550
-    # review F6). None means the caller resolved no explicit posture.
+    # host execution, and the realized profile must not flatten them. None
+    # means the caller resolved no explicit posture.
     sandbox_posture: str | None = None
-    # Injected-context sizes (spec D2 / R1-8), persisted on the pending row.
+    # Injected-context sizes, persisted on the pending row.
     # ``map_tokens`` is the repo map actually rendered; ``lesson_corpus_tokens``
-    # stays None until Phase 2 ships that layer.
+    # is always None: no lessons layer injects into the prompt.
     map_tokens: int | None = None
     lesson_corpus_tokens: int | None = None
-    # Whether the rendered dispatch prompt carried the pre-publish self-check
-    # (#2454). Persisted on the pending row, like the sizes above.
+    # Whether the rendered dispatch prompt carried the pre-publish self-check.
+    # Persisted on the pending row, like the sizes above.
     self_check: bool = False
-    # The operator addendum version the rendered prompt carried (#3022).
+    # The operator addendum version the rendered prompt carried.
     prompt_profile_version_id: int | None = None
     # The WORK TRACKER this run's item came from ("github" / "linear") — the
     # dispatch-time ``provider`` argument, which names a tracker even though
-    # the same word names an inference provider one field up (#1509 / I01).
+    # the same word names an inference provider one field up.
     # Persisted as ``run_admission_identity.source_tracker``.
     source_tracker: str = "github"
     # Revalidate the pre-admission checkout generation at each paid boundary.
@@ -1168,7 +1153,7 @@ class _TrackedRun:
     on_launch: Callable[[], None] | None = None
     reservation: EpicReservation | None = None
     reservation_pinned: bool = False
-    #: The breaker baseline armed for this run, kept for its audit event (#1798).
+    #: The breaker baseline armed for this run, kept for its audit event.
     breaker_baseline: RunBaseline | None = None
 
 
@@ -1339,7 +1324,7 @@ def _boundary_shared_facts(run: _TrackedRun, runner_name: str) -> dict[str, str 
     return {
         # A planning bucket or review pass has no source work item, so it has
         # no source provider either — copying the default tracker in would
-        # assert an admission that never happened (#1550 review F9).
+        # assert an admission that never happened.
         "source_provider": (
             (run.source_tracker or None) if run.run_kind in _WORK_KINDS else None
         ),
@@ -1359,7 +1344,7 @@ def _host_boundary(
 ) -> RealizedLaunchBoundary:
     """A host-side launch boundary, honest about its resolved posture.
 
-    Task 10 requires the native executable's version, so the bounded probe
+    The boundary records the native executable's version, so the bounded probe
     runs here; its failure records unavailable rather than blocking a launch.
     The digest still identifies the exact bytes.
     """
@@ -1399,7 +1384,7 @@ def _launch_boundary(run: _TrackedRun) -> RealizedLaunchBoundary:
         run.resolved_image_id = None
         # Refuse rather than record UNKNOWN and launch anyway: the profile would
         # claim nothing while the attempt spent money across a boundary nobody can
-        # name (#1550 review F1). require_image_id raises with the remedy that
+        # name. require_image_id raises with the remedy that
         # matches the cause — build it, install a runtime, or fix the daemon.
         image_id = _require_contained_image_id(
             run, refusal="the attempt is refused before any charge"
@@ -1488,7 +1473,7 @@ def _admit_attempt_route_profile(
             if identity is not None and hasattr(store, "record_attempt_admission"):
                 # Identity and profile land in ONE transaction before the
                 # retry's provider call, so a crash window can never leave a
-                # profiled paid attempt with no attempt identity (#1550 F4).
+                # profiled paid attempt with no attempt identity.
                 store.record_attempt_admission(
                     profile, replace(identity, attempt_number=attempt_number)
                 )
@@ -1529,7 +1514,7 @@ def _admission_budget_gate(
     force_budget: bool,
     ceiling_usd: float,
 ) -> Callable[[], None] | None:
-    """The budget check the admission transaction runs for *run* (#3205).
+    """The budget check the admission transaction runs for *run*.
 
     The caller's own gate when it has one (dispatch's ``check_budget``, ci-fix's
     window gate): each already binds the daily and weekly caps. Otherwise the
@@ -1556,7 +1541,7 @@ def _save_pending_run(
 
     The TUI needs ``log_file`` set while the run is still "pending" so it can
     locate the companion ``.events.jsonl`` file, so the row is written up front.
-    #745: with ``worker_cap`` > 0 the pending row IS the worker slot — count +
+    With ``worker_cap`` > 0 the pending row IS the worker slot — count +
     insert run in one transaction, raising ``WorkerCapReached`` (no row
     written) if the fleet is already at the cap so the caller requeues.
     A disabled cap (``worker_cap`` == 0) permits unconditional admission.
@@ -1564,7 +1549,7 @@ def _save_pending_run(
     The dispatch's own PGID anchors liveness before any attempt starts.
     Retry callbacks record separate attempt groups and preserve this owner.
 
-    I01: the row is written through ``admit_run_with_identity``, the same
+    The row is written through ``admit_run_with_identity``, the same
     normalized primitive the contained path uses, so the run's immutable
     admission identity (tracker, opaque item id, delivery repo, epic node)
     lands in the same transaction as the run row. A run can therefore never
@@ -1620,23 +1605,18 @@ def _save_pending_run(
     )
     # The dispatcher identity commits with admission, before any claim hook.
     # A killed hook owner must remain probeable even before an agent exists.
-    # I03C: attempt 1's realized launch boundary joins the SAME transaction
-    # through the identity module's bounded enricher hook, so a run can no
-    # more exist without the profile of what it launched than without the
-    # identity of what it was launched for.
+    # Attempt 1's realized launch boundary joins the SAME transaction through the
+    # identity module's bounded enricher hook, so no run exists without the
+    # profile of what it launched.
     profile = None if run.transport.resolved.sidecar else _attempt_route_profile(run, 1)
     enrich = (
         run.store.route_profile_enricher(profile)
         if profile is not None and hasattr(run.store, "route_profile_enricher")
         else None
     )
-    # Fleet concurrency is keyed on item_id (A3): exclude this run's own item
-    # so it never counts itself. exclude_item wins over the legacy int
-    # exclude_issue, which collapses every Linear row onto the 0 sentinel —
-    # matching the sandbox path (`_record_sandbox_start`). A run started under
-    # a detached review stage's held reservation does not count the stage row
-    # that holds it, or under a small cap the stage could never start its own
-    # remediation (#2459, #2628). Local import: graph.driver imports this module.
+    # Neither the run itself (by item_id; exclude_issue folds Linear rows onto 0)
+    # nor the detached review stage whose held reservation it runs under counts,
+    # or a small cap blocks the remediation. Local import: graph.driver imports us.
     from kew.graph.driver.review_detach import held_reservation
 
     admitted = run.store.admit_run_with_identity(
@@ -1696,17 +1676,16 @@ def _breaker_reference_cost(run: _BreakerBucket) -> float | None:
     The same baseline read with the run-kind predicate *inverted*: the median
     over every kind the (model, complexity) route has run except this one. It
     answers "has this bucket been observed to cost at least what the route's
-    other work costs" — a gate on arming, never a threshold (#1116).
+    other work costs" — a gate on arming, never a threshold.
 
     Excluding the run's own kind is what makes it evidence. Read across all
     kinds it would be a superset of the bucket, and on a route whose only kind
     is this one it would equal the bucket median exactly, so the gate would
-    pass for free and arm buckets that were dormant before the rule existed
-    (#1138 review). A route with no other kinds therefore has no reference, and
+    pass for free. A route with no other kinds therefore has no reference, and
     the bucket stays dormant.
 
     Deliberately *not* ``estimate_dispatch_cost``: that population carries none
-    of the baseline's exclusions, so sub-$0.01 no-op rows (#668) and killed runs
+    of the baseline's exclusions, so sub-$0.01 no-op rows and killed runs
     count toward it. A history polluted with those yields a reference of cents,
     which any bucket clears — a gate that never says no. Sharing the baseline's
     own query also keeps this a one-column filtered scan instead of
@@ -1721,7 +1700,7 @@ def _breaker_reference_cost(run: _BreakerBucket) -> float | None:
 
 
 def _log_breaker_baseline(baseline: RunBaseline) -> None:
-    """Record the armed threshold and which term produced it (#1116).
+    """Record the armed threshold and which term produced it.
 
     Drills need to verify that the breaker is armed at a sane value without
     having to trip it, so the winning term is named explicitly.
@@ -1753,7 +1732,7 @@ def _compute_breaker_baseline(run: _BreakerBucket) -> tuple[float | None, float]
 
     Returns ``(anomaly_threshold_usd, anomaly_compaction_allowance_usd)``.
     ``effective_model`` is fixed across attempts so the bucket is consistent.
-    The compaction allowance (#859) is discounted before the anomaly rule fires
+    The compaction allowance is discounted before the anomaly rule fires
     and keys to the run-kind baseline median — which is what every armed
     threshold is proportionate to, on the under-sampled path as much as the
     established one, so the discount and the bar move together. A missing or
@@ -1803,7 +1782,7 @@ def _check_existing_pr(
     store: RunStore | None,
 ) -> tuple[bool, DispatchResult | None]:
     """Retry-time duplicate-PR guard. If a PR already exists for this run's
-    branch (an earlier attempt opened it), persist its identity (#648), label it
+    branch (an earlier attempt opened it), persist its identity, label it
     pending-review, and signal the loop to stop. Returns ``(hit, result)`` — on
     a hit ``result`` is the effective result to finalize (the prior attempt's);
     otherwise ``(False, result)`` to proceed with the retry.
@@ -1827,7 +1806,7 @@ def _check_existing_pr(
     if not existing_pr:
         return False, result
     _success(f"PR already exists for #{run.issue_num} — skipping retry")
-    # Persist the discovered PR identity at guard time (#648): the agent opened
+    # Persist the discovered PR identity at guard time: the agent opened
     # this PR on an earlier attempt, so capture it now rather than waiting for a
     # later sync to backfill it.
     if config.project.repo:
@@ -1861,7 +1840,7 @@ def _check_cost_guard(
     budget_cap_usd: float | None,
     pricing_overrides: dict[str, tuple[float, float]] | None,
 ) -> bool:
-    """Cost-aware budget guard (#642): before retrying ANY failure, compare
+    """Cost-aware budget guard: before retrying ANY failure, compare
     accumulated cost against the effective runtime cap. A --max-budget-usd kill
     can escape subtype/exit classification (plain exit 1, or SIGTERM-143 read as
     watchdog_kill), and a retry would just burn the same cap again. Routes to
@@ -1906,11 +1885,9 @@ def _classify_attempt(
     # SIGTERM'd (nonzero exit), but it must NOT be relaunched by the retry loop.
     if _attempt_stops_without_retry(result, run):
         return True
-    # Budget watchdog (sustained over cap, debounced): terminal for this
-    # dispatch. The live watchdog gave the runner a wrap-up grace to commit WIP
-    # before SIGKILL, so mark this a graceful "budget_stop" — a distinct,
-    # non-destructive, non-retriable terminal status whose outcome path commits
-    # any leftover WIP to the branch (#859). Does NOT auto-resume (#401).
+    # Budget watchdog (sustained over cap, debounced): the runner had a wrap-up
+    # grace before SIGKILL, so this is a graceful, non-retriable "budget_stop" whose
+    # outcome path commits leftover WIP to the branch. Does NOT auto-resume.
     if result.budget_exceeded:
         result.error_category = "budget_stop"
         return True
@@ -1918,7 +1895,7 @@ def _classify_attempt(
     if result.breaker_rule:
         return True
     # Checkout quotas are terminal because a retry re-enters the same tree.
-    # A confirmed OOM already reads as ``resource`` (#3191): it earns the one
+    # A confirmed OOM already reads as ``resource``: it earns the one
     # retry ``_resource_retry_spent`` allows, so the cap's termination below
     # applies only to an OOM that was not classified (an intentional stop).
     # Host free-space and transcript state can change during retry backoff.
@@ -1930,7 +1907,7 @@ def _classify_attempt(
         return True
     if _check_cost_guard(result, run, budget_cap_usd, pricing_overrides):
         return True
-    # The provider refused for quota: a retry hits the same wall (#2643).
+    # The provider refused for quota: a retry hits the same wall.
     if result.error_category == QUOTA_EXHAUSTED_CATEGORY:
         _warn("Runner quota exhausted -- not retrying")
         return True
@@ -2201,7 +2178,7 @@ def _retry_exception_outcome(
             "complexity": run.complexity,
             "runner": str(getattr(run.runner, "name", "")) if run.runner else "",
             "model": str(run.effective_model) if run.effective_model else "",
-            # The run died before any model could be reported (#251); None
+            # The run died before any model could be reported; None
             # keeps the dispatch_completed payload schema uniform so
             # consumers never KeyError on this key.
             "reported_model": None,
@@ -2321,12 +2298,9 @@ def _check_container_spawn_identity(stored: RunRecord) -> None:
     column empty on purpose, because ``sbx_01HN4Q8ZJ2WME5T`` is not a 64-hex
     container identity — and the name is what the gateway's delete answers to.
 
-    Asking every runtime for the id therefore refused every store-backed
-    OpenShell launch at its own spawn registration: ``_announce_spawn``
-    swallowed the raise, its ``killpg`` could not reach the client, and the
-    launch blocked in ``proc.wait()`` for the agent's whole lifetime instead of
-    returning a streaming handle (PR #2401 review). Only the gateway runtime is
-    exempt; an unrecognized one still has to produce an id it cannot forge.
+    So only the gateway runtime is exempt: demanding an id there would refuse
+    every store-backed OpenShell launch at its spawn registration. An
+    unrecognized runtime still has to produce an id it cannot forge.
     """
     from kew.runtime_names import OPENSHELL_RUNTIME
     from kew.stop_recovery import valid_container_id
@@ -2461,16 +2435,14 @@ def budget_watchdog(
 
     claude-code receives ``--max-budget-usd`` in its argv and stops itself, so
     on the host kew has deliberately not double-enforced for it. A CONTAINED
-    run carries the flag too (#1462), but kew still watches it: the stop must
+    run carries the flag too, but kew still watches it: the stop must
     reach the container by name, and the cost kew records at the trip is the
-    one its own budgets account. Containing the remediation flows without this
-    would have silently removed ``max_remediation_usd`` — the cap #993 exists
-    to provide.
+    one its own budgets account.
 
     The returned predicate feeds ``run_tracked_agent(budget_check=...)``: kew
     polls accumulated cost and stops the agent gracefully so it can commit work
-    in progress (#859). On a contained run that stop reaches the container by
-    name rather than killing the local runtime client (#1462).
+    in progress. On a contained run that stop reaches the container by
+    name rather than killing the local runtime client.
     """
     if runner_name == "claude-code" and not contained:
         return None
@@ -2495,8 +2467,8 @@ def _contained_execution_for(
     The already-ADMITTED transport is passed down instead of being re-resolved,
     which would throw away the admission ``run_tracked_agent`` performed.
 
-    A runtime ``budget_override_usd`` (``max_remediation_usd``, #993) is the
-    cap the container's own argv carries, as it is the host argv's (#1462).
+    A runtime ``budget_override_usd`` (``max_remediation_usd``) is the
+    cap the container's own argv carries, as it is the host argv's.
     """
     if run.contained_image is None:
         return None
@@ -2530,7 +2502,7 @@ def _contained_execution_for(
     argv = build_agent_container_argv(
         config,
         # The captured immutable ID, never the mutable tag: what the profile
-        # claims and what launches must be the same bytes (#1550 review F1).
+        # claims and what launches must be the same bytes.
         image=run.resolved_image_id,
         runner=run.runner.name,
         checkout_dir=worktree_dir,
@@ -2789,7 +2761,7 @@ def _run_retry_attempt(
 def _resource_retry_spent(
     result: DispatchResult, prev_result: DispatchResult | None
 ) -> bool:
-    """A resource exhaustion earns one retry; a second in a row ends it (#2887)."""
+    """A resource exhaustion earns one retry; a second in a row ends it."""
     if result.error_category != RESOURCE_CATEGORY or prev_result is None:
         return False
     if prev_result.error_category != RESOURCE_CATEGORY:
@@ -2864,7 +2836,7 @@ def _run_retry_loop(
 
     # Effective runtime cap: the same value handed to the runner as
     # --max-budget-usd (override wins over the config default). Used by the
-    # cost-aware retry guard below (#642). Falsy/0 means "no cap set".
+    # cost-aware retry guard below. Falsy/0 means "no cap set".
     _budget_cap_usd = (
         budget_override_usd
         if budget_override_usd is not None
@@ -3010,7 +2982,7 @@ def _apply_completion_status(
     elif result.error_category == "budget_exceeded":
         stored.status = "budget_exceeded"
     elif result.error_category == QUOTA_EXHAUSTED_CATEGORY:
-        # Not the work's failure (#2643): the overlay never latches "refused".
+        # Not the work's failure: the overlay never latches "refused".
         stored.status = _REFUSAL_STATUS
     elif result.error_category in ("permanent", "transient", "needs_human"):
         stored.status = "failure"
@@ -3023,7 +2995,7 @@ def _apply_completion_status(
 
 def _completion_error_category(stored: RunRecord, result: DispatchResult) -> str:
     """The completion row's category: the result's, or the flag on a success
-    the cost-anomaly rule judged on its closing line (#1798), so the bucket
+    the cost-anomaly rule judged on its closing line, so the bucket
     median leaves that anomalous cost out."""
     from kew.breaker import FLAGGED_ANOMALY_CATEGORY
 
@@ -3169,7 +3141,7 @@ def _runner_producer(run: _TrackedRun) -> Producer:
 
 
 def _import_runner_evidence(run: _TrackedRun, result: DispatchResult) -> None:
-    """Import the run's derived stream facts into the one evidence ledger (I06).
+    """Import the run's derived stream facts into the one evidence ledger.
 
     Everything here came off a provider stream, so it goes in through
     ``import_runner_evidence`` and is stamped ``producer_kind=runner`` forever:
@@ -3335,10 +3307,10 @@ def _maybe_emit_breaker(
 ) -> None:
     """Emit a ``circuit_breaker`` audit event when a breaker rule (cost anomaly,
     whether it stopped the run or flagged a finished one) or the wall-clock
-    timeout kill fired, with the baseline behind the threshold (#1798).
+    timeout kill fired, with the baseline behind the threshold.
     ``enabled = false`` disables all
     breaker rules, including naming the existing timeout kill — emit nothing when
-    the breaker is off (#245)."""
+    the breaker is off."""
     from kew.breaker import baseline_payload
 
     breaker_rule = ""
@@ -3412,10 +3384,10 @@ def _mark_unpriced_accounting(
     A run that burned tokens against a model with no usable rate records
     ``estimated_cost_usd = 0.0``, which is indistinguishable in the ledger from
     a run that genuinely cost nothing — local inference under a free provider
-    prefix is priced at $0 *by design* and must stay readable as such (#1092).
+    prefix is priced at $0 *by design* and must stay readable as such.
     Left unmarked, an unknown price is summed as free by every consumer of the
     cost column: ``cost_per_merged_pr``, the ``cost_anomaly_factor`` baselines,
-    and the published evidence packs (#1565).
+    and the published evidence packs.
 
     ``is_priced_model`` already draws the line, treating a free-provider prefix
     as priced. Only a run with no native cost figure, no usable rate, and real
@@ -3440,7 +3412,7 @@ def _finalize_cost(run: _TrackedRun, result: DispatchResult) -> None:
 
     A run the breaker judged, stopped or flagged, records at least the cost it
     crossed the bar at: a later line (a closing summary, a native per-step
-    figure) cannot restate it as cheaper than the trip (#1798).
+    figure) cannot restate it as cheaper than the trip.
     """
     trip_floor_usd = (
         _recordable_usd(result.estimated_cost_usd) if result.breaker_rule else 0.0
@@ -3515,7 +3487,7 @@ def _finalize_result(run: _TrackedRun, outcome: _RetryOutcome) -> DispatchResult
 
 
 def _export_run_report_snapshot(run: _TrackedRun) -> None:
-    """Decision-intelligence exhaust (#1578), best-effort by contract.
+    """Decision-intelligence exhaust, best-effort by contract.
 
     Runs LAST in the terminal tail so the report can carry the completion row,
     the ``dispatch_completed`` event, and the imported runner evidence.
@@ -3648,8 +3620,7 @@ def _dispatch_log_item_id(issue_num: int, item_id: str | None) -> str:
 def _require_recorded_store(store: RunStore | None, allow_unrecorded: bool) -> None:
     """Refuse a paid run that would leave no realized-route row at all.
 
-    Exactly the silent-capture bypass the #1550 review refused. Production
-    callers always have a store; ``allow_unrecorded`` exists for tests and
+    Production callers always have a store; ``allow_unrecorded`` exists for tests and
     deliberately unrecorded simulations, never as a default.
     """
     if store is None and not allow_unrecorded:
@@ -3758,7 +3729,7 @@ def _require_local_contained_placement(
     its container on this machine and has no remote arm, so the placement
     governing *run_kind* is honoured the only way it can be: ``prefer-gcp``
     runs here and a ``gcp`` pin refuses with no row written
-    (:func:`kew.dispatch_placement.require_local_placement`, #2526 review). A
+    (:func:`kew.dispatch_placement.require_local_placement`). A
     host run has no container to place and is not asked.
     """
     if contained_image is None:
@@ -3824,20 +3795,19 @@ def run_tracked_agent(
 
     ``contained_image`` swaps the EXECUTION step for a container running that
     image, and changes nothing else — retry, budget, breaker, pause, worker cap
-    and cost accounting all still apply (#1462). The alternative, a parallel
-    contained lifecycle, is what left contained runs with no per-run cost
-    governor; the remediation flows would have lost ``max_remediation_usd``
-    (#993) to it. None means host execution.
+    and cost accounting all still apply, so a contained run keeps its per-run
+    cost governor and the remediation flows keep ``max_remediation_usd``. None
+    means host execution.
 
     ``inference_transport`` binds a flow's initial attestation to its launch.
     Sidecar attempts certify that route only after worker admission succeeds.
 
     ``worker_cap`` > 0 makes the initial ``pending`` row an atomic worker-slot
-    admission (#745): the row is inserted only if the fleet is below the cap in
+    admission: the row is inserted only if the fleet is below the cap in
     the same transaction as the count. If the cap was reached, ``WorkerCapReached``
     is raised without writing a row. Direct commands pass their configured cap.
 
-    The daily and weekly caps bind every run admitted here (#3205): unless the
+    The daily and weekly caps bind every run admitted here: unless the
     caller's ``admit_budget_check`` already gates the windows in the admission
     transaction, :func:`kew.budget.check_window_budget` does, reserving this
     run's ceiling (``budget_override_usd`` or ``agent.max_budget_usd``). A
@@ -3904,7 +3874,7 @@ def run_tracked_agent(
     _endpoint = configured_endpoint(runner.name, effective_model) or None
     # Resolved from the project origin when config leaves it "auto-detected":
     # a canonical publication never reads its worktree's origin, so this row
-    # is the only repository binding it gets (#2097).
+    # is the only repository binding it gets.
     _repo = _project_repo_slug(config)
 
     # Pre-compute the log file path so we can record it on the initial
@@ -3981,7 +3951,7 @@ def run_tracked_agent(
     ):
         run.admission = admission
         run.credential = credential
-        # Initial pending row / atomic worker-slot admission (#745). The
+        # Initial pending row / atomic worker-slot admission. The
         # dispatcher identity, the reservation binding and any receipt slot
         # commit in this one transaction, before the claim hook runs.
         try:
@@ -4007,7 +3977,7 @@ def run_tracked_agent(
         if refusal is not None:
             return refusal
         # The credential this dispatch launches under: a usage warning seen
-        # under another one is for a token since replaced (#3329).
+        # under another one is for a token since replaced.
         record_runner_launch(store, runner.name)
 
         # Compute the circuit-breaker baseline once before the retry loop.
@@ -4158,7 +4128,7 @@ def _run_governor(
     The caller attests the outcome with ``_emit_routing_decision`` once it
     knows the route that launches (containment may refuse a swap).
     ``est_prompt_tokens`` is derived from the actual rendered prompt on the real
-    dispatch path (spec D2 / R1-8). Callers without an assembled prompt (the
+    dispatch path. Callers without an assembled prompt (the
     ``--dry-run`` preview) pass ``None`` and let the governor use its fallback.
     """
     from datetime import UTC, datetime
@@ -4224,7 +4194,7 @@ def _emit_routing_decision(
     A governor that raised is attested too, as ``reason=governor_error`` with
     ``applied=False``: the run launched on the proposed route.
 
-    ``run_id`` names the run this route carries (C3/#2300), so the run page can
+    ``run_id`` names the run this route carries, so the run page can
     read the routing decision off the ``audit_events.run_id`` index with every
     other event of that run instead of guessing from the issue number — which
     cannot tell one attempt from the next. The ``--dry-run`` preview launches
@@ -4281,7 +4251,7 @@ def _override_decision(resolved: ResolvedRoute, model: str) -> GovernorDecision:
 
 
 def _attest_model_override(ctx: _DispatchContext, resolved: ResolvedRoute) -> None:
-    """Attest an operator-named model on the route that launches (#2741).
+    """Attest an operator-named model on the route that launches.
 
     The override bypasses the governor on the host path and the contained path
     has no governor at all, so either launch would otherwise leave no
@@ -4333,17 +4303,17 @@ def _materialize_checkout(
         base_branch = config.branches.base or "main"
         # Clone from the local repo + repoint origin at the upstream GitHub URL (so
         # the host's `git push` + `gh pr create` reach GitHub, not the clone source)
-        # via the ONE shared worktree primitive the reviewer also uses (Wave 2).
+        # via the ONE shared worktree primitive the reviewer also uses.
         worktree.clone_local_checkout(repo_root, checkout_dir, base_branch)
-        # Name and refresh the TRUE upstream base before cutting the agent branch
-        # (#749). The narrow clone has the bootstrap commit and history but carries
+        # Name and refresh the TRUE upstream base before cutting the agent branch.
+        # The narrow clone has the bootstrap commit and history but carries
         # no source refs. This fetch creates origin/<base> and catches an upstream
         # move between the bootstrap transfer and branch creation.
         worktree.fetch_ref(checkout_dir, base_branch, repo_root=repo_root)
         if base_sha:
             # Canonical publication diffs the checkout against this exact base, so
             # the agent starts on it even when the remote advanced after the
-            # query, and never on rewritten history (review round 14).
+            # query, and never on rewritten history.
             worktree.require_base_fetched(checkout_dir, base_sha, base_branch)
             start_point = base_sha
         else:
@@ -4370,7 +4340,7 @@ def _agent_branch_start_point(
 
     Reuse an existing remote agent branch only when it carries commits ahead
     of the default branch — real work salvaged from a prior attempt. A branch
-    with zero ahead-commits is a stale, zero-work leftover (#743): a failed
+    with zero ahead-commits is a stale, zero-work leftover: a failed
     first attempt cut it from a since-superseded base, so reusing it as-is only
     preserves staleness. Reset those onto the freshly fetched ``origin/<base>``
     so a retry builds on current main, not the stale checkout.
@@ -4393,7 +4363,7 @@ def _agent_branch_start_point(
 
 
 def _write_prompt_exclude(checkout_dir: Path) -> None:
-    """Exclude the mounted prompt handoff from version control (#725).
+    """Exclude the mounted prompt handoff from version control.
 
     Writes a worktree-local exclude (``.git/info/exclude``) — NOT the tracked
     ``.gitignore`` — so an agent's ``git add -A`` never commits
@@ -4415,8 +4385,8 @@ def _cleanup_dispatch_dir(path: Path, *, sandboxed: bool, branch: str) -> None:
 
     *branch* is the name kew created for this dispatch, threaded from the
     caller rather than read back out of *path*: the agent has written that
-    directory, and a branch name taken from it fed a destructive host
-    ``git branch -D`` (#1445).
+    directory, and a branch name taken from it would feed a destructive host
+    ``git branch -D``.
     """
     if sandboxed:
         worktree.remove_checkout_tree(path)
@@ -4444,7 +4414,7 @@ def _extract_pr_url(stdout: str) -> str | None:
 def _persist_pr_url(
     store: RunStore | None, run_id: str | None, url: str | None
 ) -> None:
-    """Persist a PR URL onto its run record immediately (#648). Fail-soft.
+    """Persist a PR URL onto its run record immediately. Fail-soft.
 
     Captures PR identity at creation so a killed run can never leave an
     untracked orphan — no migration, ``pr_url`` already exists. A store/db
@@ -4469,7 +4439,7 @@ RUN_REPORT_MARKER_PREFIX = "<!-- kew-dispatch-report run="
 
 
 def _run_report_marker(run_id: str) -> str:
-    """The HTML comment that ties a posted Dispatch Report to its run (#1761)."""
+    """The HTML comment that ties a posted Dispatch Report to its run."""
     safe = re.sub(r"[^A-Za-z0-9._:-]", "", run_id)
     return f"{RUN_REPORT_MARKER_PREFIX}{safe} -->"
 
@@ -4545,7 +4515,7 @@ def _pr_comment_bodies(pr_num: int | str, config: DispatchConfig) -> list[str]:
 
     Any gh failure or unreadable output returns no bodies fail-soft: a failed
     check just means kew posts its report, and a duplicate report is far
-    better than a silent gap (#664).
+    better than a silent gap.
     """
     result = run(
         [
@@ -4597,7 +4567,7 @@ def _run_report_on_pr(pr_num: int, config: DispatchConfig, run_id: str) -> bool:
 
 
 def _flagged_anomaly_note(result: DispatchResult) -> str:
-    """One sentence for a run flagged on its closing line (#1798)."""
+    """One sentence for a run flagged on its closing line."""
     threshold = result.breaker_threshold_usd or 0.0
     return (
         f"Cost anomaly: ${result.estimated_cost_usd:.2f} crossed the "
@@ -4663,10 +4633,10 @@ def _post_dispatch_report_fallback(
     *,
     selected_model: str | None = None,
 ) -> None:
-    """Post a machine-generated Dispatch Report when the agent posted none (#664).
+    """Post a machine-generated Dispatch Report when the agent posted none.
 
     A headless run can finalize ``success`` while a background wrap-up task —
-    the agent's own Dispatch Report comment — silently never ran (#663). After
+    the agent's own Dispatch Report comment — silently never ran. After
     the PR is confirmed, kew fills that gap: if this run has no report on the
     PR (``_run_report_on_pr``), it posts a fallback built from the run record.
     Skips when the agent already posted, and swallows every gh error fail-soft
@@ -4724,15 +4694,14 @@ def _extract_sandbox_report(log_file: Path) -> str | None:
 
     The sandboxed prompt tells the agent to END its run with the structured
     report as its final message — it cannot post a comment itself (no gh, no
-    GitHub token in the container). That final message is now captured while
+    GitHub token in the container). That final message is captured while
     the stream is being read and stored, bounded and cleaned, in the run's
     derived-evidence sidecar; this reads it back from there.
 
-    It no longer opens the log. A run whose sidecar is missing — anything
-    recorded before I06T — returns None and takes the #664 machine fallback,
-    which is the honest answer: the report is unavailable, and re-parsing the
-    raw transcript to find it is exactly the free-text re-ingest that landed
-    private reasoning in a PR comment's blast radius.
+    It never opens the log. A run whose sidecar is missing returns None and
+    takes the machine fallback: the report is unavailable, and re-parsing the
+    raw transcript would re-ingest free text that can carry private reasoning
+    into a PR comment.
     """
     return agent_report_for(log_file)
 
@@ -4744,15 +4713,14 @@ def _post_agent_report(
     *,
     result: DispatchResult | None = None,
 ) -> bool:
-    """Publish the sandboxed agent's own Dispatch Report on its PR (#758).
+    """Publish the sandboxed agent's own Dispatch Report on its PR.
 
-    The template's contract ("the host publishes the branch, PR, and this
-    report after the run") had no host-side implementation — every contained
-    run fell through to the machine fallback. Fail-soft throughout: reporting
+    This is the host side of the template's contract ("the host publishes the
+    branch, PR, and this report after the run"). Fail-soft throughout: reporting
     must never derail a completed dispatch.
 
     Returns whether this run's report is on the PR, and records that on
-    *result* so a later step of the same run posts nothing (#1761). The body
+    *result* so a later step of the same run posts nothing. The body
     carries the run's marker; a comment already carrying it skips the post.
     """
     if result is not None and result.dispatch_report_posted:
@@ -4764,7 +4732,7 @@ def _post_agent_report(
     try:
         report = _extract_sandbox_report(log_file)
         if report is None:
-            return False  # no report in the stream — the #664 fallback covers it
+            return False  # no report in the stream — the machine fallback covers it
         if run_id and _dispatch_report_exists(pr_url, config, marker):
             _log(f"Agent Dispatch Report already on {pr_url}; not posting again.")
             return _record_report_posted(result)
@@ -4843,7 +4811,7 @@ def _git_push_branch(
 
     On final failure the exception message includes ``work_dir`` so operators
     can manually salvage the preserved checkout. ``before_push`` runs only when
-    a head will be pushed, never for a no-change publication (#2033).
+    a head will be pushed, never for a no-change publication.
     """
     if store is not None and run_id:
         ensure_publication_credentials(
@@ -5329,7 +5297,7 @@ def _record_publication_intent(
 
     Written before the push. A retry that finds the branch already on the
     remote resumes only when the head is one of these commits; any other head
-    is a stale branch from some other dispatch and is refused (review round 3).
+    is a stale branch from some other dispatch and is refused.
     """
     if (
         store is None
@@ -5537,8 +5505,7 @@ def _recorded_publication_base(
     recorded none. The run id, the branch, the resolved path and the
     complete persisted directory evidence (*generation*) are the proof. Another
     run's base at the same path is never lent, and a
-    directory that replaced the preserved one at that path matches nothing
-    (review round 16)."""
+    directory that replaced the preserved one at that path matches nothing."""
     if store is None or not run_id:
         return ""
     lister = getattr(store, "list_audit_events", None)
@@ -6147,7 +6114,7 @@ def _project_repo_slug(config: DispatchConfig) -> str | None:
     that needs a slug has to resolve the origin itself. Resolving it here, in
     the parent that holds the project checkout, is what lets a detached
     canonical publication — which deliberately never reads its worktree's
-    origin — still find a slug on the run row (#2097).
+    origin — still find a slug on the run row.
     """
     return (config.project.repo or "").strip() or _repo_slug_from_origin(project_root())
 
@@ -6180,7 +6147,7 @@ def _publication_repo_sources(
     """The slug sources publication consults, in precedence order, each named.
 
     The names are what a failure reports, so this list is the single place
-    that decides both what is tried and what the error may blame (#2097): a
+    that decides both what is tried and what the error may blame: a
     canonical publication never reads the worktree origin, so it is absent
     here — and from the error — unless ``allow_checkout``.
     """
@@ -6312,8 +6279,9 @@ def _agent_pr_text(
     *,
     pr_title: str | None,
     body: str | None,
+    style: PrTitleStyle = "sentence",
 ) -> tuple[str, str]:
-    """The PR's title and body, each overridable (#3187).
+    """The PR's title and body, each overridable.
 
     A title or body GitHub would refuse is held for a person here, before any
     push, so no branch is left without its PR.
@@ -6322,7 +6290,9 @@ def _agent_pr_text(
         built = body if body is not None else agent_pr_body(item_id, title, report)
     except PrBodyTooLong as exc:
         raise PublicationHeld((f"pr_body_too_long: {exc}",)) from exc
-    chosen = pr_title or agent_pr_title(item_id, title, report)
+    if pr_title and style == "conventional":
+        pr_title = conventional_title(pr_title)
+    chosen = pr_title or agent_pr_title(item_id, title, report, style=style)
     why = unsendable(chosen, built)
     if why is not None:
         raise PublicationHeld(
@@ -6364,14 +6334,19 @@ def _push_and_open_pr(
     alongside ``agent_pr``. Returns the created PR URL (from GitHub's REST
     response) and, when ``store``/``run_id`` are given, persists it to the run
     record at creation so the ledger matches reality even if the run is later
-    killed (#648).
+    killed.
 
     The title and body are built from the run's report before anything is
-    pushed (#3187); ``pr_title`` overrides the title. A body too long for
+    pushed; ``pr_title`` overrides the title. A body too long for
     GitHub is held for a person here, so no branch is pushed without its PR.
     """
     pr_title, pr_body = _agent_pr_text(
-        item_id, title, agent_report_for(log_file), pr_title=pr_title, body=body
+        item_id,
+        title,
+        agent_report_for(log_file),
+        pr_title=pr_title,
+        body=body,
+        style=config.publication.pr_title_style,
     )
     mode = select_publication_mode(
         config.publication.publish,
@@ -6385,8 +6360,8 @@ def _push_and_open_pr(
     publication = _git_push_branch(
         branch,
         work_dir,
-        # A new head on a branch that already has an agent PR is new agent code
-        # (#2033). A first publication has no PR yet, so nothing is cleared.
+        # A new head on a branch that already has an agent PR is new agent code.
+        # A first publication has no PR yet, so nothing is cleared.
         before_push=partial(revoke_ci_approval, branch, config),
         repo=config.project.repo or None,
         base_sha=base_sha,
@@ -6507,8 +6482,8 @@ def _commit_all_if_dirty(
 ) -> bool:
     """Commit all changes if the worktree is dirty. Returns True if it committed.
 
-    Shared by the broker (#518) and the incomplete-run rescue path. ``title``,
-    ``run_id`` and ``log_file`` only shape the commit message (#2062).
+    Shared by the broker and the incomplete-run rescue path. ``title``,
+    ``run_id`` and ``log_file`` only shape the commit message.
     """
     mode = select_publication_mode(
         config.publication.publish,
@@ -6525,7 +6500,7 @@ def _commit_all_if_dirty(
             )
         )
     # Plumbing under an inert git environment: nothing the checkout names runs
-    # on the host while kew commits for it (#2634).
+    # on the host while kew commits for it.
     return commit_checkout_worktree(
         worktree_dir,
         _broker_commit_message(
@@ -6534,14 +6509,11 @@ def _commit_all_if_dirty(
     )
 
 
-# --- zero-change outcomes (I10B) ---------------------------------------------
+# --- zero-change outcomes ----------------------------------------------------
 #
-# A run that changed nothing writes NOTHING to the provider. It records one
-# durable no-change candidate (kew.no_change) and stops: the item stays open,
-# the dependents stay blocked, and I11 asks a person what the absence meant.
-# The legacy path did the opposite — labelled, closed, auto-unblocked, and for
-# a Linear item commented and closed through a tracker hook — all on evidence
-# that is indistinguishable from "the agent never got as far as writing a file".
+# A run that changed nothing writes NOTHING to the provider: one durable no-change
+# candidate (kew.no_change), item open, dependents blocked, a person asked what the
+# absence meant. A zero diff is indistinguishable from an agent that never wrote a file.
 
 #: The host's own zero-diff observation, recorded as a named check so an
 #: attestation says which check looked for work and found none.
@@ -6724,7 +6696,7 @@ def _seal_no_change_evidence(
 
     Nothing else on either zero-change path seals a receipt — the host broker
     publishes through the agent and the contained path publishes inside the
-    sandbox (#1610) — so without this the candidate lands carrying no evidence
+    sandbox — so without this the candidate lands carrying no evidence
     at all. Never raises: an unsealed package is a gap :func:`_attest_no_change`
     reports to the operator, not a reason to fail a dispatch that succeeded.
     """
@@ -6811,7 +6783,7 @@ def _complete_no_changes(
         base_sha = canonical_no_change.base_sha
     elif config.publication.publish == "canonical":
         # Without the walker's evidence nothing is classified or sealed: the
-        # legacy sealer reads the checkout with git (review round 10).
+        # legacy sealer reads the checkout with git.
         _warn(
             f"{item_ref(item_id)} changed nothing, but no no-change outcome was"
             " recorded (no canonical evidence reached the judgment). Nothing"
@@ -6912,7 +6884,7 @@ def _rescue_pr_body(item_id: str) -> str:
     """Rescue-draft PR body — banner + item-appropriate closing reference.
 
     GitHub items get ``Closes #N``; Linear items carry the bare id (no marker
-    GitHub can't resolve — the link comes from the branch lookup, A6).
+    GitHub can't resolve — the link comes from the branch lookup).
     """
     return f"{_RESCUE_PR_BODY_PREFIX}\n\n{closes_marker(item_id)}"
 
@@ -6930,7 +6902,7 @@ def _rescue_incomplete_run(
     base_sha: str | None = None,
     log_file: Path | None = None,
 ) -> None:
-    """Rescue an incomplete-but-coherent run into flagged DRAFT PR (#518).
+    """Rescue an incomplete-but-coherent run into flagged DRAFT PR.
 
     Commits any uncommitted work, pushes, opens *draft* PR labeled
     ``incomplete-run`` + ``agent-pr`` with review-carefully banner, flags
@@ -6976,7 +6948,7 @@ def _rescue_incomplete_run(
 
     # The draft PR is now open on the remote. Everything below is best-effort:
     # a transient gh hiccup must NOT relabel the issue agent-failed — the draft
-    # + pushed branch are already safe (spec: "let the draft stand").
+    # + pushed branch are already safe, so the draft stands.
     try:
         # The incomplete-run label was set at create time via extra_labels; a
         # belt-and-suspenders re-apply guards against gh dropping an unknown
@@ -7005,7 +6977,7 @@ def _worker_cap_reached(
     issue_num: int,
     item_id: str | None = None,
 ) -> tuple[bool, int, int]:
-    """Fleet-wide worker-cap preflight check (#721).
+    """Fleet-wide worker-cap preflight check.
 
     Returns ``(reached, live, cap)`` where *live* is the store-backed count of
     distinct in-flight work items (pending runs + active epic reservations,
@@ -7014,7 +6986,7 @@ def _worker_cap_reached(
     would push the fleet to (or past) the cap. A cap of 0 or less disables the
     check (unbounded).
 
-    Exclusion keys on the durable ``item_id`` (A3), NOT ``issue_num``: every
+    Exclusion keys on the durable ``item_id``, NOT ``issue_num``: every
     non-numeric item shares the ``0`` sentinel, so excluding by ``issue_num=0``
     would fail to drop a Linear item's own reservation and it would count
     itself. ``item_id`` defaults to ``str(issue_num)`` (the GitHub shim, where
@@ -7023,13 +6995,9 @@ def _worker_cap_reached(
     cap = config.fleet_concurrency()
     if cap <= 0:
         return False, 0, cap
-    # Owner-liveness-aware (#1059, wired here by #1132): a hard-killed run
-    # orphans its ``pending`` row, and the unprobed count treats that corpse as
-    # a live agent — one crash permanently shrinks the fleet until someone runs
-    # ``kew cleanup`` by hand. The probe is three-state and drops a row only on
-    # a provable ``False``, so a run mid-startup is never falsely discounted.
-    # Local import: ``graph.driver`` imports ``dispatch_core``, so a
-    # module-level import here would cycle.
+    # Owner-liveness-aware, or one hard-killed run's orphaned pending row shrinks
+    # the fleet until ``kew cleanup``. The probe drops a row only on a provable
+    # False, so a starting run still counts. Local import: graph.driver imports this.
     from kew.graph.driver.tick import default_run_liveness
 
     live = store.live_run_count(
@@ -7043,7 +7011,7 @@ def _holds_label_claim(epic_ref: str | None, provider: str, issue_num: int) -> b
     """True when the dispatch's claim is a classic-queue label on a GitHub issue.
 
     An epic-owned run (``epic_ref`` set) is claimed by the driver's reservation,
-    never by label (#661), and a non-GitHub item has no issue to relabel; the
+    never by label, and a non-GitHub item has no issue to relabel; the
     ``0`` sentinel is never a GitHub number.
     """
     return epic_ref is None and provider == "github" and issue_num > 0
@@ -7061,7 +7029,7 @@ def _hand_claim_back(
 ) -> str | None:
     """Return a classic-queue claim to ``ready``; name the issue when that fails.
 
-    Every refusal that hands a claim back comes through here (#3045). A failed
+    Every refusal that hands a claim back comes through here. A failed
     reset leaves the issue claimed with no run, and later drains skip it, so
     the failure is not swallowed: it is returned for the caller's outcome and
     recorded as a ``claim_rollback_failed`` audit event on the run, which is
@@ -7125,16 +7093,16 @@ def _requeue_over_cap(
     provider: str = "github",
     run_id: str | None = None,
 ) -> str | None:
-    """Return an over-cap run to the queue without dispatching it (#721).
+    """Return an over-cap run to the queue without dispatching it.
 
     ``epic_ref`` is the authoritative driver-owned signal (same contract as
-    the budget-hold path, #661) — labels can be missing or malformed. A
+    the budget-hold path) — labels can be missing or malformed. A
     driver-dispatched node releases its atomic reservation so the driver
     re-admits it on a later tick (its labels must never be reset here).
     Anything else was already claimed by the caller. Restore ``ready`` here,
     before the worker reports completion. This survives scheduler parent exits.
 
-    The reservation is released on the durable ``item_id`` (A3), NOT
+    The reservation is released on the durable ``item_id``, NOT
     ``issue_num``: a Linear node's reservation is keyed on ``SFD-12``, so
     releasing on the ``0`` sentinel would leave it to dangle until grace expiry.
     ``item_id`` defaults to ``str(issue_num)`` (the GitHub shim).
@@ -7190,13 +7158,13 @@ def _enforce_worker_cap(
     provider: str = "github",
     run_id: str | None = None,
 ) -> DispatchOutcome | None:
-    """Fleet-wide worker-cap preflight (#721).
+    """Fleet-wide worker-cap preflight.
 
     Returns a requeue ``DispatchOutcome`` (and requeues the item) when the
     fleet is already at ``parallel.max_workers`` live runs, otherwise None so
     dispatch proceeds. No-op without a store (per-process paths that don't
     track shared concurrency). Both the count exclusion and the requeue release
-    key on the durable ``item_id`` (A3).
+    key on the durable ``item_id``.
     """
     if store is None:
         return None
@@ -7236,7 +7204,7 @@ def _enforce_worker_cap(
 
 @dataclass(frozen=True)
 class _ProfileSnapshot:
-    """The approved addendum one dispatch read off the host store (#3022).
+    """The approved addendum one dispatch read off the host store.
 
     A holder rather than the bare value, so "read, and there is none" differs
     from "not read yet".
@@ -7290,14 +7258,14 @@ class _DispatchContext:
     publication_style: str = "agent"
     publication_base_sha: str = ""
     # The plan sha the ledger holds for this body, set once the plan is
-    # recorded (#2290). None until then, and after a failed record: the prompt
+    # recorded. None until then, and after a failed record: the prompt
     # only claims a ledger row when there is one.
     recorded_plan_sha: str | None = None
     checkout_generation: str = ""
     checkout_binding: worktree.CheckoutDirectoryBinding | None = None
     checkout_abandonment: CheckoutAbandonment | None = None
     root_checkout_before: tuple[str, str, str] | None = None
-    # Test-only escape for the no-store-no-paid-run gate (#1550 review F5).
+    # Test-only escape for the no-store-no-paid-run gate.
     allow_unrecorded: bool = False
     launch_state: LaunchState = field(default_factory=LaunchState)
     # The dispatch's one read of the approved addendum; see _dispatch_addendum.
@@ -7443,7 +7411,7 @@ def _warn_if_review_capacity_full(
 ) -> None:
     """Tell a direct dispatcher the review queue is full, then let them through.
 
-    Only a direct dispatch is warned. A supervised driver gets I15's frontier
+    Only a direct dispatch is warned. A supervised driver gets frontier
     backpressure instead, which is a decision rather than a note.
     """
     pressure = (
@@ -7692,20 +7660,14 @@ def _run_admission_gates(
     # Fires regardless of --force so the mismatch is always surfaced.
     _warn_if_scheduler_does_not_own_cap_warning(ctx)
 
-    # Human-review capacity (I14). A person dispatching directly is TOLD the
-    # delivery repository's review queue is full; they are not stopped, because
-    # a direct dispatch is a decision and this cap governs publication, not
-    # work. The E5 publication that run produces still has to win the atomic
-    # reservation before anything leaves the host, so the warning costs nothing
-    # and hides nothing.
+    # Human-review capacity: a direct dispatcher is TOLD the review queue is full,
+    # not stopped. The cap governs publication, and the run's publication still
+    # has to win the atomic reservation before anything leaves the host.
     _warn_if_review_capacity_full(config, store, epic_ref)
 
-    # Fleet-wide worker cap (#721) — enforced at preflight so N live runs
-    # block the N+1th dispatch regardless of which process dispatches. The
-    # store-backed live count is the fleet's true concurrency (every worker
-    # subprocess and every epic-driver child share one dispatch.db), unlike
-    # the scheduler's per-process in-flight set. Requeue rather than spawn a
-    # doomed (N+1)th agent; the cap releases as live runs finish.
+    # Fleet-wide worker cap, counted from the store (every worker and epic-driver
+    # child shares one dispatch.db), not the per-process in-flight set: N live
+    # runs requeue the N+1th dispatch from any process instead of spawning it.
     capped = _enforce_worker_cap(
         store,
         config,
@@ -7724,7 +7686,7 @@ def _run_admission_gates(
 
     # Budget pre-check — cheap read-only snapshot of committed spend. The
     # atomic admit-time gate below (folded into try_admit_run) is what closes
-    # the parallel-overshoot race the preflight alone left open (H2).
+    # the parallel-overshoot race the preflight alone leaves open.
     if store is not None and not force_budget:
         try:
             check_budget(store, config.budget, issue_num, item_id=item_id)
@@ -7747,11 +7709,9 @@ def _run_admission_gates(
             outcome.reason = redact_credentials(exception_text(exc))
             return outcome, None
 
-    # The admit-time reservation gate, folded into the same BEGIN IMMEDIATE
-    # transaction as the worker-slot claim (H2). Pending rows are valued at the
-    # runtime kill cap (worst case) so N contending admits against a
-    # nearly-exhausted cap serialize and at most one squeaks under. Skipped
-    # under --force (budget bypass) and when there is no store to reserve in.
+    # The admit-time reservation gate, in the worker-slot claim's BEGIN IMMEDIATE
+    # transaction. Pending rows count at the runtime kill cap, so at most one of N
+    # admits fits under a nearly-exhausted cap. Skipped under --force or no store.
     admit_budget_check: Callable[[], None] | None = None
     if store is not None and not force_budget:
         _reservation_store = store
@@ -7992,7 +7952,7 @@ class _EarlyRunInfo:
 
 
 def _preflight_pricing(ctx: _DispatchContext, resolved: ResolvedRoute) -> None:
-    """Pricing preflight (#934): a governed dispatch must never meter an
+    """Pricing preflight: a governed dispatch must never meter an
     unpriced model at $0 — that corrupts budgets, the breaker baseline, and the
     cost-per-merged-PR headline. Fail closed (raise → caller refuses to
     dispatch) so an unpriced routable model aborts instead of running "for
@@ -8029,12 +7989,12 @@ def _emit_sandbox_resolved(
     synthetic_credential_name: str | None = None,
     direct_transport: bool = True,
 ) -> None:
-    """Attest one dispatch's containment posture on the audit ledger (#654).
+    """Attest one dispatch's containment posture on the audit ledger.
 
     Emitted on EVERY outcome including a refusal, so a dispatch that never ran
     because its runner could not be contained leaves the same kind of record as
     one that ran guard-only — otherwise the ledger's "was this contained?"
-    answer for a refused run is silence (#1144).
+    answer for a refused run is silence.
 
     ``reason`` is the machine-readable refusal cause (``SandboxRuntimeUnavailable
     .reason``), present only on ``posture="refused"``. Without it the several
@@ -8150,6 +8110,43 @@ def _report_sandbox_notice(decision: SandboxDecision) -> None:
     report(decision.notice)
 
 
+def _resolve_sandbox_admission(
+    ctx: _DispatchContext,
+    runner: str,
+    *,
+    host_only: bool,
+    inference_transport: ResolvedInferenceTransport | None,
+) -> tuple[SandboxDecision, str | None]:
+    """Resolve containment and admit the selected egress route."""
+    decision = _resolve_dispatch_sandbox(
+        ctx.config,
+        runner,
+        inference_transport,
+        ctx.store,
+        host_only=host_only,
+    )
+    decision = replace(
+        decision,
+        egress_verification=_resolve_egress_verification(
+            decision,
+            inference_transport,
+        ),
+    )
+    from kew.hosts.remote_dispatch import DISPATCH_RUN_KIND
+
+    if not placed_here(ctx.config, DISPATCH_RUN_KIND):
+        # A run that may be placed on an instance has its network read there,
+        # once the placement is known (kew.dispatch_sandbox._held_placement).
+        return decision, None
+    warning = contained_egress_warning(
+        ctx.config.sandbox,
+        runner=runner,
+        decision=decision,
+        transport=inference_transport,
+    )
+    return decision, warning
+
+
 def _resolve_and_apply_sandbox(
     ctx: _DispatchContext,
     runner: str,
@@ -8165,8 +8162,8 @@ def _resolve_and_apply_sandbox(
     (raise → caller refuses to dispatch).
 
     ``runner`` is the already-resolved runner name: it picks the image, so the
-    same committed config can no longer contain a non-claude node in the
-    claude-only image just because a claude credential is in the env (#1144).
+    same committed config cannot contain a non-claude node in the
+    claude-only image just because a claude credential is in the env.
     ``host_only`` is used for an existing continuation worktree, which cannot
     be handed to the container path without replacing the preserved checkout.
     It is passed INTO the resolution as well as checked after it: a runner that
@@ -8176,24 +8173,18 @@ def _resolve_and_apply_sandbox(
     """
     config = ctx.config
     try:
-        sandbox_decision = _resolve_dispatch_sandbox(
-            config, runner, inference_transport, ctx.store, host_only=host_only
+        sandbox_decision, egress_warning = _resolve_sandbox_admission(
+            ctx,
+            runner,
+            host_only=host_only,
+            inference_transport=inference_transport,
         )
     except SandboxRuntimeUnavailable as exc:
-        # Fail closed — but attest the refusal first, so `kew audit` shows the
-        # run was refused for containment rather than showing nothing at all.
-        # The facts come off the exception, not hardcoded: a refusal that
-        # happened BECAUSE a runtime was present must not attest runtime=None,
-        # which is exactly what the no-runtime refusal attests (#1144 review).
+        # Fail closed, but attest the refusal first so `kew audit` shows it. The
+        # facts come off the exception: a refusal caused BY a present runtime must
+        # not attest runtime=None, which is what the no-runtime refusal attests.
         _attest_sandbox_refusal(ctx, runner, exc)
         raise
-    sandbox_decision = replace(
-        sandbox_decision,
-        egress_verification=_resolve_egress_verification(
-            sandbox_decision,
-            inference_transport,
-        ),
-    )
     if (
         sandbox_decision.egress_verification
         == sandbox_network.DIRECT_ROUTE_EGRESS_VERIFICATION
@@ -8210,29 +8201,21 @@ def _resolve_and_apply_sandbox(
         check_runtime_memory_capacity(config.sandbox.runtime, config.sandbox)
         # Fails closed: a host under the free-space floor or a checkout over
         # quota would breach at the watchdog's first tick, before the
-        # container exists (#1431 round 5).
+        # container exists.
         _check_initial_host_capacity(ctx, runner, sandbox_decision)
-        # Loud warning if an operator opted into full egress with a credential
-        # injected — one outbound request can exfiltrate the key (#935). Keyed
-        # on containment ALONE: this is a credential-exfiltration warning, not
-        # an image fact, so it must not ride on whether an image happened to be
-        # resolved (#1144 review). The runner names WHICH credential is at risk
-        # — the one this container is actually handed, by name (#1146).
-        egress_warning = open_egress_warning(config.sandbox.network, runner=runner)
+        # The admission gate retains a warning after explicit acknowledgement.
+        # The runner names which credential is at risk, by name only.
         if egress_warning:
             _warn(egress_warning)
-        # The gateway runtime delivers no docker argv, so the caps and the
-        # proxy-inherit setting have nowhere to land. The ledger records that
-        # they did not apply; this is where the operator who configured one
-        # hears it, rather than discovering it from a run report (PR #2401
-        # review).
+        # The gateway runtime takes no docker argv, so the caps and proxy-inherit
+        # setting cannot land. The ledger records that; this warning tells the
+        # operator who configured one now, not via a run report.
         ignored_settings = openshell_ignored_argv_settings_warning(config.sandbox)
         if ignored_settings:
             _warn(ignored_settings)
-        # The staleness check is the one that genuinely needs the image. A
-        # sandboxed decision always carries its runner's image — resolution
-        # refuses to return sandboxed=True without one (#1144) — so the guard
-        # is a type narrowing, not a silent skip.
+        # Only the staleness check needs the image. Resolution refuses to return
+        # sandboxed=True without one, so this guard is a type narrowing, not a
+        # silent skip.
         if sandbox_decision.image:
             stale_warning = check_agent_image_staleness(
                 config.sandbox.runtime, sandbox_decision.image, runner=runner
@@ -8291,7 +8274,7 @@ def _resolve_egress_verification(
     if route == sandbox_network.OPENSHELL_EGRESS_ROUTE:
         # Already proven: resolution refuses an OpenShell dispatch whose
         # boundary has no fresh passing certification, so reaching here means
-        # the matching proof was read off the chain (#2319).
+        # the matching proof was read off the chain.
         return sandbox_network.classify_egress_verification(
             route=sandbox_network.OPENSHELL_EGRESS_ROUTE, certified=True
         )
@@ -8314,10 +8297,9 @@ def _resolve_dispatch_sandbox(
     ``host_only`` is the continuation shape, forwarded so the resolver asks the
     runner's containment question with no boundary in it: this launch takes the
     preserved worktree on the host, so there is no container on offer for it to
-    defer to. Without it a ``codex`` continuation on the gateway runtime
-    resolved ``sandboxed`` and then died at
-    :func:`_ensure_host_only_sandbox_posture`, where the same continuation on
-    docker ran ``native`` (PR #2461 review round 3).
+    defer to. Without it a ``codex`` continuation on the gateway runtime would
+    resolve ``sandboxed`` and then be refused at
+    :func:`_ensure_host_only_sandbox_posture`.
     """
     if inference_transport is not None and inference_transport.sidecar:
         return resolve_effective_sidecar_sandbox(
@@ -8429,11 +8411,11 @@ def _launch_sandboxed(
     """Sandboxed path: build the prompt against a standalone checkout and launch
     the container; the host brokers push/PR.
 
-    ``image`` comes from the sandbox decision (runner-derived, #1144) — never
+    ``image`` comes from the sandbox decision (runner-derived) — never
     from ``config.sandbox.image``, which only ever named the claude image. The
     same resolved runner (``early.runner``, what the decision keyed off) rides
-    down with it, so the container args match the image (#1145) and the
-    credential env allowlist names that runner's own keys (#1146) — image,
+    down with it, so the container args match the image and the
+    credential env allowlist names that runner's own keys — image,
     flags and credentials cannot describe different agents."""
     config = ctx.config
     sidecar = bool(inference_transport is not None and inference_transport.sidecar)
@@ -8441,8 +8423,8 @@ def _launch_sandboxed(
         ctx, early.runner, sandbox_decision, inference_transport, checkout_dir
     )
 
-    # Repo-map parity (spec D5 / R3-7): the sandbox path built prompts with
-    # no map at all. Route it through the same seam as the host path.
+    # Repo-map parity: the sandbox prompt gets its map through the same seam as
+    # the host path.
     repo_map = _build_repo_map(ctx, checkout_dir)
     # The approved addendum comes off the host store, never `checkout_dir`.
     addendum = _dispatch_addendum(ctx)
@@ -8465,12 +8447,12 @@ def _launch_sandboxed(
         ),
         runner_name=early.runner,
         # getattr: the sandboxed launch is also driven with lighter contexts
-        # (tests, older callers) that predate the plan fields (#2290 verify).
+        # (tests, older callers) that lack the plan fields.
         recorded_plan_sha=getattr(ctx, "recorded_plan_sha", None),
         # The self-check quotes the rubric the OPERATOR's repo deploys, never
         # the one in `checkout_dir`: a retry or continuation cuts that checkout
         # from the prior attempt's branch, so the rubric there is the previous
-        # agent's text and it is interpolated as instructions (#2454 round 2).
+        # agent's text and it is interpolated as instructions.
         rubric_root=operator_repo_root(),
         profile_addendum=addendum,
     )
@@ -8520,7 +8502,7 @@ def _launch_sandboxed(
 def _contained_cost_governor(
     ctx: _DispatchContext, early: _EarlyRunInfo
 ) -> ContainedCostGovernor:
-    """The mid-run cost authority of a contained dispatch (#1462).
+    """The mid-run cost authority of a contained dispatch.
 
     The same two ceilings the host dispatch arms: the run cap through
     ``budget_watchdog`` (contained, so claude-code is watched too) and the
@@ -8574,7 +8556,7 @@ def build_repo_map(
     """Generate the repo map from a workspace for agent navigation.
 
     The single shared seam every dispatch call site routes through — host,
-    sandbox, and loop (spec D5, "delivery holes" R3-7) — so the map (and the
+    sandbox, and loop — so the map (and the
     future lessons layer) inject uniformly rather than only on the host path.
     Returns "" when ``include_repo_map`` is off. Failure is non-fatal: the
     dispatch continues without a map.
@@ -8646,7 +8628,7 @@ def _governed_swap_refusal(
 
     Returns ``None`` when the governed route may launch, else the short,
     redacted refusal cause. Containment was resolved and attested for the
-    proposed runner before the governor ran (#1803). A swap to another runner
+    proposed runner before the governor ran. A swap to another runner
     re-resolves containment with the same rules (transport admission, refusal,
     the skip flag). The swap is refused, and the proposed route kept, when
     that resolution refuses, needs a container this host path cannot give, or
@@ -8731,7 +8713,7 @@ def _launch_host(
             ),
             runner_name=candidate.name,
             recorded_plan_sha=getattr(ctx, "recorded_plan_sha", None),
-            # Not `worktree_dir` — see the sandboxed path (#2454 round 2).
+            # Not `worktree_dir` — see the sandboxed path.
             rubric_root=rubric_root,
             profile_addendum=addendum,
         )
@@ -8741,14 +8723,14 @@ def _launch_host(
 
     _repo_map_hash = hashlib.sha256(repo_map.encode()).hexdigest() if repo_map else ""
 
-    # Injected-context accounting (spec D2 / R1-8): size the repo map actually
+    # Injected-context accounting: size the repo map actually
     # rendered into the prompt, and derive the governor's estimate from the whole
     # assembled prompt rather than a hard-coded constant. Lesson-corpus tokens
-    # stay unset until Phase 2 ships that layer.
+    # stay unset: no lessons layer injects into the prompt.
     _map_tokens = estimate_prompt_tokens(repo_map) if repo_map else None
     _est_prompt_tokens = estimate_prompt_tokens(prompt)
 
-    # --- Cache-economics governor (Phase 2) ---
+    # --- Cache-economics governor ---
     if not ctx.model_override and ctx.store is not None:
         _gov_resolved, _gov_decision = _run_governor(
             resolved=resolved,
@@ -8786,17 +8768,9 @@ def _launch_host(
         ctx, resolved, runner, _repo_map_hash
     )
 
-    # Mid-run budget watchdog (#1108). claude-code enforces max_budget_usd
-    # natively via its --max-budget-usd argv flag; opencode/pi/hermes have no
-    # native flag, so on the host path their configured run cap was decorative
-    # — only the admission-time pools (per-issue/daily/weekly) bounded a runaway
-    # run. Wire the same watchdog the loop path (#291) uses so the orchestrator
-    # polls accumulated cost each tick and kills with the #859 WIP-commit grace,
-    # finalizing under budget_exceeded / watchdog_budget. Direct dispatch passes
-    # no budget_override, so the effective ceiling is config.agent.max_budget_usd
-    # (validated > 0).
-    # Host path only — sandboxed dispatch launches through _run_sandboxed, not
-    # here — so contained is False and this keeps its existing behaviour.
+    # Mid-run watchdog at config.agent.max_budget_usd for runners with no native
+    # --max-budget-usd flag (claude-code has one): kills with the WIP-commit grace.
+    # Host path only; sandboxed dispatch launches through _run_sandboxed.
     _budget_check = budget_watchdog(
         config.agent.max_budget_usd, runner_name=runner.name, contained=False
     )
@@ -8804,7 +8778,7 @@ def _launch_host(
     return run_tracked_agent(
         prompt=prompt,
         # Off the prompt that will actually launch — after the governor's
-        # possible re-render, never before it (#2454).
+        # possible re-render, never before it.
         self_check=rendered_self_check(prompt),
         prompt_profile_version_id=profile_version_id(addendum),
         worktree_dir=worktree_dir,
@@ -8889,7 +8863,7 @@ def _launch_lost_budget(
     run_sandboxed_path: bool,
     exc: BudgetExceeded,
 ) -> _LaunchResult:
-    """Lost the atomic reservation race after passing the cheap preflight (H2):
+    """Lost the atomic reservation race after passing the cheap preflight:
     the pending row was rolled back, so no run was admitted. Tear down the
     unused worktree/checkout and refuse exactly like the preflight (hold for
     epics, mark_failed for the classic queue)."""
@@ -8919,8 +8893,8 @@ def _launch_lost_budget(
 def _launch_over_cap(
     ctx: _DispatchContext, worktree_dir: Path | None, run_sandboxed_path: bool
 ) -> _LaunchResult:
-    """Lost the atomic count+insert race after passing the cheap preflight
-    (#745): no run row was written, so requeue exactly like the preflight
+    """Lost the atomic count+insert race after passing the cheap preflight:
+    no run row was written, so requeue exactly like the preflight
     over-cap path and tear down the unused worktree (a requeue is not a
     debug-worthy failure — never mark_failed, never preserve)."""
     _warn(
@@ -9065,7 +9039,7 @@ def _record_issuer_refusal(ctx: _DispatchContext, early: _EarlyRunInfo) -> None:
     )
     # Generation-conditional on the identity this caller actually acquired:
     # the driver's pin when it was given one, else this foreground run's own
-    # reservation id. Never an unconditional administrative delete (#1951).
+    # reservation id. Never an unconditional administrative delete.
     ctx.store.release_epic_node_item(
         ctx.item_id, run_id=ctx.expected_reservation_run_id or ctx.run_id
     )
@@ -9107,8 +9081,8 @@ def _container_launch_marker_failed(
         else None
     )
     if row is not None and row.status == "pending":
-        # The reason carries the runtime's own words on a failed create
-        # (#2913), so the run, and the node it holds, say why.
+        # The reason carries the runtime's own words on a failed create,
+        # so the run, and the node it holds, say why.
         _finalize_sandbox_run(
             ctx.store,
             row.run_id,
@@ -9146,8 +9120,8 @@ def _launch_refused_transport(
         message = reason
     elif isinstance(exc, RunnerPreflightRefused):
         # Same pre-spawn path, different fact: the RUNNER cannot launch here.
-        # Naming it a transport refusal sent operators to Switchyard when the
-        # fix was `codex login` (round-4 review).
+        # Named apart from a transport refusal, which would send the operator to
+        # Switchyard when the fix is `codex login`.
         reason = exc.reason or "runner_preflight_refused"
         category = "runner_preflight_refused"
         message = f"Runner preflight refused: {reason}"
@@ -9156,11 +9130,9 @@ def _launch_refused_transport(
         category = "transport_admission_refused"
         message = f"Switchyard route admission refused: {reason}"
     _finish_refusal(ctx, reason)
-    # The refusal row is recorded while this run's reservation still exists:
-    # releasing first made the next call re-validate a reservation that was
-    # gone, so a pinned child reported a replaced reservation instead of the
-    # refusal and its node was never held (governed review round 7,
-    # 2026-09-22).
+    # Recorded while this run's reservation still exists: if released first, the
+    # next call re-validates a reservation that is gone, so a pinned child reports a
+    # replaced reservation instead of the refusal and its node is never held.
     _record_prelaunch_refusal(ctx, category, exit_code=exit_code)
     if issuer_refused:
         _record_issuer_refusal(ctx, early)
@@ -9169,7 +9141,7 @@ def _launch_refused_transport(
     )
     # On stderr as well as the tracker: the epic child builds its operator
     # hold from the captured stderr tail, so a message that only reached
-    # mark_failed left the hold without the remedy (round-6 review).
+    # mark_failed would leave the hold without the remedy.
     _error(message)
     with contextlib.suppress(Exception):
         mark_failed(ctx.issue_num, ctx.config, message)
@@ -9236,7 +9208,7 @@ class RunnerPreflightRefused(TransportAdmissionError):
     A subclass so the refusal rides the same pre-spawn path as a transport
     admission refusal, but stays distinguishable: the operator must be able
     to tell "codex is not logged in" from "the adaptive route was refused"
-    in kew status, the epic hold, and the audit event (round-4 review).
+    in kew status, the epic hold, and the audit event.
     """
 
 
@@ -9296,7 +9268,7 @@ def _bind_host_checkout_before_runner(
 
 def _pinned_base(ctx: _DispatchContext) -> str:
     """The exact base a canonical checkout starts on; the checkout escape
-    hatch keeps following the fetched head (review round 14)."""
+    hatch keeps following the fetched head."""
     if ctx.config.publication.publish != "canonical":
         return ""
     return ctx.publication_base_sha
@@ -9368,7 +9340,7 @@ def _setup_host_worktree(
 
 
 def _record_dispatch_plan(ctx: _DispatchContext) -> None:
-    """Record the acceptance criteria this dispatch launches against (#2290).
+    """Record the acceptance criteria this dispatch launches against.
 
     Called once the run id exists and before the prompt is built, which is what
     makes both halves of the record true: the ``item_plans`` row and its chain
@@ -9410,7 +9382,7 @@ def _launch_acceptance_author(
     admit_budget_check: Callable[[], None] | None,
     sandbox_posture: str | None,
 ) -> str:
-    """Run the author as its own fresh ``acceptance_author`` run (#2728).
+    """Run the author as its own fresh ``acceptance_author`` run.
 
     A new run id and a new session: nothing of the implementer's context
     reaches it but the checkout at the base. It is a paid run like the
@@ -9489,7 +9461,7 @@ def _dispatch_addendum(ctx: _DispatchContext) -> ProfileAddendum | None:
 
 
 def _refuse_unrenderable_profile(ctx: _DispatchContext) -> None:
-    """Run the prompt-profile refusals before any paid launch (#3022).
+    """Run the prompt-profile refusals before any paid launch.
 
     The implementer's render runs them too, but only after the acceptance
     author has been paid for and its contract committed. Raising here, a
@@ -9524,7 +9496,7 @@ def _author_acceptance_contract(
 
     A continuation passes its *continuation_base*: its recorded contract is
     restored, and a missing one is authored only if the implementer has not
-    committed yet; otherwise the continuation is refused (#2771).
+    committed yet; otherwise the continuation is refused.
     """
     if ctx.store is None or ctx.epic_ref is None or ctx.run_kind != "dispatch":
         return
@@ -9571,7 +9543,7 @@ def _launch_continuation(
     """Launch the implementer on a claimed continuation's preserved checkout."""
     # A continuation is an operator-approved existing checkout. One run
     # owns it from here, and it publishes against the base it was cut
-    # from (review round 12); containment resolves before the host
+    # from; containment resolves before the host
     # launch can touch it.
     claim_checkout(worktree_dir)
     generation = _checkout_generation(worktree_dir)
@@ -9579,7 +9551,7 @@ def _launch_continuation(
     if not ctx.publication_base_sha and config.publication.publish == "canonical":
         # Nothing binds this directory to the continuation: it was never
         # minted, or another checkout replaced it at this path. Refuse
-        # before an agent runs on it (review round 16).
+        # before an agent runs on it.
         raise RuntimeError(
             f"{item_ref(ctx.item_id)}: no publication base is bound to the "
             f"preserved checkout {worktree_dir} (never minted, or "
@@ -9646,7 +9618,7 @@ def _launch_at_contract(
 ) -> DispatchResult:
     """Prepare the node's acceptance contract, then start the implementer on it.
 
-    The one ordering point for both workspaces (#2767): the author's launch,
+    The one ordering point for both workspaces: the author's launch,
     its red-at-base check and the contract commit all finish before
     ``launch_implementer`` runs, so the implementer starts at the contract
     commit, and a refused contract raises before it launches. The author launch
@@ -9705,10 +9677,10 @@ def _launch_workspace(
         # No host runner preflight here, on purpose: the CLI runs inside the
         # image, so `shutil.which` on the host says nothing about it, and a
         # host without the `claude` binary is a valid contained launch. The
-        # sandbox launcher checks image, identity and credentials (round-4
-        # review, Medium 2). The route's runner and model are still recorded.
+        # sandbox launcher checks image, identity and credentials. The route's
+        # runner and model are still recorded.
         early.runner = str(getattr(resolved.runner, "name", ""))
-        # The container runs the operator-named model when there is one (#2741).
+        # The container runs the operator-named model when there is one.
         early.model = ctx.model_override or resolved.model or ""
         setup.run_sandboxed = True
         ctx.publication_base_sha = _trusted_dispatch_base(config)
@@ -9761,7 +9733,7 @@ def _launch_workspace(
 
     ctx.publication_base_sha = _trusted_dispatch_base(config)
     # The checkout starts at the exact trusted base and the base is recorded
-    # only once the claimed checkout exists at it (review round 13).
+    # only once the claimed checkout exists at it.
     setup.worktree_dir = _setup_host_worktree(
         ctx,
         config,
@@ -9770,7 +9742,7 @@ def _launch_workspace(
     )
     # The realized profile records the resolved posture — native and
     # dangerously-uncontained launches are distinct facts from plain host
-    # execution (#1550 review F6; wiring per the #1552 re-review F-1).
+    # execution.
     return _launch_at_contract(
         ctx,
         setup.worktree_dir,
@@ -9810,7 +9782,7 @@ def _launch_runner(
 
     # Captured as soon as the runner resolves, so the early-exit dispatch log
     # entry can name it. Bound before the dispatch try so the admit-race
-    # handlers can tear down whatever was set up, whichever path raised (#745).
+    # handlers can tear down whatever was set up, whichever path raised.
     early = _EarlyRunInfo()
     setup = _LaunchSetup()
 
@@ -9968,8 +9940,8 @@ def _record_checkout_refusal(ctx: _DispatchContext, category: str) -> None:
     """Finish the admitted row, or record a pre-admission refusal row.
 
     A refusal after admission must not replace the pending row: that row names
-    the run's log file and start time, and it is not a pre-admission refusal
-    (#2013). It is finished in place by one write conditional on ``pending``,
+    the run's log file and start time, and it is not a pre-admission refusal.
+    It is finished in place by one write conditional on ``pending``,
     so a terminal outcome another writer recorded first is kept, and a row
     an operator asked to stop stays ``pending``/killed for the stop
     reconciler to finish.
@@ -10018,7 +9990,7 @@ def _launch_refused_checkout(
     bound (its continuation expiry names this run). Like the other pre-spawn
     refusal handlers it withdraws that checkout with verified cleanup, so the
     consumed abandonment does not strand the node behind a replacement that
-    nothing ever ran in (governed review round 1, 2026-09-21).
+    nothing ever ran in.
     """
     outcome = DispatchOutcome(
         launched=False,
@@ -10042,7 +10014,7 @@ def _launch_refused_checkout(
         _emit_admission_refusal(ctx, outcome)
     finally:
         # Generation-conditional on the identity this caller acquired: the
-        # driver's pin when it was given one, else this run's own id (#1951).
+        # driver's pin when it was given one, else this run's own id.
         if ctx.store is not None and ctx.run_id is not None:
             ctx.store.release_epic_node_item(
                 ctx.item_id, run_id=ctx.expected_reservation_run_id or ctx.run_id
@@ -10087,7 +10059,7 @@ def _collect_killed(
 def _collect_quota_exhausted(
     ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
 ) -> DispatchOutcome:
-    """Terminal state: the provider refused the runner for quota (#2643).
+    """Terminal state: the provider refused the runner for quota.
 
     Not the work's failure. Like an operator kill, the labels go back to ready,
     the worktree is preserved and no failure comment is posted; the row is
@@ -10131,13 +10103,71 @@ def _collect_quota_exhausted(
     )
 
 
-#: Terminal categories that are not the work's failure: the item goes back to
-#: ready and nothing is published as failed.
+def _collect_placed_containment_refusal(
+    ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
+) -> DispatchOutcome:
+    """Terminal state: a placed run refused for containment after admission.
+
+    Not the work's failure, so the row is ``refused``. The rest follows the
+    refusal before admission (``_refuse_containment``): an epic node is held
+    under the cause token and its claim goes back; a queue item is failed,
+    because back at ``ready`` a drain would place and refuse it again.
+    """
+    reason = result.stop_reason or "containment refused"
+    _error(f"Run for #{ctx.issue_num} refused: {reason}")
+    run_id = result.run_id or ctx.run_id or None
+    outcome = DispatchOutcome(
+        exit_code=result.exit_code or 1,
+        changed_files=[],
+        run_id=run_id,
+        category=_CONTAINMENT_REFUSAL_CATEGORY,
+        reason=reason,
+        launched=getattr(result, "launched", False) is not False,
+    )
+    _warn(f"Worktree preserved: {worktree_dir}")
+    if ctx.epic_ref is None:
+        _publish_terminal_failure(
+            ctx, _CONTAINMENT_REFUSAL_CATEGORY, f"containment refused: {reason}"
+        )
+        return outcome
+    _hold_placed_refusal(ctx, result, reason)
+    stranded = _hand_claim_back(
+        ctx.issue_num,
+        ctx.config,
+        ctx.store,
+        epic_ref=ctx.epic_ref,
+        provider=ctx.provider,
+        item_id=ctx.item_id,
+        run_id=run_id,
+    )
+    return _with_stranded_claim(outcome, stranded)
+
+
+def _hold_placed_refusal(
+    ctx: _DispatchContext, result: DispatchResult, reason: str
+) -> None:
+    """Hold the epic node under the refusal's cause token, so its hint fits."""
+    if ctx.epic_ref is None or ctx.store is None:
+        return
+    display_id = ctx.item_id or str(ctx.issue_num)
+    refusal = SandboxRuntimeUnavailable(reason, reason=result.containment_refusal)
+    hold_reason = _containment_hold_reason(display_id, refusal)
+    try:
+        ctx.store.hold_epic_node(ctx.epic_ref, display_id, hold_reason)
+    except Exception as exc:  # noqa: BLE001 — the claim still goes back
+        _warn(f"Failed to hold {item_ref(display_id)} on containment: {exc}")
+    else:
+        _warn(f"Held {item_ref(display_id)}: {hold_reason}")
+
+
+#: Terminal categories that are not the work's failure, each with its own
+#: claim handling.
 _NOT_FAILED_COLLECTORS: dict[
     str, Callable[[_DispatchContext, DispatchResult, Path], DispatchOutcome]
 ] = {
     "killed": _collect_killed,
     QUOTA_EXHAUSTED_CATEGORY: _collect_quota_exhausted,
+    _CONTAINMENT_REFUSAL_CATEGORY: _collect_placed_containment_refusal,
 }
 
 
@@ -10189,14 +10219,14 @@ def _budget_stop_reason(*, committed: bool, uncommitted_work: bool) -> str:
 def _collect_budget_stop(
     ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
 ) -> DispatchOutcome:
-    """Terminal state: graceful budget stop (#859). The live watchdog gave the
+    """Terminal state: graceful budget stop. The live watchdog gave the
     run a wrap-up grace before SIGKILL; commit whatever WIP the agent left so it
     lands on the branch (non-destructive), then mark the issue budget-stopped
     and non-retriable. Distinct from ``budget_stopped`` (the post-hoc cost-aware
-    retry guard, #642), which cannot wrap up because the run already exited.
+    retry guard), which cannot wrap up because the run already exited.
 
     On OpenShell the agent's work is in the realized checkout the cost stop
-    downloaded (#1462), not the uploaded launch snapshot, so that tree is the
+    downloaded, not the uploaded launch snapshot, so that tree is the
     one checked, committed and named.
     """
     config = ctx.config
@@ -10263,7 +10293,7 @@ def _collect_budget_stopped(
     ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
 ) -> DispatchOutcome:
     """Terminal state: sustained over-budget (watchdog). Preserve session +
-    worktree, label budget-stopped, do NOT auto-resume (#401).
+    worktree, label budget-stopped, do NOT auto-resume.
     """
     config = ctx.config
     issue_num = ctx.issue_num
@@ -10312,7 +10342,7 @@ def canonical_checkout_has_work(
     """Under canonical mode: does the checkout differ from the recorded base?
 
     Answered by the host walker against a fresh canonical repository, never by
-    git inside the checkout (review round 5). No recorded base, or anything the
+    git inside the checkout. No recorded base, or anything the
     walker or filter refuses, reads as work to preserve.
     """
     if not base_sha:
@@ -10342,7 +10372,7 @@ def canonical_checkout_no_change(
 ) -> CanonicalNoChange | None:
     """The walker's evidence that the checkout adds nothing to the recorded
     base. ``None`` means work, no base, or an indeterminate probe; nothing
-    closes on ``None`` (review round 11)."""
+    closes on ``None``."""
     if not base_sha:
         _warn("No recorded publication base: the checkout cannot be proved unchanged.")
         return None
@@ -10381,7 +10411,7 @@ def _effective_publication_style(
 
     Under canonical publication the host publishes every run, so an agent-style
     runner is told to edit and verify only; its credential is stripped in the
-    child environment by the same predicate (review round 6).
+    child environment by the same predicate.
     """
     if config.publication.publish == "canonical":
         return "host"
@@ -10392,7 +10422,7 @@ def _sandboxed_publication_style(config: DispatchConfig) -> PublicationStyle:
     """The publication style a container-sandboxed dispatch prompt is built from.
 
     Canonical publication is host publication for every runner, so an appended
-    push instruction is refused here too (round 7). Otherwise the agent commits
+    push instruction is refused here too. Otherwise the agent commits
     in the container and the host brokers the branch and PR.
     """
     return "host" if config.publication.publish == "canonical" else "agent"
@@ -10404,7 +10434,7 @@ def dispatch_publication_style(
     """The publication style *runner*'s dispatch prompt is built from.
 
     The sandboxed and host launch sites each ask their own half; the prompt
-    catalog's preview (#3018) asks here, so it shows what a launch would build.
+    catalog's preview asks here, so it shows what a launch would build.
     """
     if sandboxed:
         return _sandboxed_publication_style(config)
@@ -10473,7 +10503,7 @@ def _collect_canonical_budget_exceeded(
     """Budget exhaustion under canonical publication completes nothing by
     itself: a checkout the walker proves unchanged becomes a no-change
     candidate that waits for confirmation, anything else is preserved as
-    work (review round 11)."""
+    work."""
     config = ctx.config
     issue_num = ctx.issue_num
     evidence = canonical_checkout_no_change(
@@ -10566,7 +10596,7 @@ def _post_success_report(
         str(pr_num), result.log_file, config, result=result
     ):
         return
-    # Truncation guard (#664): a headless run can finalize success while
+    # Truncation guard: a headless run can finalize success while
     # the agent's own Dispatch Report comment silently never posted.
     # Fill the gap fail-soft.
     selected_model: str | None = None
@@ -10633,7 +10663,7 @@ def _mint_publication_continuation(
     """Mint one resume handle for *run_id*'s preserved checkout: the base
     binding first, then the idempotent continuation insert. Shared by the
     host deferral and the contained handler, so a run parked inside the
-    sandbox already carries its handle when the host reaches it (round 18).
+    sandbox already carries its handle when the host reaches it.
     """
     if store is None or epic_ref is None or not run_id:
         return
@@ -10645,7 +10675,7 @@ def _mint_publication_continuation(
         return
     generation = _checkout_generation(worktree_dir)
     # The base this checkout was cut from is bound to the owning run before
-    # the resume handle exists; without it nothing is minted (round 15).
+    # the resume handle exists; without it nothing is minted.
     _bind_publication_base(
         store,
         publish=publish,
@@ -10704,7 +10734,7 @@ def _preserve_publication_work(
 
 
 def _normalized_publication_job(store: RunStore | None, run_id: str | None) -> Any:
-    """The live normalized job this run attempt opened, or None (I14).
+    """The live normalized job this run attempt opened, or None.
 
     Its existence is what decides which writer owns a deferral. Old rows have
     none and keep the legacy ``awaiting_publication`` encoding they were
@@ -10778,7 +10808,7 @@ def _defer_onto_job(
 
 def _contained_failure_parks(store: RunStore | None, run_id: str) -> bool:
     """Whether a contained run whose publication failed finalizes straight
-    into ``awaiting_publication`` (one write, review round 18). A run a
+    into ``awaiting_publication`` (one write). A run a
     normalized publication job owns keeps its status: that writer owns the
     deferral."""
     if store is None or not run_id:
@@ -10787,8 +10817,8 @@ def _contained_failure_parks(store: RunStore | None, run_id: str) -> bool:
 
 
 def _already_awaiting_publication(store: RunStore, run_id: str) -> bool:
-    """True when the contained path already parked this run durably (review
-    round 17): the host then only preserves the work and mints its handle."""
+    """True when the contained path already parked this run durably:
+    the host then only preserves the work and mints its handle."""
     record = store.get(run_id)
     return record is not None and record.status == "awaiting_publication"
 
@@ -10870,10 +10900,10 @@ def _ordinary_publication_deferral(
     records the state transition without copying provider output (which may
     contain sensitive request details).
 
-    I14 cuts the writer over: when the normalized publication lifecycle owns
-    this attempt, the deferral is written there and the run status is left
-    exactly as the implementation left it. Only runs with no job — every run
-    that exists today — still take the overloaded status.
+    When the normalized publication lifecycle owns this attempt, the deferral
+    is written there and the run status is left exactly as the implementation
+    left it. No run opens a job while ``publication_jobs_active()`` is False,
+    so today every run takes the overloaded status.
     """
     category = _publication_error_category(exc)
     step, detail = publication_failure(exc)
@@ -10971,7 +11001,7 @@ def _record_no_change(
 
 
 def _release_no_change_claim(ctx: _DispatchContext) -> None:
-    """Hand the item back once the zero-diff outcome is durable (#1611).
+    """Hand the item back once the zero-diff outcome is durable.
 
     The candidate settles the *outcome*; this settles the *claim*. Nothing is
     closed and nothing is commented — the label only says the run is over, so
@@ -11078,7 +11108,7 @@ def _finalize_persisted_pr(
 ) -> None:
     """A PR this run created is finalized from that identity — labels,
     completion, dependents — when the lookup comes back empty; the URL is
-    ours, not the agent's (review round 11)."""
+    ours, not the agent's."""
     number = _pr_number_from_url(url)
     if number is None:
         _warn(
@@ -11102,7 +11132,7 @@ def _record_sandboxed_exit(
     holds is authoritative: an empty lookup right after creation is a lookup
     problem, not a no-change. Under canonical mode a no-change is recorded
     only with the walker's evidence; nothing here reads the checkout with
-    git (review round 9).
+    git.
     """
     persisted = getattr(result, "published_pr_url", "") or _persisted_pr_url(
         ctx.store, result.run_id or ctx.run_id
@@ -11226,7 +11256,7 @@ def _publish_existing_pr_continuation(
 
 
 def _continuation_commit_message(ctx: _DispatchContext, result: DispatchResult) -> str:
-    """Message for a commit kew adds to the branch of an already-open PR (#2062)."""
+    """Message for a commit kew adds to the branch of an already-open PR."""
     return _broker_commit_message(
         ctx.item_id,
         ctx.config,
@@ -11316,10 +11346,9 @@ def _published_checkout(result: DispatchResult, worktree_dir: Path) -> Path:
     edited an UPLOADED copy and its work came back into a realized sibling
     (:mod:`kew.openshell_checkout`). Publication already swapped to that tree
     (``dispatch_sandbox._publication_checkout``), so the outcome has to follow
-    it: read off ``worktree_dir`` there, a successful OpenShell dispatch
-    reported an EMPTY changed-file set — the launch snapshot holds none of the
-    agent's edits — to the overlap coordinator that consumes it
-    (PR #2451 review).
+    it: read off ``worktree_dir`` there, a successful OpenShell dispatch would
+    report an EMPTY changed-file set — the launch snapshot holds none of the
+    agent's edits — to the overlap coordinator that consumes it.
 
     A realization that refused leaves the path unset and never reaches here:
     the publication gate finalizes that run as a failure.
@@ -11600,9 +11629,9 @@ def _collect_integrity_violation(
     only question here is whether it may also rewrite the run's outcome. It may
     not once a PR exists. The violation happened in the *operator's* checkout,
     while the PR is reviewable work that reached the remote regardless —
-    relabelling it ``agent-failed`` hid a finished node from ``kew epic
-    status`` and asked a human to redo work already waiting for review
-    (#1660). On that branch the incident becomes an audit event plus an issue
+    relabelling it ``agent-failed`` would hide a finished node from ``kew epic
+    status`` and ask a human to redo work already waiting for review.
+    On that branch the incident becomes an audit event plus an issue
     comment, and ``None`` lets the normal terminal ladder settle the run.
 
     A run that published nothing keeps the original fail-closed terminal
@@ -11628,7 +11657,7 @@ def _collect_integrity_violation(
 
 
 def _record_quota_warning(ctx: _DispatchContext, result: DispatchResult) -> None:
-    """Record the provider's usage warning against the run's token (#3329).
+    """Record the provider's usage warning against the run's token.
 
     Whatever the run's outcome: a warning is about the token's window, not the
     work. A contained run's fold records its own (``sandbox_log_fold``).
@@ -11711,7 +11740,7 @@ def _collect_publication_category(
     ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
 ) -> DispatchOutcome | None:
     """A held or failed contained publication is deferred like a host one:
-    the work is preserved and its continuation minted (review round 16)."""
+    the work is preserved and its continuation minted."""
     category = result.error_category
     if category == "publication_held":
         flags = tuple(line for line in result.subtype.splitlines() if line)
@@ -11778,9 +11807,9 @@ def _collect_no_change(
     say that would change the answer. It lands here rather than in
     ``_collect_success`` for that reason, and it has to be caught before the
     error-category ladder at all: a named classification is not a failure, and
-    reading it as one meant the contained path never reached the no-change
-    seam. No candidate was recorded, the item was labelled failed, and the
-    operator was told to retry a run that was correct (#1606).
+    reading it as one would keep the contained path from the no-change seam,
+    record no candidate, label the item failed, and send a correct run back
+    for retry.
     """
     _record_no_change(
         ctx,
@@ -11801,7 +11830,7 @@ def _collect_no_change(
 def _collect_acceptance_dispute(
     ctx: _DispatchContext, result: DispatchResult, worktree_dir: Path
 ) -> DispatchOutcome | None:
-    """Hold a node whose implementer disputes its acceptance contract (#2731).
+    """Hold a node whose implementer disputes its acceptance contract.
 
     The implementer never edits the contract; its stop reason carries the
     dispute instead. The node goes to Needs-you as ``acceptance-disputed``.
@@ -11934,18 +11963,13 @@ def _prepare_dispatch_context(
     issue_labels = issue.get("labels", [])
     complexity = get_complexity(issue_labels)
 
-    # Durable work-item currency (A5a/L3) threaded through worktree/prompt/
-    # tracking/PR below. The classic GitHub host path derives it from the
-    # numeric issue; the Linear driver (`_dispatch-node`) passes the opaque
-    # tracker id explicitly, so branch, worktree, RunRecord.item_id, and the PR
-    # body all carry "SFD-133" while ``issue_num`` stays the ``0`` sentinel
-    # (``runs.issue_num`` is NOT NULL and 0 is never a real GitHub number).
-    # Validate once at this boundary — reject, never coerce.
+    # The durable item id threads through worktree, prompt, tracking and PR: a
+    # Linear item carries "SFD-133" while ``issue_num`` stays the NOT NULL ``0``
+    # sentinel. Validated once at this boundary: reject, never coerce.
     #
-    # Per-item budget caps key on the durable ``item_id`` (A3), threaded into
-    # ``check_budget`` below: a Linear item rides ``issue_num=0`` but each keeps
-    # its own per-item cap via ``list_by_item`` instead of collapsing onto the
-    # ``0`` sentinel's shared bucket (#809). Daily/weekly caps stay issue-wide.
+    # ``check_budget`` keys per-item caps on ``item_id`` (``list_by_item``), so
+    # Linear items never share the ``0`` sentinel's bucket; daily/weekly caps
+    # stay issue-wide.
     refuse_rollback = RefusalDelivery(on_refuse)
 
     try:
@@ -11956,7 +11980,7 @@ def _prepare_dispatch_context(
         refuse_rollback("invalid item id")
         raise
 
-    # Branch name — slugged from the item id so Linear ids (L3) stay path-safe;
+    # Branch name — slugged from the item id so Linear ids stay path-safe;
     # GitHub numbers slug to themselves, keeping the branch byte-identical.
     branch = branch_override or (
         f"{config.branches.prefix}{branch_slug(validated_item_id)}"
@@ -12083,7 +12107,7 @@ def execute_dispatch(
     ctx.expected_reservation_run_id = expected_reservation_run_id
     ctx.expected_reservation_generation = expected_reservation_generation
     # The checkout lease ends with the run on every exit, preserved checkout
-    # or not (review round 12); the bytes stay, the next run claims afresh.
+    # or not; the bytes stay, the next run claims afresh.
     try:
         try:
             _check_dispatch_reservation(ctx)

@@ -1,0 +1,2532 @@
+{
+  "files": {
+    "src/kew/acceptance_author.py": {
+      "issue_refs": 9
+    },
+    "src/kew/acceptance_dispute.py": {
+      "issue_refs": 2
+    },
+    "src/kew/audit.py": {
+      "issue_refs": 10
+    },
+    "src/kew/audit_chain.py": {
+      "issue_refs": 9
+    },
+    "src/kew/backup.py": {
+      "issue_refs": 1
+    },
+    "src/kew/behavior_declarations.py": {
+      "issue_refs": 19
+    },
+    "src/kew/breaker.py": {
+      "issue_refs": 17
+    },
+    "src/kew/budget.py": {
+      "issue_refs": 14
+    },
+    "src/kew/canary.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ci_checks.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ci_fix.py": {
+      "issue_refs": 11
+    },
+    "src/kew/cli/__init__.py": {
+      "issue_refs": 49
+    },
+    "src/kew/cli/config.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/delegate.py": {
+      "issue_refs": 6
+    },
+    "src/kew/cli/doctor.py": {
+      "issue_refs": 20
+    },
+    "src/kew/cli/drive.py": {
+      "issue_refs": 45
+    },
+    "src/kew/cli/epic.py": {
+      "issue_refs": 91
+    },
+    "src/kew/cli/gc.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/hosts.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/ingest.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/init.py": {
+      "issue_refs": 3
+    },
+    "src/kew/cli/json_result.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/loop.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/merge.py": {
+      "issue_refs": 4
+    },
+    "src/kew/cli/models.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/no_change.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/plan.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/prompts.py": {
+      "issue_refs": 4
+    },
+    "src/kew/cli/publication.py": {
+      "issue_refs": 2
+    },
+    "src/kew/cli/quota.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/rename_repo.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/run_request.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/schema.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/serve.py": {
+      "issue_refs": 6
+    },
+    "src/kew/cli/triage.py": {
+      "issue_refs": 1
+    },
+    "src/kew/cli/verify_health.py": {
+      "issue_refs": 2
+    },
+    "src/kew/command_outcome.py": {
+      "issue_refs": 2
+    },
+    "src/kew/commit_message.py": {
+      "issue_refs": 5
+    },
+    "src/kew/config.py": {
+      "issue_refs": 94
+    },
+    "src/kew/continuation_recovery.py": {
+      "issue_refs": 6
+    },
+    "src/kew/credential_surface.py": {
+      "issue_refs": 2
+    },
+    "src/kew/delegate/claim.py": {
+      "issue_refs": 8
+    },
+    "src/kew/delegate/errors.py": {
+      "issue_refs": 1
+    },
+    "src/kew/delegate/run.py": {
+      "issue_refs": 5
+    },
+    "src/kew/delegate/watch.py": {
+      "issue_refs": 1
+    },
+    "src/kew/dispatch_broker.py": {
+      "issue_refs": 4
+    },
+    "src/kew/dispatch_placement.py": {
+      "issue_refs": 20
+    },
+    "src/kew/dispatch_preflight.py": {
+      "issue_refs": 15
+    },
+    "src/kew/drive.py": {
+      "issue_refs": 13
+    },
+    "src/kew/drive_agent.py": {
+      "issue_refs": 17
+    },
+    "src/kew/drive_code.py": {
+      "issue_refs": 3
+    },
+    "src/kew/drive_heartbeat.py": {
+      "issue_refs": 2
+    },
+    "src/kew/drive_host_load.py": {
+      "issue_refs": 1
+    },
+    "src/kew/drive_inbox.py": {
+      "issue_refs": 5
+    },
+    "src/kew/drive_merge.py": {
+      "issue_refs": 11
+    },
+    "src/kew/drive_requests.py": {
+      "issue_refs": 12
+    },
+    "src/kew/driver_cadence.py": {
+      "issue_refs": 2
+    },
+    "src/kew/egress_certification.py": {
+      "issue_refs": 3
+    },
+    "src/kew/epic_archive.py": {
+      "issue_refs": 3
+    },
+    "src/kew/epic_holds.py": {
+      "issue_refs": 56
+    },
+    "src/kew/epic_node_states.py": {
+      "issue_refs": 3
+    },
+    "src/kew/exit_signal.py": {
+      "issue_refs": 5
+    },
+    "src/kew/fence_vocabulary.py": {
+      "issue_refs": 3
+    },
+    "src/kew/fleet.py": {
+      "issue_refs": 1
+    },
+    "src/kew/fleet_placement.py": {
+      "issue_refs": 5
+    },
+    "src/kew/gc.py": {
+      "issue_refs": 1
+    },
+    "src/kew/github_rate_limit.py": {
+      "issue_refs": 1
+    },
+    "src/kew/graph/adapters/github_native.py": {
+      "issue_refs": 1
+    },
+    "src/kew/graph/adapters/linear_facts.py": {
+      "issue_refs": 1
+    },
+    "src/kew/graph/adapters/linear_native.py": {
+      "issue_refs": 1
+    },
+    "src/kew/graph/driver/attention.py": {
+      "issue_refs": 6
+    },
+    "src/kew/graph/driver/attention_journal.py": {
+      "issue_refs": 7
+    },
+    "src/kew/graph/driver/attention_stream.py": {
+      "issue_refs": 3
+    },
+    "src/kew/graph/driver/base_integration.py": {
+      "issue_refs": 8
+    },
+    "src/kew/graph/driver/ci_recovery.py": {
+      "issue_refs": 7
+    },
+    "src/kew/graph/driver/dispatch.py": {
+      "issue_refs": 2
+    },
+    "src/kew/graph/driver/excluded_conflict.py": {
+      "issue_refs": 2
+    },
+    "src/kew/graph/driver/facts.py": {
+      "issue_refs": 8
+    },
+    "src/kew/graph/driver/frontier.py": {
+      "issue_refs": 2
+    },
+    "src/kew/graph/driver/journal.py": {
+      "issue_refs": 7
+    },
+    "src/kew/graph/driver/lock.py": {
+      "issue_refs": 14
+    },
+    "src/kew/graph/driver/merge.py": {
+      "issue_refs": 37
+    },
+    "src/kew/graph/driver/merge_queue.py": {
+      "issue_refs": 31
+    },
+    "src/kew/graph/driver/operator_merge.py": {
+      "issue_refs": 18
+    },
+    "src/kew/graph/driver/overlay.py": {
+      "issue_refs": 25
+    },
+    "src/kew/graph/driver/pre_review_gate.py": {
+      "issue_refs": 6
+    },
+    "src/kew/graph/driver/reservation_sweep.py": {
+      "issue_refs": 3
+    },
+    "src/kew/graph/driver/resource_retry.py": {
+      "issue_refs": 1
+    },
+    "src/kew/graph/driver/result.py": {
+      "issue_refs": 10
+    },
+    "src/kew/graph/driver/review_detach.py": {
+      "issue_refs": 6
+    },
+    "src/kew/graph/driver/review_launcher.py": {
+      "issue_refs": 55
+    },
+    "src/kew/graph/plan_run.py": {
+      "issue_refs": 7
+    },
+    "src/kew/health.py": {
+      "issue_refs": 4
+    },
+    "src/kew/held_out_lock_check.py": {
+      "issue_refs": 1
+    },
+    "src/kew/held_out_report_plugin.py": {
+      "issue_refs": 1
+    },
+    "src/kew/held_out_selection.py": {
+      "issue_refs": 1
+    },
+    "src/kew/host_takeovers.py": {
+      "issue_refs": 6
+    },
+    "src/kew/hosts/__init__.py": {
+      "issue_refs": 2
+    },
+    "src/kew/hosts/environment.py": {
+      "issue_refs": 3
+    },
+    "src/kew/hosts/errors.py": {
+      "issue_refs": 1
+    },
+    "src/kew/hosts/gcp.py": {
+      "issue_refs": 89
+    },
+    "src/kew/hosts/lock.py": {
+      "issue_refs": 2
+    },
+    "src/kew/hosts/provider.py": {
+      "issue_refs": 5
+    },
+    "src/kew/hosts/provisioning.py": {
+      "issue_refs": 1
+    },
+    "src/kew/hosts/remote_dispatch.py": {
+      "issue_refs": 41
+    },
+    "src/kew/ids.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ingest/claude_code.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ingest/core.py": {
+      "issue_refs": 3
+    },
+    "src/kew/ingest/otlp.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ingest/server.py": {
+      "issue_refs": 1
+    },
+    "src/kew/journal_replay.py": {
+      "issue_refs": 1
+    },
+    "src/kew/labels.py": {
+      "issue_refs": 4
+    },
+    "src/kew/ledger_guard.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ledger_identity.py": {
+      "issue_refs": 3
+    },
+    "src/kew/linear/client.py": {
+      "issue_refs": 1
+    },
+    "src/kew/links.py": {
+      "issue_refs": 1
+    },
+    "src/kew/loops/ci.py": {
+      "issue_refs": 3
+    },
+    "src/kew/loops/delegate.py": {
+      "issue_refs": 20
+    },
+    "src/kew/loops/verification.py": {
+      "issue_refs": 10
+    },
+    "src/kew/main_health.py": {
+      "issue_refs": 3
+    },
+    "src/kew/memory.py": {
+      "issue_refs": 1
+    },
+    "src/kew/merge_claim.py": {
+      "issue_refs": 2
+    },
+    "src/kew/merge_queue_attention.py": {
+      "issue_refs": 1
+    },
+    "src/kew/merge_verdict.py": {
+      "issue_refs": 5
+    },
+    "src/kew/merge_verify.py": {
+      "issue_refs": 46
+    },
+    "src/kew/merged_main.py": {
+      "issue_refs": 2
+    },
+    "src/kew/model_catalog.py": {
+      "issue_refs": 1
+    },
+    "src/kew/model_eol_snapshot.py": {
+      "issue_refs": 1
+    },
+    "src/kew/model_wait.py": {
+      "issue_refs": 1
+    },
+    "src/kew/motion.py": {
+      "issue_refs": 4
+    },
+    "src/kew/nightly.py": {
+      "issue_refs": 1
+    },
+    "src/kew/nightly_agent.py": {
+      "issue_refs": 1
+    },
+    "src/kew/nightly_scan.py": {
+      "issue_refs": 1
+    },
+    "src/kew/no_change_seal.py": {
+      "issue_refs": 2
+    },
+    "src/kew/onboarding.py": {
+      "issue_refs": 5
+    },
+    "src/kew/openshell.py": {
+      "issue_refs": 6
+    },
+    "src/kew/openshell_checkout.py": {
+      "issue_refs": 11
+    },
+    "src/kew/openshell_doctor.py": {
+      "issue_refs": 1
+    },
+    "src/kew/openshell_egress.py": {
+      "issue_refs": 5
+    },
+    "src/kew/openshell_launch.py": {
+      "issue_refs": 25
+    },
+    "src/kew/orchestrator.py": {
+      "issue_refs": 32
+    },
+    "src/kew/outcomes.py": {
+      "issue_refs": 13
+    },
+    "src/kew/overlap.py": {
+      "issue_refs": 1
+    },
+    "src/kew/pinned_pytest_plugins.py": {
+      "issue_refs": 1
+    },
+    "src/kew/policy.py": {
+      "issue_refs": 3
+    },
+    "src/kew/pr_text.py": {
+      "issue_refs": 6
+    },
+    "src/kew/pricing.py": {
+      "issue_refs": 2
+    },
+    "src/kew/probe_route.py": {
+      "issue_refs": 8
+    },
+    "src/kew/process_groups.py": {
+      "issue_refs": 3
+    },
+    "src/kew/progress.py": {
+      "issue_refs": 3
+    },
+    "src/kew/project_merge_queue.py": {
+      "issue_refs": 6
+    },
+    "src/kew/prompt.py": {
+      "issue_refs": 17
+    },
+    "src/kew/prompt_addendum.py": {
+      "issue_refs": 3
+    },
+    "src/kew/prompt_previews.py": {
+      "issue_refs": 2
+    },
+    "src/kew/prompt_refusals.py": {
+      "issue_refs": 2
+    },
+    "src/kew/pseudo_epics.py": {
+      "issue_refs": 3
+    },
+    "src/kew/public_log.py": {
+      "issue_refs": 1
+    },
+    "src/kew/publication.py": {
+      "issue_refs": 3
+    },
+    "src/kew/publication_apply.py": {
+      "issue_refs": 3
+    },
+    "src/kew/publication_artifact.py": {
+      "issue_refs": 2
+    },
+    "src/kew/publication_attest.py": {
+      "issue_refs": 20
+    },
+    "src/kew/publication_canonical.py": {
+      "issue_refs": 16
+    },
+    "src/kew/publication_checkout.py": {
+      "issue_refs": 3
+    },
+    "src/kew/publication_copy_sync.py": {
+      "issue_refs": 6
+    },
+    "src/kew/publication_credentials.py": {
+      "issue_refs": 18
+    },
+    "src/kew/publication_extract.py": {
+      "issue_refs": 8
+    },
+    "src/kew/publication_filter.py": {
+      "issue_refs": 9
+    },
+    "src/kew/publication_ignore.py": {
+      "issue_refs": 1
+    },
+    "src/kew/publication_materialize.py": {
+      "issue_refs": 3
+    },
+    "src/kew/publication_repository.py": {
+      "issue_refs": 2
+    },
+    "src/kew/publication_scan.py": {
+      "issue_refs": 1
+    },
+    "src/kew/readiness_probe.py": {
+      "issue_refs": 4
+    },
+    "src/kew/red_main_check.py": {
+      "issue_refs": 1
+    },
+    "src/kew/red_main_report_plugin.py": {
+      "issue_refs": 1
+    },
+    "src/kew/remediation_containment.py": {
+      "issue_refs": 5
+    },
+    "src/kew/repo_rename.py": {
+      "issue_refs": 1
+    },
+    "src/kew/report.py": {
+      "issue_refs": 6
+    },
+    "src/kew/report_export.py": {
+      "issue_refs": 9
+    },
+    "src/kew/report_provenance.py": {
+      "issue_refs": 2
+    },
+    "src/kew/report_style.py": {
+      "issue_refs": 1
+    },
+    "src/kew/resolve.py": {
+      "issue_refs": 24
+    },
+    "src/kew/resolve_checks.py": {
+      "issue_refs": 6
+    },
+    "src/kew/review.py": {
+      "issue_refs": 66
+    },
+    "src/kew/review_audit.py": {
+      "issue_refs": 9
+    },
+    "src/kew/review_checkout.py": {
+      "issue_refs": 23
+    },
+    "src/kew/review_comment.py": {
+      "issue_refs": 13
+    },
+    "src/kew/review_criteria.py": {
+      "issue_refs": 4
+    },
+    "src/kew/review_delta.py": {
+      "issue_refs": 19
+    },
+    "src/kew/review_dispatch.py": {
+      "issue_refs": 71
+    },
+    "src/kew/review_environment.py": {
+      "issue_refs": 3
+    },
+    "src/kew/review_frontend.py": {
+      "issue_refs": 1
+    },
+    "src/kew/review_integrity.py": {
+      "issue_refs": 8
+    },
+    "src/kew/review_occupancy.py": {
+      "issue_refs": 7
+    },
+    "src/kew/review_outcome.py": {
+      "issue_refs": 4
+    },
+    "src/kew/review_residuals.py": {
+      "issue_refs": 11
+    },
+    "src/kew/review_status.py": {
+      "issue_refs": 4
+    },
+    "src/kew/review_stream.py": {
+      "issue_refs": 6
+    },
+    "src/kew/review_targets.py": {
+      "issue_refs": 3
+    },
+    "src/kew/run_credentials.py": {
+      "issue_refs": 2
+    },
+    "src/kew/run_liveness.py": {
+      "issue_refs": 3
+    },
+    "src/kew/run_report_rename.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_report_sink.py": {
+      "issue_refs": 5
+    },
+    "src/kew/run_requests.py": {
+      "issue_refs": 19
+    },
+    "src/kew/run_store_acceptance.py": {
+      "issue_refs": 3
+    },
+    "src/kew/run_store_audit.py": {
+      "issue_refs": 3
+    },
+    "src/kew/run_store_committed.py": {
+      "issue_refs": 3
+    },
+    "src/kew/run_store_item_plans.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_liveness.py": {
+      "issue_refs": 11
+    },
+    "src/kew/run_store_merge_claims.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_merge_queue.py": {
+      "issue_refs": 2
+    },
+    "src/kew/run_store_no_change.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_outcomes.py": {
+      "issue_refs": 5
+    },
+    "src/kew/run_store_prompt_profiles.py": {
+      "issue_refs": 5
+    },
+    "src/kew/run_store_readiness.py": {
+      "issue_refs": 2
+    },
+    "src/kew/run_store_rename.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_reservations.py": {
+      "issue_refs": 4
+    },
+    "src/kew/run_store_review_rounds.py": {
+      "issue_refs": 8
+    },
+    "src/kew/run_store_runs.py": {
+      "issue_refs": 10
+    },
+    "src/kew/run_store_stop.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_triage.py": {
+      "issue_refs": 1
+    },
+    "src/kew/run_store_work.py": {
+      "issue_refs": 2
+    },
+    "src/kew/runner_fields.py": {
+      "issue_refs": 3
+    },
+    "src/kew/runner_preflight.py": {
+      "issue_refs": 1
+    },
+    "src/kew/runner_quota.py": {
+      "issue_refs": 7
+    },
+    "src/kew/runners/claude_code.py": {
+      "issue_refs": 12
+    },
+    "src/kew/runners/codex.py": {
+      "issue_refs": 1
+    },
+    "src/kew/runners/governor.py": {
+      "issue_refs": 1
+    },
+    "src/kew/runners/hermes.py": {
+      "issue_refs": 11
+    },
+    "src/kew/runners/lemonade.py": {
+      "issue_refs": 2
+    },
+    "src/kew/runners/lemonade_agent.py": {
+      "issue_refs": 2
+    },
+    "src/kew/runners/opencode.py": {
+      "issue_refs": 4
+    },
+    "src/kew/runners/pi.py": {
+      "issue_refs": 3
+    },
+    "src/kew/runners/protocol.py": {
+      "issue_refs": 7
+    },
+    "src/kew/runners/registry.py": {
+      "issue_refs": 12
+    },
+    "src/kew/runtime_backend.py": {
+      "issue_refs": 1
+    },
+    "src/kew/sandbox_caps.py": {
+      "issue_refs": 2
+    },
+    "src/kew/scheduler.py": {
+      "issue_refs": 3
+    },
+    "src/kew/scorecard.py": {
+      "issue_refs": 9
+    },
+    "src/kew/selector.py": {
+      "issue_refs": 1
+    },
+    "src/kew/self_check.py": {
+      "issue_refs": 6
+    },
+    "src/kew/serve/api_audit.py": {
+      "issue_refs": 1
+    },
+    "src/kew/serve/api_config.py": {
+      "issue_refs": 2
+    },
+    "src/kew/serve/api_dashboard.py": {
+      "issue_refs": 1
+    },
+    "src/kew/serve/api_dispatch.py": {
+      "issue_refs": 2
+    },
+    "src/kew/serve/api_epics.py": {
+      "issue_refs": 5
+    },
+    "src/kew/serve/api_health.py": {
+      "issue_refs": 3
+    },
+    "src/kew/serve/api_models.py": {
+      "issue_refs": 1
+    },
+    "src/kew/serve/api_palette.py": {
+      "issue_refs": 1
+    },
+    "src/kew/serve/api_prompts.py": {
+      "issue_refs": 7
+    },
+    "src/kew/serve/api_prs.py": {
+      "issue_refs": 2
+    },
+    "src/kew/serve/api_run_requests.py": {
+      "issue_refs": 5
+    },
+    "src/kew/serve/api_runs.py": {
+      "issue_refs": 2
+    },
+    "src/kew/serve/api_verbs.py": {
+      "issue_refs": 2
+    },
+    "src/kew/serve/api_work.py": {
+      "issue_refs": 1
+    },
+    "src/kew/serve/app.py": {
+      "issue_refs": 3
+    },
+    "src/kew/serve/sweep.py": {
+      "issue_refs": 5
+    },
+    "src/kew/serve/watch.py": {
+      "issue_refs": 2
+    },
+    "src/kew/service/attention.py": {
+      "issue_refs": 46
+    },
+    "src/kew/service/audit.py": {
+      "issue_refs": 1
+    },
+    "src/kew/service/config.py": {
+      "issue_refs": 3
+    },
+    "src/kew/service/dashboard.py": {
+      "issue_refs": 8
+    },
+    "src/kew/service/description.py": {
+      "issue_refs": 1
+    },
+    "src/kew/service/dispatch_plan.py": {
+      "issue_refs": 9
+    },
+    "src/kew/service/epics.py": {
+      "issue_refs": 69
+    },
+    "src/kew/service/fleet.py": {
+      "issue_refs": 1
+    },
+    "src/kew/service/freshness.py": {
+      "issue_refs": 2
+    },
+    "src/kew/service/health.py": {
+      "issue_refs": 10
+    },
+    "src/kew/service/loops.py": {
+      "issue_refs": 6
+    },
+    "src/kew/service/merge_verify_reading.py": {
+      "issue_refs": 9
+    },
+    "src/kew/service/models.py": {
+      "issue_refs": 43
+    },
+    "src/kew/service/needs_you.py": {
+      "issue_refs": 26
+    },
+    "src/kew/service/outcomes.py": {
+      "issue_refs": 1
+    },
+    "src/kew/service/palette_ask.py": {
+      "issue_refs": 2
+    },
+    "src/kew/service/pipeline.py": {
+      "issue_refs": 7
+    },
+    "src/kew/service/prompt_profiles.py": {
+      "issue_refs": 13
+    },
+    "src/kew/service/prompts.py": {
+      "issue_refs": 11
+    },
+    "src/kew/service/report.py": {
+      "issue_refs": 1
+    },
+    "src/kew/service/run_requests.py": {
+      "issue_refs": 8
+    },
+    "src/kew/service/runs.py": {
+      "issue_refs": 4
+    },
+    "src/kew/service/send_back.py": {
+      "issue_refs": 2
+    },
+    "src/kew/service/verbs.py": {
+      "issue_refs": 25
+    },
+    "src/kew/service/work.py": {
+      "issue_refs": 36
+    },
+    "src/kew/staleness.py": {
+      "issue_refs": 4
+    },
+    "src/kew/standalone_review.py": {
+      "issue_refs": 4
+    },
+    "src/kew/stop_recovery.py": {
+      "issue_refs": 3
+    },
+    "src/kew/structured_completion.py": {
+      "issue_refs": 1
+    },
+    "src/kew/subprocess_utils.py": {
+      "issue_refs": 6
+    },
+    "src/kew/test_integrity.py": {
+      "issue_refs": 5
+    },
+    "src/kew/tracking.py": {
+      "issue_refs": 14
+    },
+    "src/kew/transcript_metrics.py": {
+      "issue_refs": 6
+    },
+    "src/kew/triage/__init__.py": {
+      "issue_refs": 1
+    },
+    "src/kew/triage/classify.py": {
+      "issue_refs": 1
+    },
+    "src/kew/triage/plan.py": {
+      "issue_refs": 2
+    },
+    "src/kew/triage/policy.py": {
+      "issue_refs": 1
+    },
+    "src/kew/triage/record.py": {
+      "issue_refs": 1
+    },
+    "src/kew/triage/schema.py": {
+      "issue_refs": 2
+    },
+    "src/kew/triage/signals.py": {
+      "issue_refs": 1
+    },
+    "src/kew/triage/station.py": {
+      "issue_refs": 1
+    },
+    "src/kew/tui/actions.py": {
+      "issue_refs": 3
+    },
+    "src/kew/tui/screens/holds_queue.py": {
+      "issue_refs": 2
+    },
+    "src/kew/tui/selection.py": {
+      "issue_refs": 1
+    },
+    "src/kew/tui/state.py": {
+      "issue_refs": 2
+    },
+    "src/kew/tui/widgets/approval_dialog.py": {
+      "issue_refs": 1
+    },
+    "src/kew/ui_check_modules.py": {
+      "issue_refs": 1
+    },
+    "src/kew/usage.py": {
+      "issue_refs": 2
+    },
+    "src/kew/verify_executed.py": {
+      "issue_refs": 1
+    },
+    "src/kew/verify_frontend.py": {
+      "issue_refs": 3
+    },
+    "src/kew/verify_lease.py": {
+      "issue_refs": 1
+    },
+    "src/kew/verify_ledger.py": {
+      "issue_refs": 1
+    },
+    "src/kew/verify_selection.py": {
+      "issue_refs": 3
+    },
+    "src/kew/verify_selection_report.py": {
+      "issue_refs": 2
+    },
+    "src/kew/verify_suite.py": {
+      "issue_refs": 1
+    },
+    "src/kew/waits.py": {
+      "issue_refs": 47
+    },
+    "src/kew/work_dirs.py": {
+      "issue_refs": 3
+    },
+    "src/kew/worktree.py": {
+      "issue_refs": 64
+    },
+    "tests/conformance/__init__.py": {
+      "issue_refs": 1
+    },
+    "tests/conformance/test_dispatch_to_merge_scenarios.py": {
+      "issue_refs": 3
+    },
+    "tests/conformance/test_product_coherence.py": {
+      "issue_refs": 1
+    },
+    "tests/conftest.py": {
+      "issue_refs": 23
+    },
+    "tests/delegate/test_atomic_cap.py": {
+      "issue_refs": 2
+    },
+    "tests/delegate/test_claim.py": {
+      "issue_refs": 5
+    },
+    "tests/delegate/test_cli.py": {
+      "issue_refs": 2
+    },
+    "tests/delegate/test_integration.py": {
+      "issue_refs": 1
+    },
+    "tests/delegate/test_lifecycle.py": {
+      "issue_refs": 1
+    },
+    "tests/delegate/test_resilience.py": {
+      "issue_refs": 2
+    },
+    "tests/delegate/test_watch.py": {
+      "issue_refs": 2
+    },
+    "tests/serve/test_api_palette.py": {
+      "issue_refs": 1
+    },
+    "tests/serve/test_api_readiness.py": {
+      "issue_refs": 1
+    },
+    "tests/support/agent_pr_gate.py": {
+      "issue_refs": 1
+    },
+    "tests/support/dashboard_fakes.py": {
+      "issue_refs": 7
+    },
+    "tests/support/driver_fakes.py": {
+      "issue_refs": 3
+    },
+    "tests/support/epic_fixture.py": {
+      "issue_refs": 2
+    },
+    "tests/support/fake_daemon.py": {
+      "issue_refs": 1
+    },
+    "tests/support/fake_docker.py": {
+      "issue_refs": 4
+    },
+    "tests/support/fake_gcloud.py": {
+      "issue_refs": 1
+    },
+    "tests/support/fake_launchctl.py": {
+      "issue_refs": 1
+    },
+    "tests/support/fake_openai.py": {
+      "issue_refs": 1
+    },
+    "tests/support/fake_systemd.py": {
+      "issue_refs": 2
+    },
+    "tests/support/gate_path_repo.py": {
+      "issue_refs": 1
+    },
+    "tests/support/gh_fakes.py": {
+      "issue_refs": 2
+    },
+    "tests/support/group_leaks.py": {
+      "issue_refs": 1
+    },
+    "tests/support/held_out_lock.py": {
+      "issue_refs": 1
+    },
+    "tests/support/image_resolution.py": {
+      "issue_refs": 1
+    },
+    "tests/support/pr_batch.py": {
+      "issue_refs": 1
+    },
+    "tests/support/product_coherence.py": {
+      "issue_refs": 1
+    },
+    "tests/support/prompt_profiles.py": {
+      "issue_refs": 1
+    },
+    "tests/support/repo_inventory.py": {
+      "issue_refs": 3
+    },
+    "tests/support/required_tools.py": {
+      "issue_refs": 3
+    },
+    "tests/support/retained_surfaces.py": {
+      "issue_refs": 1
+    },
+    "tests/support/review_stream.py": {
+      "issue_refs": 9
+    },
+    "tests/support/reviewer_artifact.py": {
+      "issue_refs": 1
+    },
+    "tests/support/route_deps.py": {
+      "issue_refs": 1
+    },
+    "tests/support/scan_checkout.py": {
+      "issue_refs": 1
+    },
+    "tests/support/serial_phase.py": {
+      "issue_refs": 1
+    },
+    "tests/support/shard.py": {
+      "issue_refs": 2
+    },
+    "tests/support/source_ast.py": {
+      "issue_refs": 1
+    },
+    "tests/support/takeover_ledger.py": {
+      "issue_refs": 1
+    },
+    "tests/support/tui_wait.py": {
+      "issue_refs": 2
+    },
+    "tests/support/unanswered_docker.py": {
+      "issue_refs": 1
+    },
+    "tests/support/unchecked_reviews.py": {
+      "issue_refs": 2
+    },
+    "tests/support/verify_lease_holder.py": {
+      "issue_refs": 1
+    },
+    "tests/support/wheelhouse.py": {
+      "issue_refs": 1
+    },
+    "tests/test_acceptance_author.py": {
+      "issue_refs": 4
+    },
+    "tests/test_acceptance_author_dispatch.py": {
+      "issue_refs": 3
+    },
+    "tests/test_acceptance_contract_publication.py": {
+      "issue_refs": 1
+    },
+    "tests/test_acceptance_contract_verify.py": {
+      "issue_refs": 6
+    },
+    "tests/test_acceptance_dispute.py": {
+      "issue_refs": 1
+    },
+    "tests/test_agent_image.py": {
+      "issue_refs": 6
+    },
+    "tests/test_agent_image_scan_gate.py": {
+      "issue_refs": 15
+    },
+    "tests/test_agent_instructions.py": {
+      "issue_refs": 1
+    },
+    "tests/test_agent_pids_limit.py": {
+      "issue_refs": 2
+    },
+    "tests/test_agent_pr_text.py": {
+      "issue_refs": 2
+    },
+    "tests/test_agent_token_usage_warning.py": {
+      "issue_refs": 1
+    },
+    "tests/test_attention_names_the_cause.py": {
+      "issue_refs": 2
+    },
+    "tests/test_audit.py": {
+      "issue_refs": 20
+    },
+    "tests/test_audit_anchor_workflow.py": {
+      "issue_refs": 2
+    },
+    "tests/test_audit_chain.py": {
+      "issue_refs": 9
+    },
+    "tests/test_audit_writers_chain_their_rows.py": {
+      "issue_refs": 1
+    },
+    "tests/test_base_integration_failure.py": {
+      "issue_refs": 2
+    },
+    "tests/test_bounded_run_keys.py": {
+      "issue_refs": 4
+    },
+    "tests/test_breaker.py": {
+      "issue_refs": 29
+    },
+    "tests/test_budget.py": {
+      "issue_refs": 13
+    },
+    "tests/test_c3_poll_bounds.py": {
+      "issue_refs": 4
+    },
+    "tests/test_cache_governor.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cache_ordering.py": {
+      "issue_refs": 1
+    },
+    "tests/test_certificate_ref.py": {
+      "issue_refs": 2
+    },
+    "tests/test_certification_conformance.py": {
+      "issue_refs": 1
+    },
+    "tests/test_certification_gate.py": {
+      "issue_refs": 2
+    },
+    "tests/test_check_image.py": {
+      "issue_refs": 4
+    },
+    "tests/test_checkout_refusal_outcome.py": {
+      "issue_refs": 1
+    },
+    "tests/test_ci_approval_revoke.py": {
+      "issue_refs": 4
+    },
+    "tests/test_ci_checks.py": {
+      "issue_refs": 1
+    },
+    "tests/test_ci_fix.py": {
+      "issue_refs": 16
+    },
+    "tests/test_ci_pending_hold_detail.py": {
+      "issue_refs": 1
+    },
+    "tests/test_claude_code_parse_characterization.py": {
+      "issue_refs": 2
+    },
+    "tests/test_claude_code_runner.py": {
+      "issue_refs": 2
+    },
+    "tests/test_cli.py": {
+      "issue_refs": 23
+    },
+    "tests/test_cli_characterization.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_dispatch_loop.py": {
+      "issue_refs": 5
+    },
+    "tests/test_cli_epic_heartbeat.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_gc.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_init.py": {
+      "issue_refs": 3
+    },
+    "tests/test_cli_json_reads.py": {
+      "issue_refs": 2
+    },
+    "tests/test_cli_json_results.py": {
+      "issue_refs": 2
+    },
+    "tests/test_cli_loop.py": {
+      "issue_refs": 4
+    },
+    "tests/test_cli_model_eol.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_no_change.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_plan.py": {
+      "issue_refs": 2
+    },
+    "tests/test_cli_prompts.py": {
+      "issue_refs": 3
+    },
+    "tests/test_cli_rename_repo.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_schema_command.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_serve.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_status.py": {
+      "issue_refs": 1
+    },
+    "tests/test_cli_triage.py": {
+      "issue_refs": 1
+    },
+    "tests/test_codex_runner.py": {
+      "issue_refs": 2
+    },
+    "tests/test_commit_message.py": {
+      "issue_refs": 5
+    },
+    "tests/test_committed_routing.py": {
+      "issue_refs": 2
+    },
+    "tests/test_config.py": {
+      "issue_refs": 30
+    },
+    "tests/test_config_override_enforcement.py": {
+      "issue_refs": 1
+    },
+    "tests/test_contained_budget_cap.py": {
+      "history": 1,
+      "issue_refs": 7
+    },
+    "tests/test_contained_execution.py": {
+      "issue_refs": 11
+    },
+    "tests/test_contained_signal_exit.py": {
+      "issue_refs": 2
+    },
+    "tests/test_container_create_timeout.py": {
+      "issue_refs": 4
+    },
+    "tests/test_container_launch_under_load.py": {
+      "issue_refs": 1
+    },
+    "tests/test_container_run_primitive.py": {
+      "issue_refs": 19
+    },
+    "tests/test_create_kew.py": {
+      "issue_refs": 1
+    },
+    "tests/test_declaration_only_remediation.py": {
+      "issue_refs": 9
+    },
+    "tests/test_delegate_driver.py": {
+      "issue_refs": 13
+    },
+    "tests/test_demo_world_timings.py": {
+      "issue_refs": 1
+    },
+    "tests/test_dependencies.py": {
+      "issue_refs": 2
+    },
+    "tests/test_description_retry_parity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_direct_egress_route.py": {
+      "issue_refs": 4
+    },
+    "tests/test_dispatch_core.py": {
+      "issue_refs": 107
+    },
+    "tests/test_dispatch_core_characterization.py": {
+      "issue_refs": 11
+    },
+    "tests/test_dispatch_placement.py": {
+      "issue_refs": 24
+    },
+    "tests/test_dispatch_plan_record.py": {
+      "issue_refs": 2
+    },
+    "tests/test_dispatch_ready_admission.py": {
+      "issue_refs": 5
+    },
+    "tests/test_dispatch_refusal_hold_lifecycle.py": {
+      "issue_refs": 8
+    },
+    "tests/test_dispatch_report_posts_once.py": {
+      "issue_refs": 1
+    },
+    "tests/test_dispatch_sandbox.py": {
+      "issue_refs": 16
+    },
+    "tests/test_docker_daemon_lock.py": {
+      "issue_refs": 3
+    },
+    "tests/test_dockerfile_pipe_to_shell.py": {
+      "issue_refs": 2
+    },
+    "tests/test_docs_demo_links.py": {
+      "issue_refs": 1
+    },
+    "tests/test_docs_truthfulness.py": {
+      "issue_refs": 74
+    },
+    "tests/test_doctor_cli.py": {
+      "issue_refs": 29
+    },
+    "tests/test_drive.py": {
+      "issue_refs": 5
+    },
+    "tests/test_drive_admission.py": {
+      "issue_refs": 2
+    },
+    "tests/test_drive_agent.py": {
+      "issue_refs": 18
+    },
+    "tests/test_drive_excluded_conflict.py": {
+      "issue_refs": 1
+    },
+    "tests/test_drive_heartbeat.py": {
+      "issue_refs": 1
+    },
+    "tests/test_drive_host_load.py": {
+      "issue_refs": 1
+    },
+    "tests/test_drive_inbox.py": {
+      "issue_refs": 1
+    },
+    "tests/test_drive_merge.py": {
+      "issue_refs": 10
+    },
+    "tests/test_drive_restart.py": {
+      "issue_refs": 2
+    },
+    "tests/test_driver_base_integration.py": {
+      "issue_refs": 17
+    },
+    "tests/test_driver_ci_recovery.py": {
+      "issue_refs": 5
+    },
+    "tests/test_driver_closed_unmerged.py": {
+      "issue_refs": 2
+    },
+    "tests/test_driver_dispatch.py": {
+      "issue_refs": 11
+    },
+    "tests/test_driver_facts.py": {
+      "issue_refs": 7
+    },
+    "tests/test_driver_facts_real_gh.py": {
+      "issue_refs": 6
+    },
+    "tests/test_driver_frontier.py": {
+      "issue_refs": 1
+    },
+    "tests/test_driver_journal.py": {
+      "issue_refs": 12
+    },
+    "tests/test_driver_journal_predecessor.py": {
+      "issue_refs": 1
+    },
+    "tests/test_driver_lock.py": {
+      "issue_refs": 14
+    },
+    "tests/test_driver_lock_stall.py": {
+      "issue_refs": 2
+    },
+    "tests/test_driver_merge.py": {
+      "issue_refs": 11
+    },
+    "tests/test_driver_merge_queue.py": {
+      "issue_refs": 37
+    },
+    "tests/test_driver_overlay.py": {
+      "issue_refs": 9
+    },
+    "tests/test_driver_resource_retry.py": {
+      "issue_refs": 1
+    },
+    "tests/test_driver_review_concurrency.py": {
+      "issue_refs": 4
+    },
+    "tests/test_driver_review_detach.py": {
+      "issue_refs": 3
+    },
+    "tests/test_driver_review_merge.py": {
+      "issue_refs": 4
+    },
+    "tests/test_driver_review_overlay.py": {
+      "issue_refs": 2
+    },
+    "tests/test_driver_review_races.py": {
+      "issue_refs": 4
+    },
+    "tests/test_driver_review_stage.py": {
+      "issue_refs": 65
+    },
+    "tests/test_driver_tick.py": {
+      "issue_refs": 68
+    },
+    "tests/test_driver_tick_journal.py": {
+      "issue_refs": 3
+    },
+    "tests/test_driver_tick_log.py": {
+      "issue_refs": 8
+    },
+    "tests/test_entrypoint_contract.py": {
+      "issue_refs": 1
+    },
+    "tests/test_epic_amend.py": {
+      "issue_refs": 4
+    },
+    "tests/test_epic_archive.py": {
+      "issue_refs": 3
+    },
+    "tests/test_epic_attention.py": {
+      "issue_refs": 10
+    },
+    "tests/test_epic_counts_parity.py": {
+      "issue_refs": 18
+    },
+    "tests/test_epic_driver_cli.py": {
+      "issue_refs": 57
+    },
+    "tests/test_epic_driver_gh_smoke.py": {
+      "issue_refs": 3
+    },
+    "tests/test_epic_journal_e2e.py": {
+      "issue_refs": 3
+    },
+    "tests/test_epic_node_states.py": {
+      "issue_refs": 2
+    },
+    "tests/test_epic_plan.py": {
+      "issue_refs": 1
+    },
+    "tests/test_epic_plan_criteria.py": {
+      "issue_refs": 5
+    },
+    "tests/test_epic_plan_run.py": {
+      "issue_refs": 12
+    },
+    "tests/test_epic_plan_validation.py": {
+      "issue_refs": 1
+    },
+    "tests/test_epic_send_back.py": {
+      "issue_refs": 2
+    },
+    "tests/test_epic_tick_github_budget.py": {
+      "issue_refs": 1
+    },
+    "tests/test_epic_watch_journaled.py": {
+      "issue_refs": 11
+    },
+    "tests/test_error_category_vocabulary.py": {
+      "issue_refs": 1
+    },
+    "tests/test_event_label_parity.py": {
+      "issue_refs": 3
+    },
+    "tests/test_factory_exception_parity.py": {
+      "issue_refs": 6
+    },
+    "tests/test_factory_header_parity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_factory_status_parity.py": {
+      "issue_refs": 11
+    },
+    "tests/test_factory_timeline_fixture.py": {
+      "issue_refs": 3
+    },
+    "tests/test_fleet.py": {
+      "issue_refs": 1
+    },
+    "tests/test_fleet_placement.py": {
+      "issue_refs": 4
+    },
+    "tests/test_fleet_worker_cap.py": {
+      "issue_refs": 10
+    },
+    "tests/test_github_native_source.py": {
+      "issue_refs": 1
+    },
+    "tests/test_github_rate_limit.py": {
+      "issue_refs": 1
+    },
+    "tests/test_gitleaks_allowlist.py": {
+      "issue_refs": 6
+    },
+    "tests/test_governed_round2_credentials.py": {
+      "issue_refs": 1
+    },
+    "tests/test_governed_round2_loop_adoption.py": {
+      "issue_refs": 1
+    },
+    "tests/test_governed_round2_proxy_evidence.py": {
+      "issue_refs": 1
+    },
+    "tests/test_governed_round2_startup_evidence.py": {
+      "issue_refs": 1
+    },
+    "tests/test_governed_round7_reviewer_teardown.py": {
+      "issue_refs": 1
+    },
+    "tests/test_graph_cli.py": {
+      "issue_refs": 4
+    },
+    "tests/test_group_leaks.py": {
+      "issue_refs": 1
+    },
+    "tests/test_health.py": {
+      "issue_refs": 4
+    },
+    "tests/test_held_out_base_tests.py": {
+      "issue_refs": 5
+    },
+    "tests/test_held_out_before_review.py": {
+      "issue_refs": 1
+    },
+    "tests/test_held_out_runs_install_only_what_the_lock_pins.py": {
+      "issue_refs": 1
+    },
+    "tests/test_held_out_runs_load_only_pinned_plugins.py": {
+      "issue_refs": 2
+    },
+    "tests/test_held_out_selection.py": {
+      "issue_refs": 1
+    },
+    "tests/test_hermes_runner.py": {
+      "issue_refs": 1
+    },
+    "tests/test_hold_category_parity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_hold_reason_cut.py": {
+      "issue_refs": 1
+    },
+    "tests/test_host_git_boundary.py": {
+      "issue_refs": 1
+    },
+    "tests/test_host_restart_preserved_continuation.py": {
+      "issue_refs": 2
+    },
+    "tests/test_host_restart_reap.py": {
+      "issue_refs": 41
+    },
+    "tests/test_hosts_providers.py": {
+      "issue_refs": 88
+    },
+    "tests/test_hosts_provision.py": {
+      "issue_refs": 22
+    },
+    "tests/test_hosts_remote_dispatch.py": {
+      "issue_refs": 42
+    },
+    "tests/test_ingest_claude_code.py": {
+      "issue_refs": 1
+    },
+    "tests/test_ingest_server.py": {
+      "issue_refs": 5
+    },
+    "tests/test_integration.py": {
+      "issue_refs": 1
+    },
+    "tests/test_labels.py": {
+      "issue_refs": 1
+    },
+    "tests/test_ledger_guard.py": {
+      "issue_refs": 2
+    },
+    "tests/test_ledger_identity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_ledger_worktree_root.py": {
+      "issue_refs": 1
+    },
+    "tests/test_linear_client.py": {
+      "issue_refs": 2
+    },
+    "tests/test_linear_facts.py": {
+      "issue_refs": 1
+    },
+    "tests/test_linear_mutation_outcome.py": {
+      "issue_refs": 1
+    },
+    "tests/test_linear_outage_tick.py": {
+      "issue_refs": 2
+    },
+    "tests/test_liveness_owner.py": {
+      "issue_refs": 3
+    },
+    "tests/test_liveness_sandbox_registration.py": {
+      "issue_refs": 1
+    },
+    "tests/test_log_dir_isolation.py": {
+      "issue_refs": 1
+    },
+    "tests/test_logs_screen.py": {
+      "issue_refs": 1
+    },
+    "tests/test_loop_containment.py": {
+      "issue_refs": 2
+    },
+    "tests/test_loops_ci.py": {
+      "issue_refs": 3
+    },
+    "tests/test_loops_delegate.py": {
+      "issue_refs": 2
+    },
+    "tests/test_loops_store.py": {
+      "issue_refs": 1
+    },
+    "tests/test_loops_verification.py": {
+      "issue_refs": 4
+    },
+    "tests/test_main_health.py": {
+      "issue_refs": 7
+    },
+    "tests/test_memory_guard.py": {
+      "issue_refs": 3
+    },
+    "tests/test_merge_claims.py": {
+      "issue_refs": 1
+    },
+    "tests/test_merge_decision_failed_verify.py": {
+      "issue_refs": 2
+    },
+    "tests/test_merge_gate_paths.py": {
+      "issue_refs": 12
+    },
+    "tests/test_merge_main_operator_owned.py": {
+      "issue_refs": 1
+    },
+    "tests/test_merge_queue_needs_you.py": {
+      "issue_refs": 1
+    },
+    "tests/test_model_catalog.py": {
+      "issue_refs": 1
+    },
+    "tests/test_model_catalog_docs.py": {
+      "issue_refs": 1
+    },
+    "tests/test_model_catalog_readers.py": {
+      "issue_refs": 2
+    },
+    "tests/test_model_eol_snapshot.py": {
+      "issue_refs": 3
+    },
+    "tests/test_model_refresh.py": {
+      "issue_refs": 1
+    },
+    "tests/test_model_refresh_pr.py": {
+      "issue_refs": 1
+    },
+    "tests/test_model_wait.py": {
+      "issue_refs": 1
+    },
+    "tests/test_motion.py": {
+      "issue_refs": 3
+    },
+    "tests/test_motion_parity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_mutation_after_merge.py": {
+      "issue_refs": 1
+    },
+    "tests/test_mutation_diff_scope.py": {
+      "issue_refs": 3
+    },
+    "tests/test_mutmut_config.py": {
+      "issue_refs": 1
+    },
+    "tests/test_needs_you_archive.py": {
+      "issue_refs": 5
+    },
+    "tests/test_needs_you_between_rounds.py": {
+      "issue_refs": 9
+    },
+    "tests/test_needs_you_commands.py": {
+      "issue_refs": 15
+    },
+    "tests/test_needs_you_merge_queue_suspect.py": {
+      "issue_refs": 1
+    },
+    "tests/test_needs_you_merged_and_stalled.py": {
+      "issue_refs": 7
+    },
+    "tests/test_needs_you_one_item_one_row.py": {
+      "issue_refs": 7
+    },
+    "tests/test_needs_you_one_set.py": {
+      "issue_refs": 20
+    },
+    "tests/test_needs_you_parity.py": {
+      "issue_refs": 9
+    },
+    "tests/test_needs_you_working_and_epicless.py": {
+      "issue_refs": 4
+    },
+    "tests/test_never_started_container.py": {
+      "issue_refs": 4
+    },
+    "tests/test_never_started_reaper.py": {
+      "issue_refs": 7
+    },
+    "tests/test_no_artifact_run_kinds.py": {
+      "issue_refs": 1
+    },
+    "tests/test_no_change_judged_paths.py": {
+      "issue_refs": 3
+    },
+    "tests/test_no_change_rejudge.py": {
+      "issue_refs": 1
+    },
+    "tests/test_no_change_seal.py": {
+      "issue_refs": 2
+    },
+    "tests/test_no_op_remediation_holds.py": {
+      "issue_refs": 3
+    },
+    "tests/test_no_test_awareness_in_src.py": {
+      "issue_refs": 1
+    },
+    "tests/test_no_test_reaches_the_operators_gh.py": {
+      "issue_refs": 2
+    },
+    "tests/test_onboarding_docs.py": {
+      "issue_refs": 1
+    },
+    "tests/test_openapi_route_coverage.py": {
+      "issue_refs": 4
+    },
+    "tests/test_opencode_image.py": {
+      "issue_refs": 1
+    },
+    "tests/test_opencode_runner.py": {
+      "issue_refs": 4
+    },
+    "tests/test_openshell_certification.py": {
+      "issue_refs": 21
+    },
+    "tests/test_openshell_checkout.py": {
+      "issue_refs": 10
+    },
+    "tests/test_openshell_client.py": {
+      "issue_refs": 2
+    },
+    "tests/test_openshell_launch.py": {
+      "issue_refs": 15
+    },
+    "tests/test_openshell_launcher.py": {
+      "issue_refs": 11
+    },
+    "tests/test_openshell_policy.py": {
+      "issue_refs": 1
+    },
+    "tests/test_openshell_review.py": {
+      "issue_refs": 10
+    },
+    "tests/test_operator_merge.py": {
+      "issue_refs": 11
+    },
+    "tests/test_orchestrator.py": {
+      "issue_refs": 19
+    },
+    "tests/test_orchestrator_cpu_retry.py": {
+      "issue_refs": 1
+    },
+    "tests/test_outcome_scorecard.py": {
+      "issue_refs": 13
+    },
+    "tests/test_outcome_sweep_batching.py": {
+      "issue_refs": 1
+    },
+    "tests/test_outcomes.py": {
+      "issue_refs": 5
+    },
+    "tests/test_override_parity.py": {
+      "issue_refs": 9
+    },
+    "tests/test_pi_runner.py": {
+      "issue_refs": 2
+    },
+    "tests/test_planned_cost.py": {
+      "issue_refs": 5
+    },
+    "tests/test_policy.py": {
+      "issue_refs": 3
+    },
+    "tests/test_policy_mark_gate.py": {
+      "issue_refs": 15
+    },
+    "tests/test_pre_review_gate.py": {
+      "issue_refs": 2
+    },
+    "tests/test_pricing.py": {
+      "issue_refs": 7
+    },
+    "tests/test_pricing_audit.py": {
+      "issue_refs": 3
+    },
+    "tests/test_production_store_open_boundaries.py": {
+      "issue_refs": 4
+    },
+    "tests/test_progress.py": {
+      "issue_refs": 1
+    },
+    "tests/test_project_merge_queue.py": {
+      "issue_refs": 10
+    },
+    "tests/test_prompt.py": {
+      "issue_refs": 20
+    },
+    "tests/test_prompt_injection_posture.py": {
+      "issue_refs": 18
+    },
+    "tests/test_prompt_preview_addendum_span.py": {
+      "issue_refs": 1
+    },
+    "tests/test_prompt_previews.py": {
+      "issue_refs": 2
+    },
+    "tests/test_prompt_profile_outcomes.py": {
+      "issue_refs": 2
+    },
+    "tests/test_prompt_profiles.py": {
+      "issue_refs": 4
+    },
+    "tests/test_prompt_profiles_dispatch.py": {
+      "issue_refs": 5
+    },
+    "tests/test_prompt_profiles_fixups.py": {
+      "issue_refs": 1
+    },
+    "tests/test_prompt_profiles_reviewer.py": {
+      "issue_refs": 6
+    },
+    "tests/test_prompts_fixture_parity.py": {
+      "issue_refs": 3
+    },
+    "tests/test_proxy_round12.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round13.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round14.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round20.py": {
+      "issue_refs": 2
+    },
+    "tests/test_proxy_round23.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round26.py": {
+      "issue_refs": 3
+    },
+    "tests/test_proxy_round6.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round8.py": {
+      "issue_refs": 1
+    },
+    "tests/test_proxy_round9.py": {
+      "issue_refs": 2
+    },
+    "tests/test_public_links.py": {
+      "issue_refs": 2
+    },
+    "tests/test_public_snapshot.py": {
+      "issue_refs": 1
+    },
+    "tests/test_publication_apply.py": {
+      "issue_refs": 2
+    },
+    "tests/test_publication_attest.py": {
+      "issue_refs": 14
+    },
+    "tests/test_publication_canonical.py": {
+      "issue_refs": 1
+    },
+    "tests/test_publication_checkout.py": {
+      "issue_refs": 1
+    },
+    "tests/test_publication_copy_sync.py": {
+      "issue_refs": 15
+    },
+    "tests/test_publication_credentials.py": {
+      "issue_refs": 13
+    },
+    "tests/test_publication_extract.py": {
+      "issue_refs": 7
+    },
+    "tests/test_publication_filter.py": {
+      "issue_refs": 3
+    },
+    "tests/test_publication_ignore.py": {
+      "issue_refs": 6
+    },
+    "tests/test_publication_integration_parent.py": {
+      "issue_refs": 20
+    },
+    "tests/test_publication_job_store.py": {
+      "issue_refs": 1
+    },
+    "tests/test_publication_output_scan.py": {
+      "issue_refs": 5
+    },
+    "tests/test_publication_round3.py": {
+      "issue_refs": 3
+    },
+    "tests/test_publication_transient_push.py": {
+      "issue_refs": 7
+    },
+    "tests/test_readiness.py": {
+      "issue_refs": 1
+    },
+    "tests/test_readiness_probe.py": {
+      "issue_refs": 6
+    },
+    "tests/test_reconciling_source.py": {
+      "issue_refs": 1
+    },
+    "tests/test_refused_head_release.py": {
+      "issue_refs": 2
+    },
+    "tests/test_registry.py": {
+      "issue_refs": 8
+    },
+    "tests/test_remediation_brief_scope.py": {
+      "issue_refs": 1
+    },
+    "tests/test_remediation_containment.py": {
+      "issue_refs": 4
+    },
+    "tests/test_remediation_flow_gate.py": {
+      "issue_refs": 2
+    },
+    "tests/test_remediation_publication_deferral.py": {
+      "issue_refs": 9
+    },
+    "tests/test_remediation_wiring.py": {
+      "issue_refs": 12
+    },
+    "tests/test_reparse_reads_the_round_as_judged.py": {
+      "issue_refs": 1
+    },
+    "tests/test_repo_inventory.py": {
+      "issue_refs": 4
+    },
+    "tests/test_repo_rename.py": {
+      "issue_refs": 1
+    },
+    "tests/test_report.py": {
+      "issue_refs": 5
+    },
+    "tests/test_report_export.py": {
+      "issue_refs": 4
+    },
+    "tests/test_report_provenance.py": {
+      "issue_refs": 2
+    },
+    "tests/test_report_style.py": {
+      "issue_refs": 1
+    },
+    "tests/test_required_tools_mode.py": {
+      "issue_refs": 1
+    },
+    "tests/test_reservation_sweep.py": {
+      "issue_refs": 1
+    },
+    "tests/test_resolution_checks.py": {
+      "issue_refs": 2
+    },
+    "tests/test_resolve.py": {
+      "issue_refs": 11
+    },
+    "tests/test_review.py": {
+      "issue_refs": 44
+    },
+    "tests/test_review_audit.py": {
+      "issue_refs": 4
+    },
+    "tests/test_review_checkout.py": {
+      "issue_refs": 7
+    },
+    "tests/test_review_checkout_retention.py": {
+      "issue_refs": 10
+    },
+    "tests/test_review_comment.py": {
+      "issue_refs": 7
+    },
+    "tests/test_review_contract.py": {
+      "issue_refs": 17
+    },
+    "tests/test_review_contract_test_citation.py": {
+      "issue_refs": 1
+    },
+    "tests/test_review_credential_redaction.py": {
+      "issue_refs": 2
+    },
+    "tests/test_review_criteria.py": {
+      "issue_refs": 6
+    },
+    "tests/test_review_delta.py": {
+      "issue_refs": 4
+    },
+    "tests/test_review_dispatch.py": {
+      "issue_refs": 11
+    },
+    "tests/test_review_environment.py": {
+      "issue_refs": 4
+    },
+    "tests/test_review_frontend.py": {
+      "issue_refs": 1
+    },
+    "tests/test_review_launcher_cold_import.py": {
+      "issue_refs": 1
+    },
+    "tests/test_review_model_override.py": {
+      "issue_refs": 1
+    },
+    "tests/test_review_monorepo_subdir_fixture.py": {
+      "issue_refs": 10
+    },
+    "tests/test_review_occupancy.py": {
+      "issue_refs": 3
+    },
+    "tests/test_review_outcome.py": {
+      "issue_refs": 4
+    },
+    "tests/test_review_reservation.py": {
+      "issue_refs": 2
+    },
+    "tests/test_review_stage_held_cap.py": {
+      "issue_refs": 3
+    },
+    "tests/test_review_stage_production_wiring.py": {
+      "issue_refs": 44
+    },
+    "tests/test_review_status.py": {
+      "issue_refs": 1
+    },
+    "tests/test_review_stderr_pipe.py": {
+      "issue_refs": 2
+    },
+    "tests/test_review_stop_rule.py": {
+      "issue_refs": 31
+    },
+    "tests/test_review_targets.py": {
+      "issue_refs": 4
+    },
+    "tests/test_review_unchecked_checks.py": {
+      "issue_refs": 5
+    },
+    "tests/test_review_verdict_forgery.py": {
+      "issue_refs": 2
+    },
+    "tests/test_reviewer_artifact_base_ref.py": {
+      "issue_refs": 1
+    },
+    "tests/test_reviewer_copy_root.py": {
+      "issue_refs": 1
+    },
+    "tests/test_reviewer_prompt_repository_top.py": {
+      "issue_refs": 1
+    },
+    "tests/test_reviewer_rules_on_declarations.py": {
+      "issue_refs": 6
+    },
+    "tests/test_reviewer_sees_declared_tests.py": {
+      "issue_refs": 1
+    },
+    "tests/test_reviewer_worktree_convergence.py": {
+      "issue_refs": 2
+    },
+    "tests/test_round13_liveness.py": {
+      "issue_refs": 14
+    },
+    "tests/test_round14_liveness.py": {
+      "issue_refs": 16
+    },
+    "tests/test_round18_linear_compensation.py": {
+      "issue_refs": 1
+    },
+    "tests/test_round18_liveness.py": {
+      "issue_refs": 15
+    },
+    "tests/test_round19_loop_abandonment.py": {
+      "issue_refs": 3
+    },
+    "tests/test_round23_linear_ambiguity.py": {
+      "issue_refs": 2
+    },
+    "tests/test_round24_claim_recovery.py": {
+      "issue_refs": 1
+    },
+    "tests/test_round24_lease_and_claim_events.py": {
+      "issue_refs": 2
+    },
+    "tests/test_round28_claim_semantics.py": {
+      "issue_refs": 1
+    },
+    "tests/test_round29_frontier_refusal_hold.py": {
+      "issue_refs": 2
+    },
+    "tests/test_run_credentials.py": {
+      "issue_refs": 2
+    },
+    "tests/test_run_report_sink.py": {
+      "issue_refs": 4
+    },
+    "tests/test_run_requests.py": {
+      "issue_refs": 7
+    },
+    "tests/test_run_store.py": {
+      "issue_refs": 63
+    },
+    "tests/test_run_store_acceptance.py": {
+      "issue_refs": 3
+    },
+    "tests/test_run_store_container_runtimes.py": {
+      "issue_refs": 1
+    },
+    "tests/test_run_store_epic.py": {
+      "issue_refs": 21
+    },
+    "tests/test_run_store_epic_ticks.py": {
+      "issue_refs": 29
+    },
+    "tests/test_run_store_item_plans.py": {
+      "issue_refs": 1
+    },
+    "tests/test_run_store_review_rounds.py": {
+      "issue_refs": 6
+    },
+    "tests/test_run_store_triage.py": {
+      "issue_refs": 1
+    },
+    "tests/test_runner_container_args.py": {
+      "issue_refs": 6
+    },
+    "tests/test_runner_quota.py": {
+      "issue_refs": 4
+    },
+    "tests/test_runtime_backend.py": {
+      "issue_refs": 1
+    },
+    "tests/test_sandbox.py": {
+      "issue_refs": 82
+    },
+    "tests/test_sandbox_client_exit.py": {
+      "issue_refs": 1
+    },
+    "tests/test_sandbox_containment.py": {
+      "issue_refs": 17
+    },
+    "tests/test_sandbox_network_cli.py": {
+      "issue_refs": 1
+    },
+    "tests/test_sandbox_stream_parity.py": {
+      "issue_refs": 16
+    },
+    "tests/test_sandbox_test_worker_pool.py": {
+      "issue_refs": 1
+    },
+    "tests/test_scheduler.py": {
+      "issue_refs": 3
+    },
+    "tests/test_schema_version_literal_gate.py": {
+      "issue_refs": 1
+    },
+    "tests/test_scorecard.py": {
+      "issue_refs": 6
+    },
+    "tests/test_secret_env_hygiene.py": {
+      "issue_refs": 5
+    },
+    "tests/test_security.py": {
+      "issue_refs": 14
+    },
+    "tests/test_selector.py": {
+      "issue_refs": 1
+    },
+    "tests/test_self_check.py": {
+      "issue_refs": 4
+    },
+    "tests/test_serial_phase.py": {
+      "issue_refs": 8
+    },
+    "tests/test_serve_api.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_audit.py": {
+      "issue_refs": 4
+    },
+    "tests/test_serve_api_authz.py": {
+      "issue_refs": 2
+    },
+    "tests/test_serve_api_dashboard.py": {
+      "issue_refs": 2
+    },
+    "tests/test_serve_api_dispatch.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_epics.py": {
+      "issue_refs": 15
+    },
+    "tests/test_serve_api_evidence.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_health.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_loops.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_models.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_pipeline.py": {
+      "issue_refs": 8
+    },
+    "tests/test_serve_api_prompt_profiles.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_prompts.py": {
+      "issue_refs": 4
+    },
+    "tests/test_serve_api_prs.py": {
+      "issue_refs": 2
+    },
+    "tests/test_serve_api_report.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_run_audit.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_api_run_requests.py": {
+      "issue_refs": 4
+    },
+    "tests/test_serve_api_verbs.py": {
+      "issue_refs": 6
+    },
+    "tests/test_serve_config_api.py": {
+      "issue_refs": 7
+    },
+    "tests/test_serve_readiness_key.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_route_guards.py": {
+      "history": 1,
+      "issue_refs": 2
+    },
+    "tests/test_serve_spa_fallback.py": {
+      "issue_refs": 1
+    },
+    "tests/test_serve_sweep.py": {
+      "issue_refs": 2
+    },
+    "tests/test_serve_watch.py": {
+      "issue_refs": 1
+    },
+    "tests/test_service_config.py": {
+      "issue_refs": 1
+    },
+    "tests/test_service_dashboard.py": {
+      "issue_refs": 13
+    },
+    "tests/test_service_dispatch_plan.py": {
+      "issue_refs": 9
+    },
+    "tests/test_service_epics.py": {
+      "issue_refs": 42
+    },
+    "tests/test_service_freshness.py": {
+      "issue_refs": 4
+    },
+    "tests/test_service_health.py": {
+      "issue_refs": 3
+    },
+    "tests/test_service_loops.py": {
+      "issue_refs": 3
+    },
+    "tests/test_service_prompts.py": {
+      "issue_refs": 1
+    },
+    "tests/test_service_run_detail_c3.py": {
+      "issue_refs": 2
+    },
+    "tests/test_service_runs.py": {
+      "issue_refs": 4
+    },
+    "tests/test_service_timestamp_wire.py": {
+      "issue_refs": 1
+    },
+    "tests/test_service_verbs.py": {
+      "issue_refs": 14
+    },
+    "tests/test_service_work.py": {
+      "issue_refs": 6
+    },
+    "tests/test_setup_agents_md.py": {
+      "issue_refs": 1
+    },
+    "tests/test_shard.py": {
+      "issue_refs": 2
+    },
+    "tests/test_signal_exit_reason.py": {
+      "issue_refs": 3
+    },
+    "tests/test_silence_on_failure.py": {
+      "issue_refs": 2
+    },
+    "tests/test_skills_catalog.py": {
+      "issue_refs": 7
+    },
+    "tests/test_skills_cli.py": {
+      "issue_refs": 1
+    },
+    "tests/test_sleep_patches_stay_local.py": {
+      "issue_refs": 1
+    },
+    "tests/test_spend_caps_one_source.py": {
+      "issue_refs": 1
+    },
+    "tests/test_staleness.py": {
+      "issue_refs": 9
+    },
+    "tests/test_standalone_review.py": {
+      "issue_refs": 5
+    },
+    "tests/test_stream_silence_watchdog.py": {
+      "issue_refs": 1
+    },
+    "tests/test_structured_completion.py": {
+      "issue_refs": 2
+    },
+    "tests/test_subprocess_utils.py": {
+      "issue_refs": 5
+    },
+    "tests/test_switchyard_accounting.py": {
+      "issue_refs": 3
+    },
+    "tests/test_switchyard_image_skip.py": {
+      "issue_refs": 6
+    },
+    "tests/test_switchyard_metrics.py": {
+      "issue_refs": 2
+    },
+    "tests/test_switchyard_sidecar.py": {
+      "issue_refs": 1
+    },
+    "tests/test_temp_root_isolation.py": {
+      "issue_refs": 1
+    },
+    "tests/test_test_integrity.py": {
+      "issue_refs": 1
+    },
+    "tests/test_test_quality_ratchet.py": {
+      "issue_refs": 2
+    },
+    "tests/test_tracked_tree.py": {
+      "issue_refs": 1
+    },
+    "tests/test_tracker_config_and_factory.py": {
+      "issue_refs": 1
+    },
+    "tests/test_tracking.py": {
+      "issue_refs": 1
+    },
+    "tests/test_transcript_metrics.py": {
+      "issue_refs": 1
+    },
+    "tests/test_triage_deny_by_default.py": {
+      "issue_refs": 1
+    },
+    "tests/test_triage_eval_graders.py": {
+      "issue_refs": 2
+    },
+    "tests/test_triage_needs_you.py": {
+      "issue_refs": 3
+    },
+    "tests/test_triage_plan.py": {
+      "issue_refs": 2
+    },
+    "tests/test_triage_policy.py": {
+      "issue_refs": 1
+    },
+    "tests/test_triage_record.py": {
+      "issue_refs": 4
+    },
+    "tests/test_triage_signals.py": {
+      "issue_refs": 1
+    },
+    "tests/test_triage_station.py": {
+      "issue_refs": 1
+    },
+    "tests/test_tui_app.py": {
+      "issue_refs": 2
+    },
+    "tests/test_tui_app_characterization.py": {
+      "issue_refs": 3
+    },
+    "tests/test_tui_holds_queue.py": {
+      "issue_refs": 7
+    },
+    "tests/test_tui_review.py": {
+      "issue_refs": 1
+    },
+    "tests/test_usage.py": {
+      "issue_refs": 1
+    },
+    "tests/test_verify_command.py": {
+      "issue_refs": 42
+    },
+    "tests/test_verify_frontend.py": {
+      "issue_refs": 12
+    },
+    "tests/test_verify_lease.py": {
+      "issue_refs": 1
+    },
+    "tests/test_verify_lease_launches.py": {
+      "issue_refs": 3
+    },
+    "tests/test_verify_ledger.py": {
+      "issue_refs": 2
+    },
+    "tests/test_verify_parity.py": {
+      "issue_refs": 24
+    },
+    "tests/test_verify_runs_cheap_gates_first.py": {
+      "issue_refs": 1
+    },
+    "tests/test_verify_selection.py": {
+      "issue_refs": 9
+    },
+    "tests/test_verify_shards.py": {
+      "issue_refs": 14
+    },
+    "tests/test_verify_tiered.py": {
+      "issue_refs": 1
+    },
+    "tests/test_w42_round14.py": {
+      "issue_refs": 1
+    },
+    "tests/test_w42_round17.py": {
+      "issue_refs": 1
+    },
+    "tests/test_w42_round19.py": {
+      "issue_refs": 2
+    },
+    "tests/test_w42_round20.py": {
+      "issue_refs": 2
+    },
+    "tests/test_w42_round21.py": {
+      "issue_refs": 13
+    },
+    "tests/test_w42_round23.py": {
+      "issue_refs": 1
+    },
+    "tests/test_w42_round25.py": {
+      "issue_refs": 1
+    },
+    "tests/test_w42_round26.py": {
+      "issue_refs": 1
+    },
+    "tests/test_wheel_contents.py": {
+      "issue_refs": 11
+    },
+    "tests/test_window_caps_every_run_kind.py": {
+      "issue_refs": 1
+    },
+    "tests/test_work_dirs.py": {
+      "issue_refs": 2
+    },
+    "tests/test_work_dirs_policy.py": {
+      "issue_refs": 1
+    },
+    "tests/test_workflow_agent_pr_gate.py": {
+      "issue_refs": 1
+    },
+    "tests/test_workflow_run_injection.py": {
+      "issue_refs": 1
+    },
+    "tests/test_worktree.py": {
+      "issue_refs": 41
+    },
+    "tests/test_www_command_index.py": {
+      "issue_refs": 1
+    },
+    "tests/test_zero_change_close.py": {
+      "issue_refs": 7
+    },
+    "tests/tui/test_palette.py": {
+      "issue_refs": 1
+    }
+  }
+}

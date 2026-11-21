@@ -419,6 +419,14 @@ def test_the_quality_ledger_names_no_file_the_snapshot_drops() -> None:
     assert dropped == []
 
 
+def test_the_comment_ledger_names_no_file_the_snapshot_drops() -> None:
+    """The snapshot's CI runs the comment ratchet, which fails on a ledger
+    entry whose file is gone."""
+    ledger = json.loads((REPO_ROOT / "kew/ratchets/comment_history.json").read_text())
+    dropped = sorted(name for name in ledger["files"] if _dropped(f"kew/{name}"))
+    assert dropped == []
+
+
 def test_a_directory_line_drops_the_files_under_it() -> None:
     assert _dropped(".claude/skills/ship-pr/SKILL.md")
     assert not _dropped(".claude/skills/ship-pr-notes.md")

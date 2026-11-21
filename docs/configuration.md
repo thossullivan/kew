@@ -1477,6 +1477,7 @@ Canonical publication is the default.
 publish = "canonical"  # default: "canonical" or "checkout"
 shadow = false          # default
 shadow_evidence = 10    # default
+pr_title_style = "sentence"  # default: "sentence" or "conventional"
 ```
 
 - **`publish`** (default `"canonical"`) — extract and filter checkout files,
@@ -1490,6 +1491,17 @@ shadow_evidence = 10    # default
   symlinks, gitlinks, mode escalations and `.gitattributes` drivers, and it
   holds protected paths for a person. Other Git in the checkout, such as
   fetching the remote head, still reads the checkout's own configuration.
+- **`pr_title_style`** (default `"sentence"`) — how kew titles the PRs it
+  opens, and so their squash commits on main. `"sentence"` asks the agent for
+  one plain sentence saying what the product now does. `"conventional"` is for
+  a repo whose CI requires conventional-commit titles: the dispatch prompt asks
+  for `PR title: <type>(<scope>): <summary>`, where `<type>` is one of `feat`,
+  `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`, `style` or
+  `revert` and the scope is optional. A conforming title is kept as written;
+  when the report has none, the PR is titled `fix: <issue title>`, or the issue
+  title as it is when it already conforms. A loop's goal-line title gets the
+  same `fix: ` prefix. Remediation, `kew resolve` and CI-fix runs push to the
+  existing PR and keep its title. Any other value fails config load.
 - **`shadow`** (default `false`) — compare the broker tree against checkout
   publication only when `publish = "checkout"`. Canonical mode does not produce
   comparison evidence. It emits `shadow.skipped` with reason
@@ -1631,6 +1643,7 @@ enabled = "auto"                                   # "auto" (default) | true | f
 runtime = "docker"                                 # "docker" (default) | "podman" | "openshell"
 image = "kew-agent:docker-236e8d2ed49d"            # pinned Claude Code image, built locally
 network = "allowlist"                              # container network mode ("allowlist" default | "open" opt-out)
+acknowledge_open_egress = false                    # admit credentialed containers on observed open egress
 proxy_environment = "none"                         # "none" (default) | "inherit"
 host = "local"                                     # where agent containers run: "local" (default) | "gcp"
 # placement = "prefer-gcp"                          # fleet placement policy: unset = whatever `host` says | "local" | "gcp" | "prefer-gcp"
@@ -1929,8 +1942,23 @@ inert under `docker` and `podman`.
       `kew sandbox build` checks for this network but never changes it.
       Provision the network with restrictions for approved inference endpoints and GitHub.
       A plain bridge has unrestricted egress and is not an allowlist.
-    - `"open"` — explicit opt-out to full egress (omits `--network`; the Docker default bridge is used). Required until you configure the `kew-allowlist` network. **With open egress a prompt-injected agent could exfiltrate the inference credential via outbound HTTP** — see [SECURITY.md](https://github.com/thossullivan/kew/blob/main/SECURITY.md) for the threat model.
-    - Any other value — passed through as `--network <value>` for custom Docker network names.
+    - `"open"` — omits `--network` and uses the runtime's default bridge.
+      A credentialed container refuses this route unless `acknowledge_open_egress = true`.
+      Open egress lets a prompt-injected agent exfiltrate its inference credential.
+    - `"none"` — no network at all. The agent cannot reach its inference API on the direct route.
+    - Any other value — passed through as `--network <value>`, such as a custom network name, `host`, or `container:<id>`.
+      The open-egress rule below applies to it.
+- **`acknowledge_open_egress`** (default `false`) — admits a credentialed container whose network kew cannot show closed.
+  Closed means the attached network's inspect reports `Internal` true, or a `null`/`none` driver.
+  Every other shape needs this key: `network = "open"`, `host`, a non-internal bridge (the shape `kew sandbox network` creates), macvlan, ipvlan, overlay, `container:<id>`, and a network kew cannot read.
+  Without it, dispatch, the adversarial reviewer, review remediation, `kew resolve`, `kew ci-fix` and epic planning refuse with `open_egress_unacknowledged`, and `kew doctor` fails `allowlist-network`.
+  A host firewall that filters the network is invisible to kew, so it still needs the acknowledgement.
+  A dispatch placed on a `[sandbox] host` instance is checked against the instance's network, not this machine's.
+  The OpenShell runtime attaches no container network and is not checked.
+  Three fixes clear the refusal:
+    - Route inference through the Switchyard sidecar. kew verifies its egress, and its worker sits on a per-run internal network, so it needs no acknowledgement.
+    - Attach an internal network, but only where inference does not need the direct route. An internal network has no outbound route, so a direct-route agent cannot reach its inference API.
+    - Set `acknowledge_open_egress = true`. An admitted launch still prints the credential names and the exfiltration warning.
 - **`proxy_environment`** (default `"none"`) — controls ten proxy variables in agent containers: the six inheritable names below, plus `FTP_PROXY`, `ALL_PROXY`, `ftp_proxy`, and `all_proxy`, which kew always assigns empty.
     - `"none"` — explicitly assigns empty values to `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `http_proxy`, `https_proxy`, and `no_proxy`.
       These assignments override Docker client proxy configuration and Podman host proxy forwarding for these names.

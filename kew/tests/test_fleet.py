@@ -876,3 +876,71 @@ def test_fleet_stop_probes_the_runtime_the_run_launched_under(
         assert ["docker", "kill", identity] in calls
     else:
         assert calls == []
+
+
+_FAKE_RUNTIME = """#!/bin/sh
+state="$(dirname "$0")"
+echo "$*" >> "$state/calls"
+case "$1" in
+  kill) touch "$state/killed" ;;
+  inspect)
+    if [ -e "$state/killed" ]; then running=false; else running=true; fi
+    echo "{identity} /kew-42 $running" ;;
+esac
+"""
+
+
+@patch("kew.fleet.reset_issue_to_ready")
+@pytest.mark.parametrize("binary", ["present", "missing"])
+def test_kill_confirms_a_contained_stop_on_the_configured_runtime(
+    mock_reset, tmp_path, monkeypatch, binary
+):
+    """`kew kill` and the console's stop resolve the configured runtime
+    themselves: no preflight has registered it, so the stop is signalled,
+    re-inspected and confirmed. A host without that runtime still leaves the
+    stop unproven.
+    """
+    from kew import subprocess_utils
+    from kew.service.fleet import stop_run
+    from kew.stop_recovery import CONTAINER_INSPECT_FORMAT
+
+    identity = "a" * 64
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    path = [d for d in os.environ["PATH"].split(os.pathsep) if d]
+    if binary == "present":
+        docker = bin_dir / "docker"
+        docker.write_text(_FAKE_RUNTIME.format(identity=identity))
+        docker.chmod(0o755)
+        path.insert(0, str(bin_dir))
+    else:
+        path = [d for d in path if not (Path(d) / "docker").exists()]
+    monkeypatch.setenv("PATH", os.pathsep.join(path))
+    for tool in list(subprocess_utils.TOOL_PATHS):
+        monkeypatch.delitem(subprocess_utils.TOOL_PATHS, tool)
+    config = _make_config(tmp_path)
+    assert config.sandbox.runtime == "docker"
+    record = _pending_record(42, 2**31 - 1)
+    record.container_name = "kew-42"
+    record.container_id = identity
+    record.container_runtime = "docker"
+    db = tmp_path / "logs" / "dispatch.db"
+    db.parent.mkdir()
+    with SqliteRunStore(str(db)) as store:
+        store.save(record)
+        result = stop_run(store, "run-42", config)
+        status = store.get("run-42").status
+    calls = bin_dir / "calls"
+    if binary == "present":
+        assert calls.exists(), f"the runtime was never run: {result.message}"
+        inspect = f"inspect --format {CONTAINER_INSPECT_FORMAT} {identity}"
+        assert calls.read_text().splitlines() == [
+            inspect,
+            f"kill {identity}",
+            inspect,
+            inspect,
+        ]
+        assert status == "killed", result.message
+    else:
+        assert not calls.exists()
+        assert status == "pending", result.message
